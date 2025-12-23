@@ -33,6 +33,7 @@ export default function NotebookPage() {
   }, [activeTabId, notebookId, tabs]);
 
   const loadTabs = async () => {
+    if (!user) return;
     try {
       const tabsData = await getTabs(notebookId);
       setTabs(tabsData);
@@ -43,7 +44,7 @@ export default function NotebookPage() {
         
         // If it's a staple note, open it directly
         if (scratchTab.isStaple && scratchTab.name !== 'All Notes' && scratchTab.name !== 'More') {
-          const allNotes = await getNotes(notebookId);
+          const allNotes = await getNotes(notebookId, undefined, user.uid);
           const stapleNote = allNotes.find((n) => n.title === scratchTab.name);
           if (stapleNote) {
             router.push(`/dashboard/notebook/${notebookId}/note/${stapleNote.id}`);
@@ -65,7 +66,7 @@ export default function NotebookPage() {
       const activeTab = tabs.find((t) => t.id === activeTabId);
       if (activeTab?.isStaple && activeTab.name !== 'All Notes' && activeTab.name !== 'More') {
         // Find the staple note by title
-        const allNotes = await getNotes(notebookId);
+        const allNotes = await getNotes(notebookId, undefined, user.uid);
         const stapleNote = allNotes.find((n) => n.title === activeTab.name);
         if (stapleNote) {
           // Open the note directly
@@ -75,7 +76,7 @@ export default function NotebookPage() {
       }
       
       // For "All Notes" or regular tabs, show list
-      const notesData = await getNotes(notebookId, activeTabId);
+      const notesData = await getNotes(notebookId, activeTabId, user.uid);
       setNotes(notesData);
     } catch (error) {
       console.error('Error loading notes:', error);
@@ -134,14 +135,24 @@ export default function NotebookPage() {
       setActiveTabId(tabId);
       await loadNotes(); // This will redirect to the note
     } else {
+      // Regular note tabs - find the note and open it directly
       setActiveTabId(tabId);
+      try {
+        const notesData = await getNotes(notebookId, tabId, user?.uid);
+        if (notesData.length > 0) {
+          // Open the first note in this tab
+          router.push(`/dashboard/notebook/${notebookId}/note/${notesData[0].id}`);
+        }
+      } catch (error) {
+        console.error('Error loading note for tab:', error);
+      }
     }
   };
 
   const loadAllNotes = async () => {
     if (!user || !notebookId) return;
     try {
-      const notesData = await getNotes(notebookId);
+      const notesData = await getNotes(notebookId, undefined, user.uid);
       setNotes(notesData);
     } catch (error) {
       console.error('Error loading all notes:', error);

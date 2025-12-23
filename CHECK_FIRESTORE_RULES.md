@@ -35,41 +35,61 @@ service cloud.firestore {
 ```
 
 ## Step 4: Update Rules (If Needed)
-If your rules don't allow **creating** new documents, replace them with the rules from `FIRESTORE_RULES.txt`:
+Replace your rules with the updated rules from `FIRESTORE_RULES.txt` that allow list queries:
 
 ```javascript
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Notebooks: Users can create and manage their own notebooks
-    match /notebooks/{notebookId} {
-      allow read: if request.auth != null && 
-        request.auth.uid == resource.data.userId;
-      allow create: if request.auth != null && 
-        request.auth.uid == request.resource.data.userId;
-      allow update, delete: if request.auth != null && 
-        request.auth.uid == resource.data.userId;
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
     }
     
-    // Tabs: Users can create and manage tabs
+    // Helper function to check if user owns the resource
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Notebooks: Users can create and manage their own notebooks
+    match /notebooks/{notebookId} {
+      allow read: if isAuthenticated() && 
+        (resource == null || isOwner(resource.data.userId));
+      allow create: if isAuthenticated() && 
+        isOwner(request.resource.data.userId);
+      allow update, delete: if isAuthenticated() && 
+        isOwner(resource.data.userId);
+      // Allow list queries for authenticated users (will filter by userId in query)
+      allow list: if isAuthenticated();
+    }
+    
+    // Tabs: Users can create and manage tabs (they're linked to notebooks)
+    // Since tabs are linked to notebooks, we allow authenticated users to read/write
     match /tabs/{tabId} {
-      allow read, write: if request.auth != null;
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update, delete: if isAuthenticated();
+      // Allow list queries for authenticated users
+      allow list: if isAuthenticated();
     }
     
     // Notes: Users can create and manage their own notes
     match /notes/{noteId} {
-      allow read: if request.auth != null && 
-        request.auth.uid == resource.data.userId;
-      allow create: if request.auth != null && 
-        request.auth.uid == request.resource.data.userId;
-      allow update, delete: if request.auth != null && 
-        request.auth.uid == resource.data.userId;
+      allow read: if isAuthenticated() && 
+        (resource == null || isOwner(resource.data.userId));
+      allow create: if isAuthenticated() && 
+        isOwner(request.resource.data.userId);
+      allow update, delete: if isAuthenticated() && 
+        isOwner(resource.data.userId);
+      // Allow list queries for authenticated users (will filter by userId in query)
+      allow list: if isAuthenticated();
     }
     
     // User Preferences: Users can manage their own preferences
     match /userPreferences/{userId} {
-      allow read, write: if request.auth != null && 
+      allow read, write: if isAuthenticated() && 
         request.auth.uid == userId;
+      allow list: if isAuthenticated();
     }
   }
 }

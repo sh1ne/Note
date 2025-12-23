@@ -1,6 +1,7 @@
 'use client';
 
 import { useEditor, EditorContent } from '@tiptap/react';
+import { useEffect } from 'react';
 import StarterKit from '@tiptap/starter-kit';
 import TextAlign from '@tiptap/extension-text-align';
 import TextStyle from '@tiptap/extension-text-style';
@@ -20,12 +21,14 @@ interface RichTextEditorProps {
   content: string;
   onChange: (content: string, plainText: string) => void;
   placeholder?: string;
+  onEditorReady?: (editor: any) => void;
 }
 
 export default function RichTextEditor({
   content,
   onChange,
   placeholder = 'Start typing...',
+  onEditorReady,
 }: RichTextEditorProps) {
   const editor = useEditor({
     extensions: [
@@ -65,19 +68,28 @@ export default function RichTextEditor({
     },
     editorProps: {
       attributes: {
-        class: 'prose prose-invert max-w-none focus:outline-none min-h-[200px] p-4',
+        class: 'prose prose-invert max-w-none focus:outline-none min-h-[400px] text-white',
       },
     },
   });
+
+  // Expose editor to parent component
+  useEffect(() => {
+    if (editor && onEditorReady) {
+      onEditorReady(editor);
+    }
+  }, [editor, onEditorReady]);
 
   if (!editor) {
     return null;
   }
 
   return (
-    <div className="bg-black text-white">
+    <div className="bg-black text-white min-h-[calc(100vh-200px)]">
       <EditorToolbar editor={editor} />
-      <EditorContent editor={editor} />
+      <div className="p-4">
+        <EditorContent editor={editor} />
+      </div>
     </div>
   );
 }
@@ -88,29 +100,33 @@ function EditorToolbar({ editor }: { editor: any }) {
   }
 
   return (
-    <div className="flex flex-wrap gap-2 p-2 border-b border-gray-800 bg-gray-900">
+    <div className="flex flex-wrap gap-2 p-2 border-b border-gray-800 bg-gray-900 sticky top-0 z-10">
       {/* Text Formatting */}
       <button
         onClick={() => editor.chain().focus().toggleBold().run()}
-        className={`px-3 py-1 rounded ${editor.isActive('bold') ? 'bg-gray-700' : ''}`}
+        className={`px-3 py-1 rounded transition-colors ${editor.isActive('bold') ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-800'}`}
+        title="Bold"
       >
         <strong>B</strong>
       </button>
       <button
         onClick={() => editor.chain().focus().toggleItalic().run()}
-        className={`px-3 py-1 rounded ${editor.isActive('italic') ? 'bg-gray-700' : ''}`}
+        className={`px-3 py-1 rounded transition-colors ${editor.isActive('italic') ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-800'}`}
+        title="Italic"
       >
         <em>I</em>
       </button>
       <button
         onClick={() => editor.chain().focus().toggleUnderline().run()}
-        className={`px-3 py-1 rounded ${editor.isActive('underline') ? 'bg-gray-700' : ''}`}
+        className={`px-3 py-1 rounded transition-colors ${editor.isActive('underline') ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-800'}`}
+        title="Underline"
       >
         <u>U</u>
       </button>
       <button
         onClick={() => editor.chain().focus().toggleStrike().run()}
-        className={`px-3 py-1 rounded ${editor.isActive('strike') ? 'bg-gray-700' : ''}`}
+        className={`px-3 py-1 rounded transition-colors ${editor.isActive('strike') ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-800'}`}
+        title="Strikethrough"
       >
         <s>S</s>
       </button>
@@ -118,19 +134,22 @@ function EditorToolbar({ editor }: { editor: any }) {
       {/* Lists */}
       <button
         onClick={() => editor.chain().focus().toggleBulletList().run()}
-        className={`px-3 py-1 rounded ${editor.isActive('bulletList') ? 'bg-gray-700' : ''}`}
+        className={`px-3 py-1 rounded transition-colors ${editor.isActive('bulletList') ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-800'}`}
+        title="Bullet List"
       >
         •
       </button>
       <button
         onClick={() => editor.chain().focus().toggleOrderedList().run()}
-        className={`px-3 py-1 rounded ${editor.isActive('orderedList') ? 'bg-gray-700' : ''}`}
+        className={`px-3 py-1 rounded transition-colors ${editor.isActive('orderedList') ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-800'}`}
+        title="Numbered List"
       >
         1.
       </button>
       <button
         onClick={() => editor.chain().focus().toggleTaskList().run()}
-        className={`px-3 py-1 rounded ${editor.isActive('taskList') ? 'bg-gray-700' : ''}`}
+        className={`px-3 py-1 rounded transition-colors ${editor.isActive('taskList') ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-800'}`}
+        title="Task List"
       >
         ☑
       </button>
@@ -138,19 +157,22 @@ function EditorToolbar({ editor }: { editor: any }) {
       {/* Alignment */}
       <button
         onClick={() => editor.chain().focus().setTextAlign('left').run()}
-        className={`px-3 py-1 rounded ${editor.isActive({ textAlign: 'left' }) ? 'bg-gray-700' : ''}`}
+        className={`px-3 py-1 rounded transition-colors ${editor.isActive({ textAlign: 'left' }) ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-800'}`}
+        title="Align Left"
       >
         ⬅
       </button>
       <button
         onClick={() => editor.chain().focus().setTextAlign('center').run()}
-        className={`px-3 py-1 rounded ${editor.isActive({ textAlign: 'center' }) ? 'bg-gray-700' : ''}`}
+        className={`px-3 py-1 rounded transition-colors ${editor.isActive({ textAlign: 'center' }) ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-800'}`}
+        title="Align Center"
       >
         ⬌
       </button>
       <button
         onClick={() => editor.chain().focus().setTextAlign('right').run()}
-        className={`px-3 py-1 rounded ${editor.isActive({ textAlign: 'right' }) ? 'bg-gray-700' : ''}`}
+        className={`px-3 py-1 rounded transition-colors ${editor.isActive({ textAlign: 'right' }) ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-800'}`}
+        title="Align Right"
       >
         ➡
       </button>
@@ -159,14 +181,16 @@ function EditorToolbar({ editor }: { editor: any }) {
       <button
         onClick={() => editor.chain().focus().undo().run()}
         disabled={!editor.can().undo()}
-        className="px-3 py-1 rounded disabled:opacity-50"
+        className="px-3 py-1 rounded transition-colors disabled:opacity-50 text-gray-300 hover:bg-gray-800"
+        title="Undo"
       >
         ↶
       </button>
       <button
         onClick={() => editor.chain().focus().redo().run()}
         disabled={!editor.can().redo()}
-        className="px-3 py-1 rounded disabled:opacity-50"
+        className="px-3 py-1 rounded transition-colors disabled:opacity-50 text-gray-300 hover:bg-gray-800"
+        title="Redo"
       >
         ↷
       </button>

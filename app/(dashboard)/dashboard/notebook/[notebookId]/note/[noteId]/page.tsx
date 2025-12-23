@@ -24,6 +24,7 @@ export default function NoteEditorPage() {
   const [loading, setLoading] = useState(true);
   const [content, setContent] = useState('');
   const [plainText, setPlainText] = useState('');
+  const [editor, setEditor] = useState<any>(null);
 
   useEffect(() => {
     if (user && noteId) {
@@ -63,7 +64,16 @@ export default function NoteEditorPage() {
 
       // Auto-generate title from first line
       const firstLine = newPlainText.split('\n')[0].trim();
-      const title = firstLine.length > 0 ? firstLine.substring(0, 50) : '';
+      const title = firstLine.length > 0 ? firstLine.substring(0, 50) : 'Untitled Note';
+
+      // Update note title in state
+      setNote({
+        ...note,
+        title,
+        content: newContent,
+        contentPlain: newPlainText,
+        updatedAt: new Date(),
+      });
 
       // Save locally immediately
       const updatedNote: Note = {
@@ -87,6 +97,12 @@ export default function NoteEditorPage() {
             contentPlain: newPlainText,
             title,
           });
+          
+          // Update tab name if it's not a staple note
+          if (note.tabId && note.tabId !== 'staple') {
+            const { updateTab } = await import('@/lib/firebase/firestore');
+            await updateTab(note.tabId, { name: title || 'Untitled Note' });
+          }
         } catch (error) {
           // If offline or error, add to sync queue
           console.error('Error syncing note:', error);
@@ -141,61 +157,87 @@ export default function NoteEditorPage() {
     );
   }
 
+  const formatDate = (date: Date) => {
+    return date.toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric', 
+      year: 'numeric' 
+    });
+  };
+
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-black text-white pb-16">
       {/* Header Bar */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-800">
-        <div className="flex items-center gap-4">
-          <button
-            onClick={handleBack}
-            className="text-white hover:text-gray-400"
-            aria-label="Back"
-          >
-            ←
-          </button>
-          <button
-            onClick={handleUndo}
-            className="text-white hover:text-gray-400"
-            aria-label="Undo"
-          >
-            ↶
-          </button>
-          <button
-            onClick={handleRedo}
-            className="text-white hover:text-gray-400"
-            aria-label="Redo"
-          >
-            ↷
-          </button>
+      <div className="sticky top-0 bg-black border-b border-gray-800 z-20">
+        <div className="flex items-center justify-between p-4">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={handleBack}
+              className="text-white hover:text-gray-400 transition-colors text-xl"
+              title="Back"
+              aria-label="Back"
+            >
+              ←
+            </button>
+            <button
+              onClick={() => {
+                if (editor) {
+                  editor.chain().focus().undo().run();
+                }
+              }}
+              disabled={editor && !editor.can().undo()}
+              className="text-white hover:text-gray-400 transition-colors disabled:opacity-50"
+              title="Undo"
+              aria-label="Undo"
+            >
+              ↶
+            </button>
+            <button
+              onClick={() => {
+                if (editor) {
+                  editor.chain().focus().redo().run();
+                }
+              }}
+              disabled={editor && !editor.can().redo()}
+              className="text-white hover:text-gray-400 transition-colors disabled:opacity-50"
+              title="Redo"
+              aria-label="Redo"
+            >
+              ↷
+            </button>
+          </div>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => {
+                // Share functionality
+                alert('Share feature coming soon');
+              }}
+              className="text-white hover:text-gray-400 transition-colors"
+              title="Share"
+              aria-label="Share"
+            >
+              ↗
+            </button>
+            <button
+              onClick={() => {
+                // Find functionality
+                alert('Find feature coming soon');
+              }}
+              className="text-white hover:text-gray-400 transition-colors"
+              title="Find"
+              aria-label="Find"
+            >
+              🔍
+            </button>
+          </div>
         </div>
-        <div className="flex items-center gap-4">
-          <button
-            onClick={() => {
-              // Share functionality
-              alert('Share feature coming soon');
-            }}
-            className="text-white hover:text-gray-400"
-            aria-label="Share"
-          >
-            ↗
-          </button>
-          <button
-            onClick={() => {
-              // Find functionality
-              alert('Find feature coming soon');
-            }}
-            className="text-white hover:text-gray-400"
-            aria-label="Find"
-          >
-            🔍
-          </button>
-          <button
-            onClick={handleDelete}
-            className="text-red-500 hover:text-red-600"
-            aria-label="Delete"
-          >
-            🗑
-          </button>
+      </div>
+
+      {/* Note Title and Date */}
+      <div className="bg-gray-900 border-b border-gray-800 px-4 py-3">
+        <div className="max-w-4xl mx-auto">
+          <h1 className="text-2xl font-bold mb-2">{note.title || 'Untitled Note'}</h1>
+          <p className="text-sm text-gray-400">{formatDate(note.updatedAt)}</p>
         </div>
       </div>
 
@@ -205,6 +247,7 @@ export default function NoteEditorPage() {
           content={content}
           onChange={handleContentChange}
           placeholder="Start typing..."
+          onEditorReady={setEditor}
         />
       </div>
     </div>

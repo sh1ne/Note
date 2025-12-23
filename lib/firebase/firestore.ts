@@ -116,23 +116,24 @@ export const createNote = async (note: Omit<Note, 'id'>) => {
 
 export const getNotes = async (
   notebookId: string,
-  tabId?: string
+  tabId?: string,
+  userId?: string
 ): Promise<Note[]> => {
-  let q = query(
-    collection(db, 'notes'),
+  // Build query with userId to ensure security rules can validate
+  const constraints = [
     where('notebookId', '==', notebookId),
     where('deletedAt', '==', null)
-  );
+  ];
   
-  if (tabId && tabId !== 'staple') {
-    q = query(
-      collection(db, 'notes'),
-      where('notebookId', '==', notebookId),
-      where('tabId', '==', tabId),
-      where('deletedAt', '==', null)
-    );
+  if (userId) {
+    constraints.push(where('userId', '==', userId));
   }
   
+  if (tabId && tabId !== 'staple') {
+    constraints.push(where('tabId', '==', tabId));
+  }
+  
+  const q = query(collection(db, 'notes'), ...constraints);
   const snapshot = await getDocs(q);
   const notes = snapshot.docs.map((doc) => ({
     id: doc.id,
