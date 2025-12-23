@@ -121,6 +121,7 @@ export default function SignupPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              autoComplete="email"
               className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded text-white"
             />
           </div>
@@ -136,6 +137,7 @@ export default function SignupPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 minLength={6}
+                autoComplete="new-password"
                 className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded text-white pr-10"
               />
               <button
