@@ -106,23 +106,17 @@ export default function NoteEditorPage() {
         ? firstLine.substring(0, 50) 
         : (titleValue || note.title || 'Untitled Note');
 
-      // Update note title in state
-      setNote({
-        ...note,
-        title,
-        content: newContent,
-        contentPlain: newPlainText,
-        updatedAt: new Date(),
-      });
-
-      // Save locally immediately
+      // Update note in state - ensure we're updating the actual note object
       const updatedNote: Note = {
         ...note,
+        title,
         content: newContent,
         contentPlain: newPlainText,
-        title,
         updatedAt: new Date(),
       };
+      setNote(updatedNote);
+
+      // Save locally immediately
       saveNoteLocally(updatedNote);
 
       // Debounce cloud sync (2-3 seconds)
@@ -379,6 +373,7 @@ export default function NoteEditorPage() {
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
                 <path d="M12 8v8M8 12h8"/>
+                <path d="M12 3v3M12 18v3"/>
               </svg>
             </button>
             <button

@@ -16,12 +16,15 @@ export default function BottomNav({
   onTabClick,
   onCreateNote,
 }: BottomNavProps) {
-  // Filter out non-staple tabs that aren't "All Notes" or "More" - these are individual note tabs
-  // Only show staple tabs (Scratch, Now, etc.) and special tabs (All Notes, More)
-  const filteredTabs = tabs.filter((tab) => 
-    tab.isStaple || tab.name === 'All Notes' || tab.name === 'More'
-  );
-  const sortedTabs = [...filteredTabs].sort((a, b) => a.order - b.order);
+  // Show staple tabs (Scratch, Now, etc.) and special tabs (All Notes, More)
+  // Also show non-staple tabs (regular notes) - they should appear before staple tabs
+  const stapleTabs = tabs.filter((tab) => tab.isStaple);
+  const regularTabs = tabs.filter((tab) => !tab.isStaple);
+  
+  // Sort: regular tabs first (order 0), then staple tabs
+  const sortedRegularTabs = [...regularTabs].sort((a, b) => a.order - b.order);
+  const sortedStapleTabs = [...stapleTabs].sort((a, b) => a.order - b.order);
+  const sortedTabs = [...sortedRegularTabs, ...sortedStapleTabs];
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-black border-t border-gray-800 z-50">

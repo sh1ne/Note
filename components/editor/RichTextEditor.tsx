@@ -37,6 +37,17 @@ export default function RichTextEditor({
       StarterKit.configure({
         // Exclude codeBlock from StarterKit since we're not using it
         codeBlock: false,
+        // Ensure bulletList and orderedList are enabled
+        bulletList: {
+          HTMLAttributes: {
+            class: 'tiptap-bullet-list',
+          },
+        },
+        orderedList: {
+          HTMLAttributes: {
+            class: 'tiptap-ordered-list',
+          },
+        },
       }),
       TextAlign.configure({
         types: ['heading', 'paragraph'],
@@ -155,6 +166,23 @@ export default function RichTextEditor({
         .tiptap ul[data-type="taskList"] p {
           margin: 0;
           display: inline;
+        }
+        /* Bullet and ordered list styling */
+        .tiptap ul:not([data-type="taskList"]) {
+          list-style-type: disc;
+          padding-left: 1.5rem;
+          margin: 0.5rem 0;
+        }
+        .tiptap ul:not([data-type="taskList"]) li {
+          margin: 0.25rem 0;
+        }
+        .tiptap ol {
+          list-style-type: decimal;
+          padding-left: 1.5rem;
+          margin: 0.5rem 0;
+        }
+        .tiptap ol li {
+          margin: 0.25rem 0;
         }
       `}</style>
     </div>

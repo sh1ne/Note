@@ -38,13 +38,18 @@ export default function NotebookPage() {
       const tabsData = await getTabs(notebookId);
       setTabs(tabsData);
       if (tabsData.length > 0 && !activeTabId) {
-        // Set first tab (Scratch) as active and open it immediately
+        // Set "All Notes" as default active tab, or Scratch if All Notes doesn't exist
+        const allNotesTab = tabsData.find((t) => t.name === 'All Notes');
         const scratchTab = tabsData.find((t) => t.name === 'Scratch') || tabsData[0];
-        setActiveTabId(scratchTab.id);
+        const defaultTab = allNotesTab || scratchTab;
+        setActiveTabId(defaultTab.id);
         
-        // If it's a staple note, ensure it exists and open it directly
-        if (scratchTab.isStaple && scratchTab.name !== 'All Notes' && scratchTab.name !== 'More') {
-          await ensureStapleNoteExists(scratchTab.name, scratchTab.id);
+        // If it's All Notes, load all notes
+        if (defaultTab.name === 'All Notes') {
+          await loadAllNotes();
+        } else if (defaultTab.isStaple && defaultTab.name !== 'All Notes' && defaultTab.name !== 'More') {
+          // If it's a staple note, ensure it exists and open it directly
+          await ensureStapleNoteExists(defaultTab.name, defaultTab.id);
         }
       }
     } catch (error) {
@@ -161,9 +166,10 @@ export default function NotebookPage() {
   const handleTabClick = async (tabId: string) => {
     const tab = tabs.find((t) => t.id === tabId);
     if (tab?.name === 'All Notes') {
-      // Load all notes
+      // Load all notes and stay on this page
       setActiveTabId(tabId);
       await loadAllNotes();
+      // Don't redirect - stay on the notebook page to show the list
     } else if (tab?.name === 'More') {
       router.push(`/dashboard/notebook/${notebookId}/more`);
     } else if (tab?.isStaple && tab.name !== 'All Notes' && tab.name !== 'More') {
@@ -223,6 +229,14 @@ export default function NotebookPage() {
             notebookId={notebookId}
             onNoteClick={(noteId) => {
               router.push(`/dashboard/notebook/${notebookId}/note/${noteId}`);
+            }}
+            onNoteDeleted={() => {
+              // Reload notes after deletion
+              if (activeTabId) {
+                loadNotes();
+              } else {
+                loadAllNotes();
+              }
             }}
           />
         )}
