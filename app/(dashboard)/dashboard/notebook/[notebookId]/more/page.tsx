@@ -4,10 +4,62 @@ import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { logOut } from '@/lib/firebase/auth';
 import { useTheme } from '@/contexts/ThemeContext';
-import { getNotebooks } from '@/lib/firebase/firestore';
+import { getNotebooks, getNotes } from '@/lib/firebase/firestore';
 import { Notebook } from '@/lib/types';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+
+function StorageUsageDisplay({ userId }: { userId: string }) {
+  const [usage, setUsage] = useState<{ notes: number; estimatedSize: string } | null>(null);
+  const params = useParams();
+  const notebookId = params.notebookId as string;
+
+  useEffect(() => {
+    if (userId && notebookId) {
+      calculateStorage();
+    }
+  }, [userId, notebookId]);
+
+  const calculateStorage = async () => {
+    try {
+      const notes = await getNotes(notebookId, undefined, userId);
+      // Rough estimate: each note ~1-5KB, images are stored separately
+      const estimatedBytes = notes.length * 3000; // 3KB average per note
+      const estimatedMB = (estimatedBytes / (1024 * 1024)).toFixed(2);
+      setUsage({
+        notes: notes.length,
+        estimatedSize: estimatedMB,
+      });
+    } catch (error) {
+      console.error('Error calculating storage:', error);
+    }
+  };
+
+  if (!usage) {
+    return (
+      <>
+        <p className="text-gray-400 text-sm">Calculating...</p>
+        <p className="text-xs text-gray-500 mt-2">Estimating storage usage</p>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <div className="space-y-2">
+        <div className="flex justify-between items-center">
+          <span className="text-sm text-gray-300">Notes:</span>
+          <span className="text-sm text-white font-semibold">{usage.notes}</span>
+        </div>
+        <div className="flex justify-between items-center">
+          <span className="text-sm text-gray-300">Estimated Size:</span>
+          <span className="text-sm text-white font-semibold">{usage.estimatedSize} MB</span>
+        </div>
+      </div>
+      <p className="text-xs text-gray-500 mt-2">Note: This is an estimate. Images are stored separately.</p>
+    </>
+  );
+}
 
 export default function MorePage() {
   const params = useParams();
@@ -79,26 +131,114 @@ export default function MorePage() {
         {/* Theme Selection */}
         <div className="bg-gray-900 rounded-lg p-4">
           <h2 className="text-lg font-semibold mb-3">Theme</h2>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="flex gap-2">
             {(['dark', 'light', 'purple', 'blue'] as const).map((t) => (
               <button
                 key={t}
                 onClick={() => setTheme(t)}
-                className={`p-3 rounded border transition-colors ${
+                className={`w-12 h-12 rounded border-2 transition-colors ${
                   theme === t
-                    ? 'border-white bg-gray-800 text-white'
-                    : 'border-gray-700 bg-gray-800 text-gray-300 hover:border-gray-600'
+                    ? 'border-white scale-110'
+                    : 'border-gray-700 hover:border-gray-600'
+                } ${
+                  t === 'dark' ? 'bg-black' :
+                  t === 'light' ? 'bg-white' :
+                  t === 'purple' ? 'bg-purple-600' :
+                  'bg-blue-600'
                 }`}
-              >
-                {t.charAt(0).toUpperCase() + t.slice(1)}
-              </button>
+                title={t.charAt(0).toUpperCase() + t.slice(1)}
+              />
             ))}
           </div>
         </div>
 
         {/* Notebooks */}
         <div className="bg-gray-900 rounded-lg p-4">
-          <h2 className="text-lg font-semibold mb-3">Notebooks</h2>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-lg font-semibold">Notebooks</h2>
+            <button
+              onClick={async () => {
+                const notebookName = prompt('Enter notebook name:');
+                if (notebookName && notebookName.trim()) {
+                  try {
+                    const { createNotebook, createTab, createNote, updateUserPreferences } = await import('@/lib/firebase/firestore');
+                    const newNotebookId = await createNotebook({
+                      userId: user!.uid,
+                      name: notebookName.trim(),
+                      createdAt: new Date(),
+                      updatedAt: new Date(),
+                      isDefault: false,
+                    });
+
+                    // Create default tabs for new notebook
+                    const STAPLE_NOTES = [
+                      { name: 'Scratch', icon: '✏️', order: 1 },
+                      { name: 'Now', icon: '⏰', order: 2 },
+                      { name: 'Short-Term', icon: '📅', order: 3 },
+                      { name: 'Long-term', icon: '📆', order: 4 },
+                    ];
+
+                    for (const staple of STAPLE_NOTES) {
+                      await createNote({
+                        userId: user!.uid,
+                        notebookId: newNotebookId,
+                        tabId: 'staple',
+                        title: staple.name,
+                        content: '',
+                        contentPlain: '',
+                        images: [],
+                        createdAt: new Date(),
+                        updatedAt: new Date(),
+                        isArchived: false,
+                        deletedAt: null,
+                      });
+
+                      await createTab({
+                        notebookId: newNotebookId,
+                        name: staple.name,
+                        icon: staple.icon,
+                        order: staple.order,
+                        isLocked: true,
+                        isStaple: true,
+                        createdAt: new Date(),
+                      });
+                    }
+
+                    await createTab({
+                      notebookId: newNotebookId,
+                      name: 'All Notes',
+                      icon: '📋',
+                      order: 5,
+                      isLocked: true,
+                      isStaple: true,
+                      createdAt: new Date(),
+                    });
+
+                    await createTab({
+                      notebookId: newNotebookId,
+                      name: 'More',
+                      icon: '⋯',
+                      order: 6,
+                      isLocked: true,
+                      isStaple: true,
+                      createdAt: new Date(),
+                    });
+
+                    await updateUserPreferences(user!.uid, { currentNotebookId: newNotebookId });
+                    await loadNotebooks();
+                    router.push(`/dashboard/notebook/${newNotebookId}`);
+                  } catch (error) {
+                    console.error('Error creating notebook:', error);
+                    alert('Failed to create notebook');
+                  }
+                }
+              }}
+              className="w-8 h-8 flex items-center justify-center bg-gray-800 hover:bg-gray-700 rounded text-white text-xl"
+              title="Create new notebook"
+            >
+              +
+            </button>
+          </div>
           {notebooks.length === 0 ? (
             <p className="text-gray-400 text-sm">No notebooks yet.</p>
           ) : (
@@ -172,9 +312,24 @@ export default function MorePage() {
         <div className="bg-gray-900 rounded-lg p-4">
           <h2 className="text-lg font-semibold mb-3">Trash</h2>
           <button
-            onClick={() => {
-              // TODO: Implement trash view
-              alert('Trash view coming soon');
+            onClick={async () => {
+              try {
+                const { getNotes } = await import('@/lib/firebase/firestore');
+                const allNotes = await getNotes(notebookId, undefined, user?.uid);
+                const deletedNotes = allNotes.filter((n) => n.deletedAt !== null);
+                
+                if (deletedNotes.length === 0) {
+                  alert('No deleted notes found');
+                  return;
+                }
+                
+                // For now, show in alert - TODO: create proper trash view page
+                const noteList = deletedNotes.map((n, i) => `${i + 1}. ${n.title || 'Untitled'}`).join('\n');
+                alert(`Deleted Notes (${deletedNotes.length}):\n\n${noteList}`);
+              } catch (error) {
+                console.error('Error loading deleted notes:', error);
+                alert('Failed to load deleted notes');
+              }
             }}
             className="w-full px-4 py-2 bg-gray-800 text-white rounded hover:bg-gray-700 transition-colors"
           >

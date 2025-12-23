@@ -73,8 +73,11 @@ export default function NoteEditorPage() {
         // Load tabs after note is loaded
         const tabsData = await getTabs(notebookId);
         setTabs(tabsData);
-        // Find the tab for this note
-        const noteTab = tabsData.find((t) => t.name === noteData.title || (noteData.tabId && t.id === noteData.tabId));
+        // Find the tab for this note - check by title first (for staple notes), then by tabId
+        let noteTab = tabsData.find((t) => t.name === noteData.title);
+        if (!noteTab && noteData.tabId && noteData.tabId !== 'staple') {
+          noteTab = tabsData.find((t) => t.id === noteData.tabId);
+        }
         if (noteTab) {
           setActiveTabId(noteTab.id);
         }
@@ -188,15 +191,49 @@ export default function NoteEditorPage() {
     } else if (tab?.name === 'More') {
       router.push(`/dashboard/notebook/${notebookId}/more`);
     } else if (tab?.isStaple && tab.name !== 'All Notes' && tab.name !== 'More') {
-      // Find the staple note
-      const { getNotes } = await import('@/lib/firebase/firestore');
-      const allNotes = await getNotes(notebookId, undefined, user?.uid);
-      const stapleNote = allNotes.find((n) => n.title === tab.name);
+      // Find the staple note - ensure it exists first
+      const { getNotes, createNote } = await import('@/lib/firebase/firestore');
+      let allNotes = await getNotes(notebookId, undefined, user?.uid);
+      let stapleNote = allNotes.find((n) => n.title === tab.name);
+      
+      // Create if doesn't exist
+      if (!stapleNote) {
+        const noteId = await createNote({
+          userId: user!.uid,
+          notebookId,
+          tabId: 'staple',
+          title: tab.name,
+          content: '',
+          contentPlain: '',
+          images: [],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          isArchived: false,
+          deletedAt: null,
+        });
+        stapleNote = {
+          id: noteId,
+          userId: user!.uid,
+          notebookId,
+          tabId: 'staple',
+          title: tab.name,
+          content: '',
+          contentPlain: '',
+          images: [],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          isArchived: false,
+          deletedAt: null,
+        } as Note;
+      }
+      
       if (stapleNote) {
+        setActiveTabId(tabId);
         router.push(`/dashboard/notebook/${notebookId}/note/${stapleNote.id}`);
       }
     } else {
       // Regular note tab
+      setActiveTabId(tabId);
       const { getNotes } = await import('@/lib/firebase/firestore');
       const notesData = await getNotes(notebookId, tabId, user?.uid);
       if (notesData.length > 0) {
@@ -294,11 +331,13 @@ export default function NoteEditorPage() {
           <div className="flex items-center gap-4">
             <button
               onClick={handleBack}
-              className="text-white hover:text-gray-400 transition-colors text-xl"
+              className="text-white hover:text-gray-400 transition-colors"
               title="Back"
               aria-label="Back"
             >
-              ←
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M19 12H5M12 19l-7-7 7-7"/>
+              </svg>
             </button>
             <button
               onClick={() => {
@@ -337,7 +376,10 @@ export default function NoteEditorPage() {
               title="Share"
               aria-label="Share"
             >
-              ↗
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                <path d="M12 8v8M8 12h8"/>
+              </svg>
             </button>
             <button
               onClick={() => {

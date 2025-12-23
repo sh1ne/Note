@@ -16,7 +16,12 @@ export default function BottomNav({
   onTabClick,
   onCreateNote,
 }: BottomNavProps) {
-  const sortedTabs = [...tabs].sort((a, b) => a.order - b.order);
+  // Filter out non-staple tabs that aren't "All Notes" or "More" - these are individual note tabs
+  // Only show staple tabs (Scratch, Now, etc.) and special tabs (All Notes, More)
+  const filteredTabs = tabs.filter((tab) => 
+    tab.isStaple || tab.name === 'All Notes' || tab.name === 'More'
+  );
+  const sortedTabs = [...filteredTabs].sort((a, b) => a.order - b.order);
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-black border-t border-gray-800 z-50">
@@ -24,6 +29,7 @@ export default function BottomNav({
         <button
           onClick={onCreateNote}
           className="flex flex-col items-center justify-center w-12 h-12 text-white hover:bg-gray-800 rounded"
+          title="Create note"
           aria-label="Create new note"
         >
           <span className="text-2xl">+</span>

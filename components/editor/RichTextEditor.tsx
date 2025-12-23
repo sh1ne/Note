@@ -73,6 +73,7 @@ export default function RichTextEditor({
     editorProps: {
       attributes: {
         class: 'prose prose-invert max-w-none focus:outline-none min-h-[400px] text-white',
+        placeholder: placeholder,
       },
     },
   });
@@ -84,12 +85,24 @@ export default function RichTextEditor({
     }
   }, [editor, onEditorReady]);
 
-  // Show/hide toolbar based on focus
+  // Show/hide toolbar based on focus - but keep it visible when clicking toolbar buttons
   useEffect(() => {
     if (!editor) return;
 
     const handleFocus = () => setShowToolbar(true);
-    const handleBlur = () => setShowToolbar(false);
+    const handleBlur = (event: any) => {
+      // Don't hide toolbar if clicking on toolbar buttons
+      const target = event.event?.target;
+      if (target && target.closest('.editor-toolbar')) {
+        return;
+      }
+      // Small delay to allow button clicks to register
+      setTimeout(() => {
+        if (!editor.isFocused) {
+          setShowToolbar(false);
+        }
+      }, 200);
+    };
 
     editor.on('focus', handleFocus);
     editor.on('blur', handleBlur);
@@ -108,7 +121,10 @@ export default function RichTextEditor({
     <div className="bg-black text-white min-h-[calc(100vh-200px)]">
       {showToolbar && <EditorToolbar editor={editor} />}
       <div className="p-4">
-        <EditorContent editor={editor} />
+        <EditorContent 
+          editor={editor}
+          data-placeholder={placeholder || 'Start writing...'}
+        />
       </div>
       <style jsx global>{`
         .tiptap ul[data-type="taskList"] {
@@ -150,31 +166,48 @@ function EditorToolbar({ editor }: { editor: any }) {
   }
 
   return (
-    <div className="flex flex-wrap gap-2 p-2 border-b border-gray-800 bg-gray-900 sticky top-0 z-10">
+    <div className="editor-toolbar flex flex-wrap gap-2 p-2 border-b border-gray-800 bg-gray-900/80 backdrop-blur-sm fixed bottom-16 left-0 right-0 z-10 md:sticky md:top-0 md:bottom-auto">
       {/* Text Formatting */}
       <button
-        onClick={() => editor.chain().focus().toggleBold().run()}
+        onClick={(e) => {
+          e.preventDefault();
+          editor.chain().focus().toggleBold().run();
+          // Keep focus on editor
+          setTimeout(() => editor.commands.focus(), 10);
+        }}
         className={`px-3 py-1 rounded transition-colors ${editor.isActive('bold') ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-800'}`}
         title="Bold"
       >
         <strong>B</strong>
       </button>
       <button
-        onClick={() => editor.chain().focus().toggleItalic().run()}
+        onClick={(e) => {
+          e.preventDefault();
+          editor.chain().focus().toggleItalic().run();
+          setTimeout(() => editor.commands.focus(), 10);
+        }}
         className={`px-3 py-1 rounded transition-colors ${editor.isActive('italic') ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-800'}`}
         title="Italic"
       >
         <em>I</em>
       </button>
       <button
-        onClick={() => editor.chain().focus().toggleUnderline().run()}
+        onClick={(e) => {
+          e.preventDefault();
+          editor.chain().focus().toggleUnderline().run();
+          setTimeout(() => editor.commands.focus(), 10);
+        }}
         className={`px-3 py-1 rounded transition-colors ${editor.isActive('underline') ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-800'}`}
         title="Underline"
       >
         <u>U</u>
       </button>
       <button
-        onClick={() => editor.chain().focus().toggleStrike().run()}
+        onClick={(e) => {
+          e.preventDefault();
+          editor.chain().focus().toggleStrike().run();
+          setTimeout(() => editor.commands.focus(), 10);
+        }}
         className={`px-3 py-1 rounded transition-colors ${editor.isActive('strike') ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-800'}`}
         title="Strikethrough"
       >
@@ -183,21 +216,33 @@ function EditorToolbar({ editor }: { editor: any }) {
 
       {/* Lists */}
       <button
-        onClick={() => editor.chain().focus().toggleBulletList().run()}
+        onClick={(e) => {
+          e.preventDefault();
+          editor.chain().focus().toggleBulletList().run();
+          setTimeout(() => editor.commands.focus(), 10);
+        }}
         className={`px-3 py-1 rounded transition-colors ${editor.isActive('bulletList') ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-800'}`}
         title="Bullet List"
       >
         •
       </button>
       <button
-        onClick={() => editor.chain().focus().toggleOrderedList().run()}
+        onClick={(e) => {
+          e.preventDefault();
+          editor.chain().focus().toggleOrderedList().run();
+          setTimeout(() => editor.commands.focus(), 10);
+        }}
         className={`px-3 py-1 rounded transition-colors ${editor.isActive('orderedList') ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-800'}`}
         title="Numbered List"
       >
         1.
       </button>
       <button
-        onClick={() => editor.chain().focus().toggleTaskList().run()}
+        onClick={(e) => {
+          e.preventDefault();
+          editor.chain().focus().toggleTaskList().run();
+          setTimeout(() => editor.commands.focus(), 10);
+        }}
         className={`px-3 py-1 rounded transition-colors ${editor.isActive('taskList') ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-800'}`}
         title="Task List"
       >
@@ -206,25 +251,43 @@ function EditorToolbar({ editor }: { editor: any }) {
 
       {/* Alignment */}
       <button
-        onClick={() => editor.chain().focus().setTextAlign('left').run()}
+        onClick={(e) => {
+          e.preventDefault();
+          editor.chain().focus().setTextAlign('left').run();
+          setTimeout(() => editor.commands.focus(), 10);
+        }}
         className={`px-3 py-1 rounded transition-colors ${editor.isActive({ textAlign: 'left' }) ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-800'}`}
         title="Align Left"
       >
-        ⬅
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M2 2h12v1H2V2zm0 3h8v1H2V5zm0 3h12v1H2V8zm0 3h8v1H2v-1z"/>
+        </svg>
       </button>
       <button
-        onClick={() => editor.chain().focus().setTextAlign('center').run()}
+        onClick={(e) => {
+          e.preventDefault();
+          editor.chain().focus().setTextAlign('center').run();
+          setTimeout(() => editor.commands.focus(), 10);
+        }}
         className={`px-3 py-1 rounded transition-colors ${editor.isActive({ textAlign: 'center' }) ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-800'}`}
         title="Align Center"
       >
-        ⬌
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M2 2h12v1H2V2zm2 3h8v1H4V5zm-2 3h12v1H2V8zm2 3h8v1H4v-1z"/>
+        </svg>
       </button>
       <button
-        onClick={() => editor.chain().focus().setTextAlign('right').run()}
+        onClick={(e) => {
+          e.preventDefault();
+          editor.chain().focus().setTextAlign('right').run();
+          setTimeout(() => editor.commands.focus(), 10);
+        }}
         className={`px-3 py-1 rounded transition-colors ${editor.isActive({ textAlign: 'right' }) ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-800'}`}
         title="Align Right"
       >
-        ➡
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M2 2h12v1H2V2zm4 3h8v1H6V5zm-4 3h12v1H2V8zm4 3h8v1H6v-1z"/>
+        </svg>
       </button>
 
       {/* Undo/Redo */}

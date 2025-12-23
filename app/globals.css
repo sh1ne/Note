@@ -41,3 +41,41 @@ body {
   height: 100%;
 }
 
+/* TipTap placeholder styling */
+.tiptap p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: #6b7280;
+  pointer-events: none;
+  height: 0;
+}
+
+/* Theme colors */
+[data-theme="dark"] {
+  --bg-primary: #000000;
+  --bg-secondary: #1a1a1a;
+  --text-primary: #ffffff;
+  --text-secondary: #9ca3af;
+}
+
+[data-theme="light"] {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f3f4f6;
+  --text-primary: #000000;
+  --text-secondary: #6b7280;
+}
+
+[data-theme="purple"] {
+  --bg-primary: #1a0a2e;
+  --bg-secondary: #16213e;
+  --text-primary: #ffffff;
+  --text-secondary: #a78bfa;
+}
+
+[data-theme="blue"] {
+  --bg-primary: #0a1929;
+  --bg-secondary: #132f4c;
+  --text-primary: #ffffff;
+  --text-secondary: #90caf9;
+}
+

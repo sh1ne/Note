@@ -188,8 +188,11 @@ export default function NotebookPage() {
   const loadAllNotes = async () => {
     if (!user || !notebookId) return;
     try {
+      // Get ALL notes, including staple notes (they have tabId='staple')
       const notesData = await getNotes(notebookId, undefined, user.uid);
-      setNotes(notesData);
+      // Filter out staple notes from "All Notes" view - they're accessed via their tabs
+      const regularNotes = notesData.filter((n) => n.tabId !== 'staple');
+      setNotes(regularNotes);
     } catch (error) {
       console.error('Error loading all notes:', error);
     }
