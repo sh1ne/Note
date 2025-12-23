@@ -3,8 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { signUp } from '@/lib/firebase/auth';
-import { createNotebook } from '@/lib/firebase/firestore';
-import { createTab } from '@/lib/firebase/firestore';
+import { createNotebook, createTab, createNote } from '@/lib/firebase/firestore';
 import Link from 'next/link';
 
 const DEFAULT_TABS = [
