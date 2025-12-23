@@ -5,11 +5,11 @@ import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { getDoc, doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
-import { updateNote, deleteNote } from '@/lib/firebase/firestore';
-import { Note } from '@/lib/types';
+import { updateNote, deleteNote, getTabs } from '@/lib/firebase/firestore';
+import { Note, Tab } from '@/lib/types';
 import RichTextEditor from '@/components/editor/RichTextEditor';
 import { saveNoteLocally, addToSyncQueue } from '@/lib/utils/localStorage';
-import { Timestamp } from 'firebase/firestore';
+import BottomNav from '@/components/layout/BottomNav';
 
 let saveTimeout: NodeJS.Timeout | null = null;
 
@@ -25,12 +25,33 @@ export default function NoteEditorPage() {
   const [content, setContent] = useState('');
   const [plainText, setPlainText] = useState('');
   const [editor, setEditor] = useState<any>(null);
+  const [tabs, setTabs] = useState<Tab[]>([]);
+  const [activeTabId, setActiveTabId] = useState<string>('');
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [titleValue, setTitleValue] = useState('');
 
   useEffect(() => {
     if (user && noteId) {
       loadNote();
+      loadTabs();
     }
-  }, [user, noteId]);
+  }, [user, noteId, notebookId]);
+
+  const loadTabs = async () => {
+    try {
+      const tabsData = await getTabs(notebookId);
+      setTabs(tabsData);
+      // Find the tab for this note
+      if (note) {
+        const noteTab = tabsData.find((t) => t.name === note.title || (note.tabId && t.id === note.tabId));
+        if (noteTab) {
+          setActiveTabId(noteTab.id);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading tabs:', error);
+    }
+  };
 
   const loadNote = async () => {
     try {
@@ -47,6 +68,16 @@ export default function NoteEditorPage() {
         setNote(noteData);
         setContent(noteData.content);
         setPlainText(noteData.contentPlain);
+        setTitleValue(noteData.title || '');
+        
+        // Load tabs after note is loaded
+        const tabsData = await getTabs(notebookId);
+        setTabs(tabsData);
+        // Find the tab for this note
+        const noteTab = tabsData.find((t) => t.name === noteData.title || (noteData.tabId && t.id === noteData.tabId));
+        if (noteTab) {
+          setActiveTabId(noteTab.id);
+        }
       }
     } catch (error) {
       console.error('Error loading note:', error);
@@ -62,9 +93,15 @@ export default function NoteEditorPage() {
 
       if (!note || !user) return;
 
-      // Auto-generate title from first line
+      // Only auto-generate title if title hasn't been manually edited
+      // If title is empty or matches first line, update it
       const firstLine = newPlainText.split('\n')[0].trim();
-      const title = firstLine.length > 0 ? firstLine.substring(0, 50) : 'Untitled Note';
+      const currentTitle = titleValue || note.title || '';
+      const shouldUpdateTitle = !currentTitle || currentTitle === note.title || currentTitle === firstLine.substring(0, 50);
+      
+      const title = shouldUpdateTitle && firstLine.length > 0 
+        ? firstLine.substring(0, 50) 
+        : (titleValue || note.title || 'Untitled Note');
 
       // Update note title in state
       setNote({
@@ -114,8 +151,92 @@ export default function NoteEditorPage() {
         }
       }, 2500);
     },
-    [note, user, noteId]
+    [note, user, noteId, titleValue]
   );
+
+  const handleTitleChange = async (newTitle: string) => {
+    setTitleValue(newTitle);
+    if (!note || !user) return;
+
+    const updatedNote = {
+      ...note,
+      title: newTitle || 'Untitled Note',
+      updatedAt: new Date(),
+    };
+    setNote(updatedNote as Note);
+
+    // Save title immediately
+    try {
+      await updateNote(noteId, {
+        title: newTitle || 'Untitled Note',
+      });
+      
+      // Update tab name if it's not a staple note
+      if (note.tabId && note.tabId !== 'staple') {
+        const { updateTab } = await import('@/lib/firebase/firestore');
+        await updateTab(note.tabId, { name: newTitle || 'Untitled Note' });
+      }
+    } catch (error) {
+      console.error('Error updating title:', error);
+    }
+  };
+
+  const handleTabClick = async (tabId: string) => {
+    const tab = tabs.find((t) => t.id === tabId);
+    if (tab?.name === 'All Notes') {
+      router.push(`/dashboard/notebook/${notebookId}`);
+    } else if (tab?.name === 'More') {
+      router.push(`/dashboard/notebook/${notebookId}/more`);
+    } else if (tab?.isStaple && tab.name !== 'All Notes' && tab.name !== 'More') {
+      // Find the staple note
+      const { getNotes } = await import('@/lib/firebase/firestore');
+      const allNotes = await getNotes(notebookId, undefined, user?.uid);
+      const stapleNote = allNotes.find((n) => n.title === tab.name);
+      if (stapleNote) {
+        router.push(`/dashboard/notebook/${notebookId}/note/${stapleNote.id}`);
+      }
+    } else {
+      // Regular note tab
+      const { getNotes } = await import('@/lib/firebase/firestore');
+      const notesData = await getNotes(notebookId, tabId, user?.uid);
+      if (notesData.length > 0) {
+        router.push(`/dashboard/notebook/${notebookId}/note/${notesData[0].id}`);
+      }
+    }
+  };
+
+  const handleCreateNote = async () => {
+    const { createNote, createTab } = await import('@/lib/firebase/firestore');
+    try {
+      const newTabId = await createTab({
+        notebookId,
+        name: 'New Note',
+        icon: '📄',
+        order: 0,
+        isLocked: false,
+        isStaple: false,
+        createdAt: new Date(),
+      });
+
+      const newNoteId = await createNote({
+        userId: user!.uid,
+        notebookId,
+        tabId: newTabId,
+        title: '',
+        content: '',
+        contentPlain: '',
+        images: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        isArchived: false,
+        deletedAt: null,
+      });
+
+      router.push(`/dashboard/notebook/${notebookId}/note/${newNoteId}`);
+    } catch (error) {
+      console.error('Error creating note:', error);
+    }
+  };
 
   const handleBack = () => {
     router.back();
@@ -236,7 +357,37 @@ export default function NoteEditorPage() {
       {/* Note Title and Date */}
       <div className="bg-gray-900 border-b border-gray-800 px-4 py-3">
         <div className="max-w-4xl mx-auto">
-          <h1 className="text-2xl font-bold mb-2">{note.title || 'Untitled Note'}</h1>
+          {isEditingTitle ? (
+            <input
+              type="text"
+              value={titleValue}
+              onChange={(e) => setTitleValue(e.target.value)}
+              onBlur={() => {
+                setIsEditingTitle(false);
+                handleTitleChange(titleValue);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  setIsEditingTitle(false);
+                  handleTitleChange(titleValue);
+                }
+                if (e.key === 'Escape') {
+                  setIsEditingTitle(false);
+                  setTitleValue(note.title || 'Untitled Note');
+                }
+              }}
+              className="text-2xl font-bold mb-2 bg-transparent border-b-2 border-gray-600 focus:border-white focus:outline-none w-full text-white"
+              autoFocus
+            />
+          ) : (
+            <h1 
+              className="text-2xl font-bold mb-2 cursor-pointer hover:text-gray-300"
+              onClick={() => setIsEditingTitle(true)}
+              title="Click to edit title"
+            >
+              {note.title || 'Untitled Note'}
+            </h1>
+          )}
           <p className="text-sm text-gray-400">{formatDate(note.updatedAt)}</p>
         </div>
       </div>
@@ -250,6 +401,16 @@ export default function NoteEditorPage() {
           onEditorReady={setEditor}
         />
       </div>
+
+      {/* Bottom Navigation */}
+      {tabs.length > 0 && (
+        <BottomNav
+          tabs={tabs}
+          activeTabId={activeTabId}
+          onTabClick={handleTabClick}
+          onCreateNote={handleCreateNote}
+        />
+      )}
     </div>
   );
 }

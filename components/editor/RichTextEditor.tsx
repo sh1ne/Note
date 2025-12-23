@@ -1,7 +1,7 @@
 'use client';
 
 import { useEditor, EditorContent } from '@tiptap/react';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import StarterKit from '@tiptap/starter-kit';
 import TextAlign from '@tiptap/extension-text-align';
 import TextStyle from '@tiptap/extension-text-style';
@@ -15,7 +15,7 @@ import TableCell from '@tiptap/extension-table-cell';
 import TableHeader from '@tiptap/extension-table-header';
 import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
-import CodeBlock from '@tiptap/extension-code-block';
+import Underline from '@tiptap/extension-underline';
 
 interface RichTextEditorProps {
   content: string;
@@ -30,9 +30,13 @@ export default function RichTextEditor({
   placeholder = 'Start typing...',
   onEditorReady,
 }: RichTextEditorProps) {
+  const [showToolbar, setShowToolbar] = useState(false);
   const editor = useEditor({
     extensions: [
-      StarterKit,
+      StarterKit.configure({
+        // Exclude codeBlock from StarterKit since we're not using it
+        codeBlock: false,
+      }),
       TextAlign.configure({
         types: ['heading', 'paragraph'],
       }),
@@ -41,6 +45,7 @@ export default function RichTextEditor({
       Highlight.configure({
         multicolor: true,
       }),
+      Underline,
       Image.configure({
         inline: true,
         allowBase64: true,
@@ -58,7 +63,6 @@ export default function RichTextEditor({
       TaskItem.configure({
         nested: true,
       }),
-      CodeBlock,
     ],
     content,
     onUpdate: ({ editor }) => {
@@ -80,16 +84,62 @@ export default function RichTextEditor({
     }
   }, [editor, onEditorReady]);
 
+  // Show/hide toolbar based on focus
+  useEffect(() => {
+    if (!editor) return;
+
+    const handleFocus = () => setShowToolbar(true);
+    const handleBlur = () => setShowToolbar(false);
+
+    editor.on('focus', handleFocus);
+    editor.on('blur', handleBlur);
+
+    return () => {
+      editor.off('focus', handleFocus);
+      editor.off('blur', handleBlur);
+    };
+  }, [editor]);
+
   if (!editor) {
     return null;
   }
 
   return (
     <div className="bg-black text-white min-h-[calc(100vh-200px)]">
-      <EditorToolbar editor={editor} />
+      {showToolbar && <EditorToolbar editor={editor} />}
       <div className="p-4">
         <EditorContent editor={editor} />
       </div>
+      <style jsx global>{`
+        .tiptap ul[data-type="taskList"] {
+          list-style: none;
+          padding: 0;
+          margin: 0;
+        }
+        .tiptap ul[data-type="taskList"] li {
+          display: flex;
+          align-items: flex-start;
+          margin: 0.25rem 0;
+        }
+        .tiptap ul[data-type="taskList"] li > label {
+          flex: 0 0 auto;
+          margin-right: 0.5rem;
+          margin-top: 0.125rem;
+          user-select: none;
+          cursor: pointer;
+        }
+        .tiptap ul[data-type="taskList"] li > div {
+          flex: 1 1 auto;
+        }
+        .tiptap ul[data-type="taskList"] input[type="checkbox"] {
+          cursor: pointer;
+          margin: 0;
+        }
+        .tiptap ul[data-type="taskList"] p {
+          margin: 0;
+          display: inline;
+        }
+      `}</style>
     </div>
   );
 }
