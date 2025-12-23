@@ -166,6 +166,7 @@ export default function NotebookPage() {
       setNotes([]); // Clear first to show loading state
       await loadAllNotes();
       // Don't redirect - stay on the notebook page to show the list
+      return; // Important: return here to prevent any redirect
     } else if (tab?.name === 'More') {
       router.push(`/dashboard/notebook/${notebookId}/more`);
     } else if (tab?.isStaple && tab.name !== 'All Notes' && tab.name !== 'More') {

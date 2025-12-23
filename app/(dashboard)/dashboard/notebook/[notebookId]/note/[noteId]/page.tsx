@@ -156,10 +156,12 @@ export default function NoteEditorPage() {
             title,
           });
           
-          // Update tab name if it's not a staple note
+          // Update tab name immediately if it's not a staple note
           if (note.tabId && note.tabId !== 'staple') {
             const { updateTab } = await import('@/lib/firebase/firestore');
             await updateTab(note.tabId, { name: title || 'Untitled Note' });
+            // Reload tabs immediately to show updated name
+            await loadTabs();
           }
         } catch (error) {
           // If offline or error, add to sync queue

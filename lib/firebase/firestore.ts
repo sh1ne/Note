@@ -166,6 +166,38 @@ export const permanentlyDeleteNote = async (noteId: string) => {
   await deleteDoc(doc(db, 'notes', noteId));
 };
 
+export const getDeletedNotes = async (
+  notebookId: string,
+  userId?: string
+): Promise<Note[]> => {
+  // Build query for deleted notes (deletedAt is not null)
+  const constraints = [
+    where('notebookId', '==', notebookId),
+    where('deletedAt', '!=', null)
+  ];
+  
+  if (userId) {
+    constraints.push(where('userId', '==', userId));
+  }
+  
+  const q = query(collection(db, 'notes'), ...constraints);
+  const snapshot = await getDocs(q);
+  const notes = snapshot.docs.map((doc) => ({
+    id: doc.id,
+    ...doc.data(),
+    createdAt: doc.data().createdAt.toDate(),
+    updatedAt: doc.data().updatedAt.toDate(),
+    deletedAt: doc.data().deletedAt?.toDate() || null,
+  })) as Note[];
+  
+  // Sort client-side by deletion date (most recent first)
+  return notes.sort((a, b) => {
+    const aTime = a.deletedAt?.getTime() || 0;
+    const bTime = b.deletedAt?.getTime() || 0;
+    return bTime - aTime;
+  });
+};
+
 // User Preferences
 export const getUserPreferences = async (
   userId: string

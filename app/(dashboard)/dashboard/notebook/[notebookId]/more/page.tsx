@@ -161,7 +161,7 @@ export default function MorePage() {
                 const notebookName = prompt('Enter notebook name:');
                 if (notebookName && notebookName.trim()) {
                   try {
-                    const { createNotebook, createTab, createNote, updateUserPreferences } = await import('@/lib/firebase/firestore');
+                    const { createNotebook, createTab, createNote } = await import('@/lib/firebase/firestore');
                     const newNotebookId = await createNotebook({
                       userId: user!.uid,
                       name: notebookName.trim(),
@@ -244,17 +244,63 @@ export default function MorePage() {
           ) : (
             <div className="space-y-2">
               {notebooks.map((notebook) => (
-                <Link
+                <div
                   key={notebook.id}
-                  href={`/dashboard/notebook/${notebook.id}`}
                   className={`block p-3 rounded transition-colors ${
                     notebook.id === notebookId
-                      ? 'bg-gray-800 border border-gray-700'
-                      : 'bg-gray-800 hover:bg-gray-700'
+                      ? 'bg-blue-900/30 border-2 border-blue-600'
+                      : 'bg-gray-800 hover:bg-gray-700 border border-transparent'
                   }`}
                 >
-                  <h3 className="font-semibold">{notebook.name}</h3>
-                </Link>
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <Link
+                        href={`/dashboard/notebook/${notebook.id}`}
+                        className="block"
+                      >
+                        <h3 className="font-semibold">{notebook.name}</h3>
+                        {notebook.isDefault && (
+                          <p className="text-xs text-gray-400 mt-1">Default</p>
+                        )}
+                      </Link>
+                    </div>
+                    {!notebook.isDefault && (
+                      <button
+                        onClick={async (e) => {
+                          e.preventDefault();
+                          if (confirm(`Set "${notebook.name}" as default notebook?`)) {
+                            try {
+                              const { updateNotebook, getNotebooks, updateUserPreferences } = await import('@/lib/firebase/firestore');
+                              // Remove default from all notebooks
+                              const allNotebooks = await getNotebooks(user!.uid);
+                              for (const nb of allNotebooks) {
+                                if (nb.isDefault) {
+                                  await updateNotebook(nb.id, { isDefault: false });
+                                }
+                              }
+                              // Set this notebook as default
+                              await updateNotebook(notebook.id, { isDefault: true });
+                              await updateUserPreferences(user!.uid, { currentNotebookId: notebook.id });
+                              await loadNotebooks();
+                            } catch (error) {
+                              console.error('Error setting default notebook:', error);
+                              alert('Failed to set default notebook');
+                            }
+                          }
+                        }}
+                        className="ml-2 px-2 py-1 text-xs bg-gray-700 hover:bg-gray-600 rounded"
+                        title="Set as default"
+                      >
+                        Make Default
+                      </button>
+                    )}
+                    {notebook.isDefault && (
+                      <span className="ml-2 px-2 py-1 text-xs bg-blue-600 text-white rounded">
+                        Default
+                      </span>
+                    )}
+                  </div>
+                </div>
               ))}
             </div>
           )}
@@ -269,11 +315,12 @@ export default function MorePage() {
         {/* Sync Status */}
         <div className="bg-gray-900 rounded-lg p-4">
           <h2 className="text-lg font-semibold mb-3">Sync Status</h2>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 mb-2">
             <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
             <p className="text-sm text-gray-400">Auto-syncing enabled</p>
           </div>
-          <p className="text-xs text-gray-500 mt-2">Changes sync automatically every 2-3 seconds</p>
+          <p className="text-xs text-gray-500 mb-2">Syncing to: Firebase Firestore</p>
+          <p className="text-xs text-gray-500">Last saved: {new Date().toLocaleString()}</p>
         </div>
 
         {/* Search All Notes */}
@@ -310,9 +357,8 @@ export default function MorePage() {
           <button
             onClick={async () => {
               try {
-                const { getNotes } = await import('@/lib/firebase/firestore');
-                const allNotes = await getNotes(notebookId, undefined, user?.uid);
-                const deletedNotes = allNotes.filter((n) => n.deletedAt !== null);
+                const { getDeletedNotes } = await import('@/lib/firebase/firestore');
+                const deletedNotes = await getDeletedNotes(notebookId, user?.uid);
                 
                 if (deletedNotes.length === 0) {
                   alert('No deleted notes found');
@@ -320,7 +366,7 @@ export default function MorePage() {
                 }
                 
                 // For now, show in alert - TODO: create proper trash view page
-                const noteList = deletedNotes.map((n, i) => `${i + 1}. ${n.title || 'Untitled'}`).join('\n');
+                const noteList = deletedNotes.map((n, i) => `${i + 1}. ${n.title || 'Untitled'} (Deleted: ${n.deletedAt?.toLocaleDateString()})`).join('\n');
                 alert(`Deleted Notes (${deletedNotes.length}):\n\n${noteList}`);
               } catch (error) {
                 console.error('Error loading deleted notes:', error);
@@ -341,10 +387,6 @@ export default function MorePage() {
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-300">Auto-save</span>
               <span className="text-xs text-gray-500">Enabled</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-300">Default Notebook</span>
-              <span className="text-xs text-gray-500">My Notebook</span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-300">Font Size</span>
