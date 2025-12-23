@@ -33,6 +33,7 @@ export default function RichTextEditor({
 }: RichTextEditorProps) {
   const [showToolbar, setShowToolbar] = useState(false);
   const editor = useEditor({
+    immediatelyRender: false, // Fix SSR hydration warnings
     extensions: [
       StarterKit.configure({
         // Exclude codeBlock from StarterKit since we're not using it

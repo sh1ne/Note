@@ -38,18 +38,13 @@ export default function NotebookPage() {
       const tabsData = await getTabs(notebookId);
       setTabs(tabsData);
       if (tabsData.length > 0 && !activeTabId) {
-        // Set "All Notes" as default active tab, or Scratch if All Notes doesn't exist
-        const allNotesTab = tabsData.find((t) => t.name === 'All Notes');
+        // Set Scratch as default active tab
         const scratchTab = tabsData.find((t) => t.name === 'Scratch') || tabsData[0];
-        const defaultTab = allNotesTab || scratchTab;
-        setActiveTabId(defaultTab.id);
+        setActiveTabId(scratchTab.id);
         
-        // If it's All Notes, load all notes
-        if (defaultTab.name === 'All Notes') {
-          await loadAllNotes();
-        } else if (defaultTab.isStaple && defaultTab.name !== 'All Notes' && defaultTab.name !== 'More') {
-          // If it's a staple note, ensure it exists and open it directly
-          await ensureStapleNoteExists(defaultTab.name, defaultTab.id);
+        // If it's a staple note, ensure it exists and open it directly
+        if (scratchTab.isStaple && scratchTab.name !== 'All Notes' && scratchTab.name !== 'More') {
+          await ensureStapleNoteExists(scratchTab.name, scratchTab.id);
         }
       }
     } catch (error) {
@@ -166,8 +161,9 @@ export default function NotebookPage() {
   const handleTabClick = async (tabId: string) => {
     const tab = tabs.find((t) => t.id === tabId);
     if (tab?.name === 'All Notes') {
-      // Load all notes and stay on this page
+      // Load all notes and stay on this page - force refresh
       setActiveTabId(tabId);
+      setNotes([]); // Clear first to show loading state
       await loadAllNotes();
       // Don't redirect - stay on the notebook page to show the list
     } else if (tab?.name === 'More') {
@@ -194,10 +190,11 @@ export default function NotebookPage() {
   const loadAllNotes = async () => {
     if (!user || !notebookId) return;
     try {
-      // Get ALL notes, including staple notes (they have tabId='staple')
+      // Get ALL notes - pass undefined for tabId to get all notes
       const notesData = await getNotes(notebookId, undefined, user.uid);
       // Filter out staple notes from "All Notes" view - they're accessed via their tabs
-      const regularNotes = notesData.filter((n) => n.tabId !== 'staple');
+      // Also filter out notes that are null or undefined
+      const regularNotes = notesData.filter((n) => n && n.tabId !== 'staple' && !n.deletedAt);
       setNotes(regularNotes);
     } catch (error) {
       console.error('Error loading all notes:', error);

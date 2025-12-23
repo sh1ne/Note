@@ -50,18 +50,10 @@ export default function NoteEditorPage() {
         clearTimeout(saveTimeout);
         saveTimeout = null;
       }
-      if (note && content && note.content !== content) {
-        // Force immediate save
-        updateNote(noteId, {
-          content,
-          contentPlain: plainText,
-          title: note.title,
-        }).catch((error) => {
-          console.error('Error saving on unmount:', error);
-        });
-      }
+      // Note: We can't reliably access editor in cleanup, so we rely on handleTabClick/handleBack
+      // which are called before navigation
     };
-  }, [note, content, plainText, noteId]);
+  }, [noteId]);
 
   const loadTabs = async () => {
     try {
@@ -213,18 +205,24 @@ export default function NoteEditorPage() {
   };
 
   const handleTabClick = async (tabId: string) => {
-    // Save current note before switching
-    if (note && content !== note.content) {
+    // Save current note before switching - get content directly from editor
+    if (note && editor) {
       // Force immediate save
       if (saveTimeout) {
         clearTimeout(saveTimeout);
+        saveTimeout = null;
       }
       try {
+        const currentContent = editor.getHTML();
+        const currentPlainText = editor.getText();
         await updateNote(noteId, {
-          content,
-          contentPlain: plainText,
+          content: currentContent,
+          contentPlain: currentPlainText,
           title: note.title,
         });
+        // Update local state
+        setContent(currentContent);
+        setPlainText(currentPlainText);
       } catch (error) {
         console.error('Error saving before switch:', error);
       }
@@ -321,18 +319,24 @@ export default function NoteEditorPage() {
   };
 
   const handleBack = async () => {
-    // Save current note before going back
-    if (note && content !== note.content) {
+    // Save current note before going back - get content directly from editor
+    if (note && editor) {
       // Force immediate save
       if (saveTimeout) {
         clearTimeout(saveTimeout);
+        saveTimeout = null;
       }
       try {
+        const currentContent = editor.getHTML();
+        const currentPlainText = editor.getText();
         await updateNote(noteId, {
-          content,
-          contentPlain: plainText,
+          content: currentContent,
+          contentPlain: currentPlainText,
           title: note.title,
         });
+        // Update local state
+        setContent(currentContent);
+        setPlainText(currentPlainText);
       } catch (error) {
         console.error('Error saving before back:', error);
       }
