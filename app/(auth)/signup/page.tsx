@@ -42,18 +42,62 @@ export default function SignupPage() {
         isDefault: true,
       });
 
-      // Create default tabs
-      for (const tab of DEFAULT_TABS) {
+      // Create the 4 staple notes (Scratch, Now, Short-Term, Long-term)
+      const stapleNotes = [
+        { name: 'Scratch', icon: '✏️', order: 1 },
+        { name: 'Now', icon: '⏰', order: 2 },
+        { name: 'Short-Term', icon: '📅', order: 3 },
+        { name: 'Long-term', icon: '📆', order: 4 },
+      ];
+
+      for (const staple of stapleNotes) {
+        // Create the note
+        await createNote({
+          userId,
+          notebookId,
+          tabId: 'staple',
+          title: staple.name,
+          content: '',
+          contentPlain: '',
+          images: [],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          isArchived: false,
+          deletedAt: null,
+        });
+
+        // Create tab entry for navigation
         await createTab({
           notebookId,
-          name: tab.name,
-          icon: tab.icon,
-          order: tab.order,
+          name: staple.name,
+          icon: staple.icon,
+          order: staple.order,
           isLocked: true,
-          isStaple: tab.isStaple,
+          isStaple: true,
           createdAt: new Date(),
         });
       }
+
+      // Create "All Notes" and "More" tabs
+      await createTab({
+        notebookId,
+        name: 'All Notes',
+        icon: '📋',
+        order: 5,
+        isLocked: true,
+        isStaple: true,
+        createdAt: new Date(),
+      });
+
+      await createTab({
+        notebookId,
+        name: 'More',
+        icon: '⋯',
+        order: 6,
+        isLocked: true,
+        isStaple: true,
+        createdAt: new Date(),
+      });
 
       // Redirect directly to the notebook (not dashboard)
       router.push(`/dashboard/notebook/${notebookId}`);

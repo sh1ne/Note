@@ -121,28 +121,29 @@ export const getNotes = async (
   let q = query(
     collection(db, 'notes'),
     where('notebookId', '==', notebookId),
-    where('deletedAt', '==', null),
-    orderBy('updatedAt', 'desc')
+    where('deletedAt', '==', null)
   );
   
-  if (tabId) {
+  if (tabId && tabId !== 'staple') {
     q = query(
       collection(db, 'notes'),
       where('notebookId', '==', notebookId),
       where('tabId', '==', tabId),
-      where('deletedAt', '==', null),
-      orderBy('updatedAt', 'desc')
+      where('deletedAt', '==', null)
     );
   }
   
   const snapshot = await getDocs(q);
-  return snapshot.docs.map((doc) => ({
+  const notes = snapshot.docs.map((doc) => ({
     id: doc.id,
     ...doc.data(),
     createdAt: doc.data().createdAt.toDate(),
     updatedAt: doc.data().updatedAt.toDate(),
     deletedAt: doc.data().deletedAt?.toDate() || null,
   })) as Note[];
+  
+  // Sort client-side to avoid index requirement
+  return notes.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
 };
 
 export const updateNote = async (noteId: string, updates: Partial<Note>) => {
