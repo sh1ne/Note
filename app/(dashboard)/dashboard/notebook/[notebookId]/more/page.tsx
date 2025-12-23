@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { logOut } from '@/lib/firebase/auth';
 import { useTheme } from '@/contexts/ThemeContext';
 import { getNotebooks, getNotes } from '@/lib/firebase/firestore';
-import { Notebook } from '@/lib/types';
+import { Notebook, Note } from '@/lib/types';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 
@@ -357,8 +357,8 @@ export default function MorePage() {
           <button
             onClick={async () => {
               try {
-                const { getDeletedNotes } = await import('@/lib/firebase/firestore');
-                const deletedNotes = await getDeletedNotes(notebookId, user?.uid);
+                const firestore = await import('@/lib/firebase/firestore');
+                const deletedNotes = await firestore.getDeletedNotes(notebookId, user?.uid);
                 
                 if (deletedNotes.length === 0) {
                   alert('No deleted notes found');
@@ -366,7 +366,7 @@ export default function MorePage() {
                 }
                 
                 // For now, show in alert - TODO: create proper trash view page
-                const noteList = deletedNotes.map((n, i) => `${i + 1}. ${n.title || 'Untitled'} (Deleted: ${n.deletedAt?.toLocaleDateString()})`).join('\n');
+                const noteList = deletedNotes.map((n: Note, i: number) => `${i + 1}. ${n.title || 'Untitled'} (Deleted: ${n.deletedAt?.toLocaleDateString()})`).join('\n');
                 alert(`Deleted Notes (${deletedNotes.length}):\n\n${noteList}`);
               } catch (error) {
                 console.error('Error loading deleted notes:', error);
