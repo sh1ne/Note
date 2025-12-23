@@ -146,7 +146,7 @@ export default function MorePage() {
           </div>
           <button
             onClick={handleLogout}
-            className="w-full mt-2 px-3 py-1.5 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition-colors"
+            className="mt-2 px-3 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
           >
             Sign Out
           </button>

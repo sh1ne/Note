@@ -166,6 +166,7 @@ export default function NotebookPage() {
       setNotes([]); // Clear first to show loading state
       await loadAllNotes();
       // Don't redirect - stay on the notebook page to show the list
+      // Make sure we don't redirect to Scratch
       return; // Important: return here to prevent any redirect
     } else if (tab?.name === 'More') {
       router.push(`/dashboard/notebook/${notebookId}/more`);

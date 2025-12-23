@@ -208,7 +208,8 @@ export default function NoteEditorPage() {
 
   const handleTabClick = async (tabId: string) => {
     // Save current note before switching - get content directly from editor
-    if (note && editor) {
+    // Use a promise to ensure save completes before navigation
+    const savePromise = note && editor ? (async () => {
       // Force immediate save
       if (saveTimeout) {
         clearTimeout(saveTimeout);
@@ -227,8 +228,12 @@ export default function NoteEditorPage() {
         setPlainText(currentPlainText);
       } catch (error) {
         console.error('Error saving before switch:', error);
+        throw error; // Re-throw to prevent navigation if save fails
       }
-    }
+    })() : Promise.resolve();
+
+    // Wait for save to complete before navigating
+    await savePromise;
 
     const tab = tabs.find((t) => t.id === tabId);
     if (tab?.name === 'All Notes') {

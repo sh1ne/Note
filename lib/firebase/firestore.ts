@@ -170,10 +170,10 @@ export const getDeletedNotes = async (
   notebookId: string,
   userId?: string
 ): Promise<Note[]> => {
-  // Build query for deleted notes (deletedAt is not null)
+  // Firestore doesn't support != null queries directly
+  // So we query all notes and filter client-side
   const constraints = [
-    where('notebookId', '==', notebookId),
-    where('deletedAt', '!=', null)
+    where('notebookId', '==', notebookId)
   ];
   
   if (userId) {
@@ -182,7 +182,7 @@ export const getDeletedNotes = async (
   
   const q = query(collection(db, 'notes'), ...constraints);
   const snapshot = await getDocs(q);
-  const notes = snapshot.docs.map((doc) => ({
+  const allNotes = snapshot.docs.map((doc) => ({
     id: doc.id,
     ...doc.data(),
     createdAt: doc.data().createdAt.toDate(),
@@ -190,8 +190,11 @@ export const getDeletedNotes = async (
     deletedAt: doc.data().deletedAt?.toDate() || null,
   })) as Note[];
   
+  // Filter for deleted notes (deletedAt is not null)
+  const deletedNotes = allNotes.filter((n) => n.deletedAt !== null);
+  
   // Sort client-side by deletion date (most recent first)
-  return notes.sort((a, b) => {
+  return deletedNotes.sort((a, b) => {
     const aTime = a.deletedAt?.getTime() || 0;
     const bTime = b.deletedAt?.getTime() || 0;
     return bTime - aTime;
