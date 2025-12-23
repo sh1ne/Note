@@ -1,0 +1,88 @@
+# How to Check Your Firestore Security Rules
+
+## Step 1: Go to Firebase Console
+1. Go to [Firebase Console](https://console.firebase.google.com/)
+2. Select your project: **note-3cc91**
+
+## Step 2: Navigate to Firestore Rules
+1. In the left sidebar, click **"Firestore Database"**
+2. Click on the **"Rules"** tab at the top
+
+## Step 3: Check Your Current Rules
+You should see your security rules in the editor. They should look like this:
+
+```javascript
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /notebooks/{notebookId} {
+      allow read, write: if request.auth != null && 
+        request.auth.uid == resource.data.userId;
+    }
+    match /tabs/{tabId} {
+      allow read, write: if request.auth != null;
+    }
+    match /notes/{noteId} {
+      allow read, write: if request.auth != null && 
+        request.auth.uid == resource.data.userId;
+    }
+    match /userPreferences/{userId} {
+      allow read, write: if request.auth != null && 
+        request.auth.uid == userId;
+    }
+  }
+}
+```
+
+## Step 4: Update Rules (If Needed)
+If your rules don't allow **creating** new documents, replace them with the rules from `FIRESTORE_RULES.txt`:
+
+```javascript
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Notebooks: Users can create and manage their own notebooks
+    match /notebooks/{notebookId} {
+      allow read: if request.auth != null && 
+        request.auth.uid == resource.data.userId;
+      allow create: if request.auth != null && 
+        request.auth.uid == request.resource.data.userId;
+      allow update, delete: if request.auth != null && 
+        request.auth.uid == resource.data.userId;
+    }
+    
+    // Tabs: Users can create and manage tabs
+    match /tabs/{tabId} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // Notes: Users can create and manage their own notes
+    match /notes/{noteId} {
+      allow read: if request.auth != null && 
+        request.auth.uid == resource.data.userId;
+      allow create: if request.auth != null && 
+        request.auth.uid == request.resource.data.userId;
+      allow update, delete: if request.auth != null && 
+        request.auth.uid == resource.data.userId;
+    }
+    
+    // User Preferences: Users can manage their own preferences
+    match /userPreferences/{userId} {
+      allow read, write: if request.auth != null && 
+        request.auth.uid == userId;
+    }
+  }
+}
+```
+
+## Step 5: Publish Rules
+1. Click the **"Publish"** button
+2. Wait for confirmation that rules are published
+
+## Important Difference
+The key difference is:
+- **Old rules**: `allow read, write` - This doesn't work for creating NEW documents
+- **New rules**: Separate `allow create` with `request.resource.data.userId` - This allows creating new documents
+
+The `request.resource` refers to the data being written (new document), while `resource.data` refers to existing document data.
+

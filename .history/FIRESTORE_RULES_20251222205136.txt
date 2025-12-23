@@ -1,0 +1,36 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Notebooks: Users can create and manage their own notebooks
+    match /notebooks/{notebookId} {
+      allow read: if request.auth != null && 
+        request.auth.uid == resource.data.userId;
+      allow create: if request.auth != null && 
+        request.auth.uid == request.resource.data.userId;
+      allow update, delete: if request.auth != null && 
+        request.auth.uid == resource.data.userId;
+    }
+    
+    // Tabs: Users can create and manage tabs (they're linked to notebooks)
+    match /tabs/{tabId} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // Notes: Users can create and manage their own notes
+    match /notes/{noteId} {
+      allow read: if request.auth != null && 
+        request.auth.uid == resource.data.userId;
+      allow create: if request.auth != null && 
+        request.auth.uid == request.resource.data.userId;
+      allow update, delete: if request.auth != null && 
+        request.auth.uid == resource.data.userId;
+    }
+    
+    // User Preferences: Users can manage their own preferences
+    match /userPreferences/{userId} {
+      allow read, write: if request.auth != null && 
+        request.auth.uid == userId;
+    }
+  }
+}
+
