@@ -16,6 +16,7 @@ import TableHeader from '@tiptap/extension-table-header';
 import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
 import Underline from '@tiptap/extension-underline';
+import Placeholder from '@tiptap/extension-placeholder';
 
 interface RichTextEditorProps {
   content: string;
@@ -63,6 +64,10 @@ export default function RichTextEditor({
       TaskItem.configure({
         nested: true,
       }),
+      Placeholder.configure({
+        placeholder: placeholder || 'Start writing...',
+        emptyEditorClass: 'is-editor-empty',
+      }),
     ],
     content,
     onUpdate: ({ editor }) => {
@@ -73,7 +78,6 @@ export default function RichTextEditor({
     editorProps: {
       attributes: {
         class: 'prose prose-invert max-w-none focus:outline-none min-h-[400px] text-white',
-        placeholder: placeholder,
       },
     },
   });
@@ -121,10 +125,7 @@ export default function RichTextEditor({
     <div className="bg-black text-white min-h-[calc(100vh-200px)]">
       {showToolbar && <EditorToolbar editor={editor} />}
       <div className="p-4">
-        <EditorContent 
-          editor={editor}
-          data-placeholder={placeholder || 'Start writing...'}
-        />
+        <EditorContent editor={editor} />
       </div>
       <style jsx global>{`
         .tiptap ul[data-type="taskList"] {

@@ -18,10 +18,14 @@ export default function DashboardPage() {
   const router = useRouter();
 
   useEffect(() => {
-    if (!authLoading && user) {
-      initializeUser();
+    if (!authLoading) {
+      if (user) {
+        initializeUser();
+      } else {
+        router.push('/login');
+      }
     }
-  }, [user, authLoading]);
+  }, [user, authLoading, router]);
 
   const initializeUser = async () => {
     if (!user) return;

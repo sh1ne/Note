@@ -439,7 +439,7 @@ export default function NoteEditorPage() {
         <RichTextEditor
           content={content}
           onChange={handleContentChange}
-          placeholder="Start typing..."
+          placeholder="Start writing..."
           onEditorReady={setEditor}
         />
       </div>

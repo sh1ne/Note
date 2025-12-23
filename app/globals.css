@@ -43,11 +43,12 @@ body {
 
 /* TipTap placeholder styling */
 .tiptap p.is-editor-empty:first-child::before {
-  content: attr(data-placeholder);
+  content: 'Start writing...';
   float: left;
   color: #6b7280;
   pointer-events: none;
   height: 0;
+  opacity: 0.6;
 }
 
 /* Theme colors */
