@@ -17,14 +17,17 @@ export default function BottomNav({
   onCreateNote,
 }: BottomNavProps) {
   // Show staple tabs (Scratch, Now, etc.) and special tabs (All Notes, More)
-  // Also show non-staple tabs (regular notes) - they should appear before staple tabs
+  // Only show the active regular note tab (non-staple tabs) if it's currently active
   const stapleTabs = tabs.filter((tab) => tab.isStaple);
   const regularTabs = tabs.filter((tab) => !tab.isStaple);
   
-  // Sort: regular tabs first (order 0), then staple tabs
-  const sortedRegularTabs = [...regularTabs].sort((a, b) => a.order - b.order);
+  // Only show the active regular tab, not all regular tabs
+  const activeRegularTab = regularTabs.find((tab) => tab.id === activeTabId);
+  const regularTabsToShow = activeRegularTab ? [activeRegularTab] : [];
+  
+  // Sort: active regular tab first (if exists), then staple tabs
   const sortedStapleTabs = [...stapleTabs].sort((a, b) => a.order - b.order);
-  const sortedTabs = [...sortedRegularTabs, ...sortedStapleTabs];
+  const sortedTabs = [...regularTabsToShow, ...sortedStapleTabs];
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-black border-t border-gray-800 z-50">

@@ -32,10 +32,36 @@ export default function NoteEditorPage() {
 
   useEffect(() => {
     if (user && noteId) {
+      // Clear any pending saves when switching notes
+      if (saveTimeout) {
+        clearTimeout(saveTimeout);
+        saveTimeout = null;
+      }
       loadNote();
       loadTabs();
     }
   }, [user, noteId, notebookId]);
+
+  // Save on unmount (when navigating away)
+  useEffect(() => {
+    return () => {
+      // Save any pending changes when component unmounts
+      if (saveTimeout) {
+        clearTimeout(saveTimeout);
+        saveTimeout = null;
+      }
+      if (note && content && note.content !== content) {
+        // Force immediate save
+        updateNote(noteId, {
+          content,
+          contentPlain: plainText,
+          title: note.title,
+        }).catch((error) => {
+          console.error('Error saving on unmount:', error);
+        });
+      }
+    };
+  }, [note, content, plainText, noteId]);
 
   const loadTabs = async () => {
     try {
@@ -65,18 +91,24 @@ export default function NoteEditorPage() {
           updatedAt: noteSnap.data().updatedAt.toDate(),
           deletedAt: noteSnap.data().deletedAt?.toDate() || null,
         } as Note;
+        
+        // Reset state completely when loading a new note
         setNote(noteData);
-        setContent(noteData.content);
-        setPlainText(noteData.contentPlain);
+        setContent(noteData.content || '');
+        setPlainText(noteData.contentPlain || '');
         setTitleValue(noteData.title || '');
         
         // Load tabs after note is loaded
         const tabsData = await getTabs(notebookId);
         setTabs(tabsData);
-        // Find the tab for this note - check by title first (for staple notes), then by tabId
-        let noteTab = tabsData.find((t) => t.name === noteData.title);
-        if (!noteTab && noteData.tabId && noteData.tabId !== 'staple') {
+        // Find the tab for this note - check by tabId first (more reliable), then by title
+        let noteTab: Tab | undefined;
+        if (noteData.tabId && noteData.tabId !== 'staple') {
           noteTab = tabsData.find((t) => t.id === noteData.tabId);
+        }
+        if (!noteTab) {
+          // For staple notes, find by title
+          noteTab = tabsData.find((t) => t.name === noteData.title && t.isStaple);
         }
         if (noteTab) {
           setActiveTabId(noteTab.id);
@@ -172,6 +204,8 @@ export default function NoteEditorPage() {
       if (note.tabId && note.tabId !== 'staple') {
         const { updateTab } = await import('@/lib/firebase/firestore');
         await updateTab(note.tabId, { name: newTitle || 'Untitled Note' });
+        // Reload tabs to show updated name
+        await loadTabs();
       }
     } catch (error) {
       console.error('Error updating title:', error);
@@ -179,6 +213,23 @@ export default function NoteEditorPage() {
   };
 
   const handleTabClick = async (tabId: string) => {
+    // Save current note before switching
+    if (note && content !== note.content) {
+      // Force immediate save
+      if (saveTimeout) {
+        clearTimeout(saveTimeout);
+      }
+      try {
+        await updateNote(noteId, {
+          content,
+          contentPlain: plainText,
+          title: note.title,
+        });
+      } catch (error) {
+        console.error('Error saving before switch:', error);
+      }
+    }
+
     const tab = tabs.find((t) => t.id === tabId);
     if (tab?.name === 'All Notes') {
       router.push(`/dashboard/notebook/${notebookId}`);
@@ -188,11 +239,11 @@ export default function NoteEditorPage() {
       // Find the staple note - ensure it exists first
       const { getNotes, createNote } = await import('@/lib/firebase/firestore');
       let allNotes = await getNotes(notebookId, undefined, user?.uid);
-      let stapleNote = allNotes.find((n) => n.title === tab.name);
+      let stapleNote = allNotes.find((n) => n.title === tab.name && n.tabId === 'staple');
       
       // Create if doesn't exist
       if (!stapleNote) {
-        const noteId = await createNote({
+        const newNoteId = await createNote({
           userId: user!.uid,
           notebookId,
           tabId: 'staple',
@@ -206,7 +257,7 @@ export default function NoteEditorPage() {
           deletedAt: null,
         });
         stapleNote = {
-          id: noteId,
+          id: newNoteId,
           userId: user!.uid,
           notebookId,
           tabId: 'staple',
@@ -269,7 +320,23 @@ export default function NoteEditorPage() {
     }
   };
 
-  const handleBack = () => {
+  const handleBack = async () => {
+    // Save current note before going back
+    if (note && content !== note.content) {
+      // Force immediate save
+      if (saveTimeout) {
+        clearTimeout(saveTimeout);
+      }
+      try {
+        await updateNote(noteId, {
+          content,
+          contentPlain: plainText,
+          title: note.title,
+        });
+      } catch (error) {
+        console.error('Error saving before back:', error);
+      }
+    }
     router.back();
   };
 
@@ -372,8 +439,7 @@ export default function NoteEditorPage() {
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                <path d="M12 8v8M8 12h8"/>
-                <path d="M12 3v3M12 18v3"/>
+                <path d="M12 3v9M8 7l4-4 4 4"/>
               </svg>
             </button>
             <button
@@ -387,6 +453,19 @@ export default function NoteEditorPage() {
             >
               🔍
             </button>
+            {note.tabId && note.tabId !== 'staple' && (
+              <button
+                onClick={handleDelete}
+                className="text-red-500 hover:text-red-600 transition-colors"
+                title="Delete Note"
+                aria-label="Delete Note"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
+            )}
           </div>
         </div>
       </div>
