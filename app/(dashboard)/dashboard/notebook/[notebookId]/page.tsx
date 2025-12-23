@@ -106,12 +106,17 @@ export default function NotebookPage() {
     try {
       // If clicking a staple tab (Scratch, Now, etc.), ensure note exists and open it
       const activeTab = tabs.find((t) => t.id === activeTabId);
+      if (activeTab?.name === 'All Notes') {
+        // Don't redirect, just load all notes
+        await loadAllNotes();
+        return;
+      }
       if (activeTab?.isStaple && activeTab.name !== 'All Notes' && activeTab.name !== 'More') {
         await ensureStapleNoteExists(activeTab.name, activeTab.id);
         return;
       }
       
-      // For "All Notes" or regular tabs, show list
+      // For regular tabs, show list
       const notesData = await getNotes(notebookId, activeTabId, user.uid);
       setNotes(notesData);
     } catch (error) {

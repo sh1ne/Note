@@ -42,6 +42,39 @@ export default function NoteEditorPage() {
     }
   }, [user, noteId, notebookId]);
 
+  // Add beforeunload handler to save on page close
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (note && editor) {
+        // Try to save synchronously if possible
+        try {
+          const currentContent = editor.getHTML();
+          const currentPlainText = editor.getText();
+          // Clear timeout to trigger immediate save
+          if (saveTimeout) {
+            clearTimeout(saveTimeout);
+            saveTimeout = null;
+          }
+          // Fire and forget - can't await in beforeunload
+          updateNote(noteId, {
+            content: currentContent,
+            contentPlain: currentPlainText,
+            title: note.title,
+          }).catch(() => {
+            // Ignore errors on unload
+          });
+        } catch (error) {
+          // Ignore errors on unload
+        }
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [note, editor, noteId]);
+
   // Save on unmount (when navigating away)
   useEffect(() => {
     return () => {
