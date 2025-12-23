@@ -42,14 +42,9 @@ export default function NotebookPage() {
         const scratchTab = tabsData.find((t) => t.name === 'Scratch') || tabsData[0];
         setActiveTabId(scratchTab.id);
         
-        // If it's a staple note, open it directly
+        // If it's a staple note, ensure it exists and open it directly
         if (scratchTab.isStaple && scratchTab.name !== 'All Notes' && scratchTab.name !== 'More') {
-          const allNotes = await getNotes(notebookId, undefined, user.uid);
-          const stapleNote = allNotes.find((n) => n.title === scratchTab.name);
-          if (stapleNote) {
-            router.push(`/dashboard/notebook/${notebookId}/note/${stapleNote.id}`);
-            return;
-          }
+          await ensureStapleNoteExists(scratchTab.name, scratchTab.id);
         }
       }
     } catch (error) {
@@ -59,20 +54,61 @@ export default function NotebookPage() {
     }
   };
 
+  const ensureStapleNoteExists = async (stapleName: string, tabId: string) => {
+    if (!user || !notebookId) return;
+    
+    try {
+      const allNotes = await getNotes(notebookId, undefined, user.uid);
+      let stapleNote = allNotes.find((n) => n.title === stapleName);
+      
+      // If note doesn't exist, create it
+      if (!stapleNote) {
+        const noteId = await createNote({
+          userId: user.uid,
+          notebookId,
+          tabId: 'staple',
+          title: stapleName,
+          content: '',
+          contentPlain: '',
+          images: [],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          isArchived: false,
+          deletedAt: null,
+        });
+        stapleNote = {
+          id: noteId,
+          userId: user.uid,
+          notebookId,
+          tabId: 'staple',
+          title: stapleName,
+          content: '',
+          contentPlain: '',
+          images: [],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          isArchived: false,
+          deletedAt: null,
+        } as Note;
+      }
+      
+      // Open the note directly
+      if (stapleNote) {
+        router.push(`/dashboard/notebook/${notebookId}/note/${stapleNote.id}`);
+      }
+    } catch (error) {
+      console.error('Error ensuring staple note exists:', error);
+    }
+  };
+
   const loadNotes = async () => {
     if (!user || !notebookId) return;
     try {
-      // If clicking a staple tab (Scratch, Now, etc.), find the note with that name
+      // If clicking a staple tab (Scratch, Now, etc.), ensure note exists and open it
       const activeTab = tabs.find((t) => t.id === activeTabId);
       if (activeTab?.isStaple && activeTab.name !== 'All Notes' && activeTab.name !== 'More') {
-        // Find the staple note by title
-        const allNotes = await getNotes(notebookId, undefined, user.uid);
-        const stapleNote = allNotes.find((n) => n.title === activeTab.name);
-        if (stapleNote) {
-          // Open the note directly
-          router.push(`/dashboard/notebook/${notebookId}/note/${stapleNote.id}`);
-          return;
-        }
+        await ensureStapleNoteExists(activeTab.name, activeTab.id);
+        return;
       }
       
       // For "All Notes" or regular tabs, show list
@@ -130,10 +166,10 @@ export default function NotebookPage() {
       await loadAllNotes();
     } else if (tab?.name === 'More') {
       router.push(`/dashboard/notebook/${notebookId}/more`);
-    } else if (tab?.isStaple) {
-      // Staple tabs (Scratch, Now, etc.) are notes - open them directly
+    } else if (tab?.isStaple && tab.name !== 'All Notes' && tab.name !== 'More') {
+      // Staple tabs (Scratch, Now, etc.) are notes - ensure they exist and open them directly
       setActiveTabId(tabId);
-      await loadNotes(); // This will redirect to the note
+      await ensureStapleNoteExists(tab.name, tabId);
     } else {
       // Regular note tabs - find the note and open it directly
       setActiveTabId(tabId);
@@ -169,24 +205,6 @@ export default function NotebookPage() {
 
   const activeTab = tabs.find((t) => t.id === activeTabId);
   const isAllNotesTab = activeTab?.name === 'All Notes';
-  const isStapleNoteTab = activeTab?.isStaple && activeTab.name !== 'All Notes' && activeTab.name !== 'More';
-
-  // Don't show list for staple notes (they open directly)
-  if (isStapleNoteTab) {
-    return (
-      <div className="min-h-screen bg-black text-white pb-16">
-        <div className="container mx-auto p-4">
-          <p className="text-gray-400">Loading note...</p>
-        </div>
-        <BottomNav
-          tabs={tabs}
-          activeTabId={activeTabId}
-          onTabClick={handleTabClick}
-          onCreateNote={handleCreateNote}
-        />
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-black text-white pb-16">
