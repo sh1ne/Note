@@ -11,6 +11,11 @@ interface NotesDB extends DBSchema {
     key: string;
     value: { noteId: string; data: Partial<Note>; timestamp: number };
   };
+  backups: {
+    key: string;
+    value: { timestamp: number; data: any };
+    indexes: { 'by-timestamp': number };
+  };
 }
 
 let db: IDBPDatabase<NotesDB> | null = null;
@@ -18,12 +23,17 @@ let db: IDBPDatabase<NotesDB> | null = null;
 export const getDB = async (): Promise<IDBPDatabase<NotesDB>> => {
   if (db) return db;
   
-  db = await openDB<NotesDB>('notes-db', 1, {
-    upgrade(db) {
+  db = await openDB<NotesDB>('notes-db', 2, {
+    upgrade(db, oldVersion) {
+      if (oldVersion < 1) {
       const notesStore = db.createObjectStore('notes', { keyPath: 'id' });
       notesStore.createIndex('by-updatedAt', 'updatedAt');
-      
       db.createObjectStore('syncQueue', { keyPath: 'noteId' });
+      }
+      if (oldVersion < 2) {
+        const backupsStore = db.createObjectStore('backups', { keyPath: 'timestamp' });
+        backupsStore.createIndex('by-timestamp', 'timestamp');
+      }
     },
   });
   
@@ -70,6 +80,35 @@ export const getSyncQueue = async () => {
 export const removeFromSyncQueue = async (noteId: string) => {
   const database = await getDB();
   await database.delete('syncQueue', noteId);
+};
+
+// Backup functions
+export const saveBackup = async (data: any) => {
+  const database = await getDB();
+  const timestamp = Date.now();
+  await database.put('backups', { timestamp, data });
+  
+  // Keep only last 10 backups (delete older ones)
+  const allBackups = await database.getAll('backups');
+  if (allBackups.length > 10) {
+    const sorted = allBackups.sort((a, b) => b.timestamp - a.timestamp);
+    const toDelete = sorted.slice(10);
+    for (const backup of toDelete) {
+      await database.delete('backups', backup.timestamp.toString());
+    }
+  }
+};
+
+export const getLatestBackup = async () => {
+  const database = await getDB();
+  const backups = await database.getAll('backups');
+  if (backups.length === 0) return null;
+  return backups.sort((a, b) => b.timestamp - a.timestamp)[0];
+};
+
+export const getAllBackups = async () => {
+  const database = await getDB();
+  return await database.getAll('backups');
 };
 
 

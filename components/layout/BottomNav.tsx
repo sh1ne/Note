@@ -34,7 +34,7 @@ export default function BottomNav({
       <div className="flex items-center justify-around h-16 px-2">
         <button
           onClick={onCreateNote}
-          className="flex flex-col items-center justify-center w-12 h-12 text-text-primary hover:bg-bg-secondary rounded"
+          className="flex flex-col items-center justify-center w-12 h-12 bg-green-600 hover:bg-green-700 text-white rounded transition-colors"
           title="Create note"
           aria-label="Create new note"
         >

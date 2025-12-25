@@ -23,6 +23,7 @@ interface RichTextEditorProps {
   onChange: (content: string, plainText: string) => void;
   placeholder?: string;
   onEditorReady?: (editor: any) => void;
+  onCreateNote?: () => void;
 }
 
 export default function RichTextEditor({
@@ -30,6 +31,7 @@ export default function RichTextEditor({
   onChange,
   placeholder = 'Start typing...',
   onEditorReady,
+  onCreateNote,
 }: RichTextEditorProps) {
   const [showToolbar, setShowToolbar] = useState(false);
   const editor = useEditor({
@@ -91,6 +93,34 @@ export default function RichTextEditor({
       attributes: {
         class: 'prose prose-invert max-w-none focus:outline-none min-h-[400px] text-text-primary',
       },
+      handleClick: (view: any, pos: number, event: MouseEvent) => {
+        // Allow clicking anywhere to place cursor
+        const { state } = view;
+        const { doc } = state;
+        const { selection } = state;
+        
+        // If clicking beyond document, place cursor at end
+        if (pos > doc.content.size) {
+          const endPos = doc.content.size;
+          view.dispatch(
+            state.tr.setSelection(selection.constructor.create(doc, endPos))
+          );
+          view.focus();
+          return true;
+        }
+        
+        // Use default behavior for clicks within document
+        return false;
+      },
+      handleDOMEvents: {
+        click: (view: any, event: MouseEvent) => {
+          // Ensure editor gets focus on any click
+          if (!view.hasFocus()) {
+            view.focus();
+          }
+          return false; // Allow default behavior
+        },
+      },
     },
   });
 
@@ -101,15 +131,19 @@ export default function RichTextEditor({
     }
   }, [editor, onEditorReady]);
 
-  // Show/hide toolbar based on focus - but keep it visible when clicking toolbar buttons
+  // Show toolbar when editor is focused or when onCreateNote is available (to show + button)
   useEffect(() => {
     if (!editor) return;
 
     const handleFocus = () => setShowToolbar(true);
     const handleBlur = (event: any) => {
-      // Don't hide toolbar if clicking on toolbar buttons
+      // Don't hide toolbar if clicking on toolbar buttons or if onCreateNote is available
       const target = event.event?.target;
       if (target && target.closest('.editor-toolbar')) {
+        return;
+      }
+      // Keep toolbar visible if onCreateNote is available (to show + button)
+      if (onCreateNote) {
         return;
       }
       // Small delay to allow button clicks to register
@@ -120,6 +154,11 @@ export default function RichTextEditor({
       }, 200);
     };
 
+    // Show toolbar initially if onCreateNote is available
+    if (onCreateNote) {
+      setShowToolbar(true);
+    }
+
     editor.on('focus', handleFocus);
     editor.on('blur', handleBlur);
 
@@ -127,21 +166,27 @@ export default function RichTextEditor({
       editor.off('focus', handleFocus);
       editor.off('blur', handleBlur);
     };
-  }, [editor]);
+  }, [editor, onCreateNote]);
 
   if (!editor) {
     return null;
   }
 
+
   return (
     <div className="bg-bg-primary text-text-primary min-h-[calc(100vh-200px)]">
-      {showToolbar && <EditorToolbar editor={editor} />}
+      {showToolbar && <EditorToolbar editor={editor} onCreateNote={onCreateNote} />}
       <div className="p-4">
         <EditorContent editor={editor} />
       </div>
       <style jsx global>{`
         .tiptap {
           color: var(--text-primary);
+          cursor: text;
+        }
+        /* Make editor clickable in blank areas */
+        .tiptap p {
+          min-height: 1.5em;
         }
         .tiptap ul[data-type="taskList"] {
           list-style: none;
@@ -170,6 +215,21 @@ export default function RichTextEditor({
         .tiptap ul[data-type="taskList"] p {
           margin: 0;
           display: inline;
+          width: 100%;
+        }
+        /* Ensure task list items respect text alignment */
+        .tiptap ul[data-type="taskList"] li[style*="text-align: left"] > div,
+        .tiptap ul[data-type="taskList"] li:not([style*="text-align"]) > div {
+          text-align: left;
+        }
+        .tiptap ul[data-type="taskList"] li[style*="text-align: center"] > div {
+          text-align: center;
+        }
+        .tiptap ul[data-type="taskList"] li[style*="text-align: right"] > div {
+          text-align: right;
+        }
+        .tiptap ul[data-type="taskList"] li[style*="text-align: justify"] > div {
+          text-align: justify;
         }
         /* Bullet and ordered list styling */
         .tiptap ul:not([data-type="taskList"]) {
@@ -196,13 +256,26 @@ export default function RichTextEditor({
   );
 }
 
-function EditorToolbar({ editor }: { editor: any }) {
+function EditorToolbar({ editor, onCreateNote }: { editor: any; onCreateNote?: () => void }) {
   if (!editor) {
     return null;
   }
 
+  // Check alignment states
+  const isCenterActive = editor.isActive({ textAlign: 'center' });
+  const isRightActive = editor.isActive({ textAlign: 'right' });
+  const isJustifyActive = editor.isActive({ textAlign: 'justify' });
+  
+  // Only show left as active if no other alignment is set
+  // This prevents default left alignment from incorrectly showing as active
+  // TipTap considers left as "active" by default, so we only show it if explicitly needed
+  const isLeftActive = !isCenterActive && !isRightActive && !isJustifyActive && 
+                       editor.isActive({ textAlign: 'left' }) &&
+                       editor.getHTML().includes('style="text-align:left"');
+
   return (
-    <div className="editor-toolbar flex flex-wrap gap-2 p-2 border-b border-bg-secondary bg-bg-secondary/80 backdrop-blur-sm fixed bottom-16 left-0 right-0 z-10 md:sticky md:top-0 md:bottom-auto">
+    <div className="editor-toolbar flex flex-wrap items-center justify-between gap-2 p-2 border-b border-bg-secondary bg-bg-secondary/80 backdrop-blur-sm fixed bottom-16 left-0 right-0 z-10 md:sticky md:top-0 md:bottom-auto">
+      <div className="flex flex-wrap gap-2">
       {/* Text Formatting */}
       <button
         onClick={(e) => {
@@ -211,7 +284,11 @@ function EditorToolbar({ editor }: { editor: any }) {
           // Keep focus on editor
           setTimeout(() => editor.commands.focus(), 10);
         }}
-        className={`px-3 py-1 rounded transition-colors ${editor.isActive('bold') ? 'bg-bg-secondary text-text-primary' : 'text-text-secondary hover:bg-bg-secondary'}`}
+        className={`px-3 py-1.5 rounded transition-all text-text-secondary hover:text-text-primary ${
+          editor.isActive('bold') 
+            ? 'bg-blue-600/20 border-2 border-blue-500 text-blue-400 font-semibold' 
+            : 'border-2 border-transparent hover:bg-bg-primary/30'
+        }`}
         title="Bold"
       >
         <strong>B</strong>
@@ -222,7 +299,11 @@ function EditorToolbar({ editor }: { editor: any }) {
           editor.chain().focus().toggleItalic().run();
           setTimeout(() => editor.commands.focus(), 10);
         }}
-        className={`px-3 py-1 rounded transition-colors ${editor.isActive('italic') ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-800'}`}
+        className={`px-3 py-1.5 rounded transition-all text-text-secondary hover:text-text-primary ${
+          editor.isActive('italic') 
+            ? 'bg-blue-600/20 border-2 border-blue-500 text-blue-400 font-semibold' 
+            : 'border-2 border-transparent hover:bg-bg-primary/30'
+        }`}
         title="Italic"
       >
         <em>I</em>
@@ -233,7 +314,11 @@ function EditorToolbar({ editor }: { editor: any }) {
           editor.chain().focus().toggleUnderline().run();
           setTimeout(() => editor.commands.focus(), 10);
         }}
-        className={`px-3 py-1 rounded transition-colors ${editor.isActive('underline') ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-800'}`}
+        className={`px-3 py-1.5 rounded transition-all text-text-secondary hover:text-text-primary ${
+          editor.isActive('underline') 
+            ? 'bg-blue-600/20 border-2 border-blue-500 text-blue-400 font-semibold' 
+            : 'border-2 border-transparent hover:bg-bg-primary/30'
+        }`}
         title="Underline"
       >
         <u>U</u>
@@ -244,7 +329,11 @@ function EditorToolbar({ editor }: { editor: any }) {
           editor.chain().focus().toggleStrike().run();
           setTimeout(() => editor.commands.focus(), 10);
         }}
-        className={`px-3 py-1 rounded transition-colors ${editor.isActive('strike') ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-800'}`}
+        className={`px-3 py-1.5 rounded transition-all text-text-secondary hover:text-text-primary ${
+          editor.isActive('strike') 
+            ? 'bg-blue-600/20 border-2 border-blue-500 text-blue-400 font-semibold' 
+            : 'border-2 border-transparent hover:bg-bg-primary/30'
+        }`}
         title="Strikethrough"
       >
         <s>S</s>
@@ -257,7 +346,11 @@ function EditorToolbar({ editor }: { editor: any }) {
           editor.chain().focus().toggleBulletList().run();
           setTimeout(() => editor.commands.focus(), 10);
         }}
-        className={`px-3 py-1 rounded transition-colors ${editor.isActive('bulletList') ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-800'}`}
+        className={`px-3 py-1.5 rounded transition-all text-text-secondary hover:text-text-primary ${
+          editor.isActive('bulletList') 
+            ? 'bg-blue-600/20 border-2 border-blue-500 text-blue-400 font-semibold' 
+            : 'border-2 border-transparent hover:bg-bg-primary/30'
+        }`}
         title="Bullet List"
       >
         •
@@ -268,7 +361,11 @@ function EditorToolbar({ editor }: { editor: any }) {
           editor.chain().focus().toggleOrderedList().run();
           setTimeout(() => editor.commands.focus(), 10);
         }}
-        className={`px-3 py-1 rounded transition-colors ${editor.isActive('orderedList') ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-800'}`}
+        className={`px-3 py-1.5 rounded transition-all text-text-secondary hover:text-text-primary ${
+          editor.isActive('orderedList') 
+            ? 'bg-blue-600/20 border-2 border-blue-500 text-blue-400 font-semibold' 
+            : 'border-2 border-transparent hover:bg-bg-primary/30'
+        }`}
         title="Numbered List"
       >
         1.
@@ -279,7 +376,11 @@ function EditorToolbar({ editor }: { editor: any }) {
           editor.chain().focus().toggleTaskList().run();
           setTimeout(() => editor.commands.focus(), 10);
         }}
-        className={`px-3 py-1 rounded transition-colors ${editor.isActive('taskList') ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-800'}`}
+        className={`px-3 py-1.5 rounded transition-all text-text-secondary hover:text-text-primary ${
+          editor.isActive('taskList') 
+            ? 'bg-blue-600/20 border-2 border-blue-500 text-blue-400 font-semibold' 
+            : 'border-2 border-transparent hover:bg-bg-primary/30'
+        }`}
         title="Task List"
       >
         ☑
@@ -292,7 +393,11 @@ function EditorToolbar({ editor }: { editor: any }) {
           editor.chain().focus().setTextAlign('left').run();
           setTimeout(() => editor.commands.focus(), 10);
         }}
-        className={`px-3 py-1 rounded transition-colors ${editor.isActive({ textAlign: 'left' }) ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-800'}`}
+        className={`px-3 py-1.5 rounded transition-all text-text-secondary hover:text-text-primary ${
+          isLeftActive 
+            ? 'bg-blue-600/20 border-2 border-blue-500 text-blue-400' 
+            : 'border-2 border-transparent hover:bg-bg-primary/30'
+        }`}
         title="Align Left"
       >
         <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
@@ -305,7 +410,11 @@ function EditorToolbar({ editor }: { editor: any }) {
           editor.chain().focus().setTextAlign('center').run();
           setTimeout(() => editor.commands.focus(), 10);
         }}
-        className={`px-3 py-1 rounded transition-colors ${editor.isActive({ textAlign: 'center' }) ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-800'}`}
+        className={`px-3 py-1.5 rounded transition-all text-text-secondary hover:text-text-primary ${
+          editor.isActive({ textAlign: 'center' }) 
+            ? 'bg-blue-600/20 border-2 border-blue-500 text-blue-400' 
+            : 'border-2 border-transparent hover:bg-bg-primary/30'
+        }`}
         title="Align Center"
       >
         <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
@@ -318,7 +427,11 @@ function EditorToolbar({ editor }: { editor: any }) {
           editor.chain().focus().setTextAlign('right').run();
           setTimeout(() => editor.commands.focus(), 10);
         }}
-        className={`px-3 py-1 rounded transition-colors ${editor.isActive({ textAlign: 'right' }) ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-800'}`}
+        className={`px-3 py-1.5 rounded transition-all text-text-secondary hover:text-text-primary ${
+          editor.isActive({ textAlign: 'right' }) 
+            ? 'bg-blue-600/20 border-2 border-blue-500 text-blue-400' 
+            : 'border-2 border-transparent hover:bg-bg-primary/30'
+        }`}
         title="Align Right"
       >
         <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
@@ -330,7 +443,7 @@ function EditorToolbar({ editor }: { editor: any }) {
       <button
         onClick={() => editor.chain().focus().undo().run()}
         disabled={!editor.can().undo()}
-            className="px-3 py-1 rounded transition-colors disabled:opacity-50 text-text-secondary hover:bg-bg-secondary"
+        className="px-3 py-1.5 rounded transition-all disabled:opacity-50 text-text-secondary hover:text-text-primary border-2 border-transparent hover:bg-bg-primary/30"
         title="Undo"
       >
         ↶
@@ -338,11 +451,25 @@ function EditorToolbar({ editor }: { editor: any }) {
       <button
         onClick={() => editor.chain().focus().redo().run()}
         disabled={!editor.can().redo()}
-            className="px-3 py-1 rounded transition-colors disabled:opacity-50 text-text-secondary hover:bg-bg-secondary"
+        className="px-3 py-1.5 rounded transition-all disabled:opacity-50 text-text-secondary hover:text-text-primary border-2 border-transparent hover:bg-bg-primary/30"
         title="Redo"
       >
         ↷
       </button>
+      </div>
+      {/* Create Note Button */}
+      {onCreateNote && (
+        <button
+          onClick={(e) => {
+            e.preventDefault();
+            onCreateNote();
+          }}
+          className="px-3 py-1.5 rounded transition-all bg-green-600 hover:bg-green-700 text-white font-semibold border-2 border-green-500"
+          title="Create New Note"
+        >
+          +
+        </button>
+      )}
     </div>
   );
 }

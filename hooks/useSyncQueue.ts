@@ -19,11 +19,28 @@ export function useSyncQueue() {
       const queue = await getSyncQueue();
       
       for (const item of queue) {
+        // Skip test items - they don't exist in Firestore
+        if (item.noteId.startsWith('test-pending-')) {
+          console.log('[Sync Queue] Skipping test item:', item.noteId);
+          await removeFromSyncQueue(item.noteId);
+          continue;
+        }
+        
         try {
           await updateNote(item.noteId, item.data);
           await removeFromSyncQueue(item.noteId);
+          // Trigger sync event for UI update
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new Event('note-synced'));
+          }
         } catch (error) {
           console.error(`Error syncing note ${item.noteId}:`, error);
+          // Dispatch error event for UI
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('note-sync-error', { 
+              detail: { noteId: item.noteId, error } 
+            }));
+          }
           // Keep in queue for retry
         }
       }

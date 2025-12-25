@@ -11,7 +11,8 @@ import LoadingSpinner from '@/components/common/LoadingSpinner';
 import ErrorMessage from '@/components/common/ErrorMessage';
 import { useTabs } from '@/hooks/useTabs';
 import { useTabNavigation } from '@/hooks/useTabNavigation';
-import { isStapleNoteTab } from '@/lib/utils/noteHelpers';
+import { isStapleNoteTab, generateUniqueNoteTitle } from '@/lib/utils/noteHelpers';
+import { createSlug } from '@/lib/utils/slug';
 
 export default function NotebookPage() {
   const params = useParams();
@@ -140,9 +141,12 @@ export default function NotebookPage() {
     if (!user || !notebookId) return;
 
     try {
+      // Generate unique title
+      const uniqueTitle = await generateUniqueNoteTitle('New Note', notebookId, user.uid);
+      
       const newTabId = await createTab({
         notebookId,
-        name: 'New Note',
+        name: uniqueTitle,
         icon: '📄',
         order: 0,
         isLocked: false,
@@ -154,7 +158,7 @@ export default function NotebookPage() {
         userId: user.uid,
         notebookId,
         tabId: newTabId,
-        title: '',
+        title: uniqueTitle,
         content: '',
         contentPlain: '',
         images: [],
@@ -164,7 +168,8 @@ export default function NotebookPage() {
         deletedAt: null,
       });
 
-      router.push(`/${notebookSlug}/note/${noteId}`);
+      const noteSlug = createSlug(uniqueTitle);
+      router.push(`/${notebookSlug}/${noteSlug}`);
     } catch (error) {
       console.error('Error creating note:', error);
     }
@@ -309,8 +314,9 @@ export default function NotebookPage() {
               (note.contentPlain || '').toLowerCase().includes(searchQuery.toLowerCase())
             ) : notes}
             notebookId={notebookId}
-            onNoteClick={(noteId) => {
-              router.push(`/${notebookSlug}/note/${noteId}`);
+            onNoteClick={(note) => {
+              const noteSlug = createSlug(note.title);
+              router.push(`/${notebookSlug}/${noteSlug}`);
             }}
             onNoteDeleted={() => {
               if (isAllNotesTab) {

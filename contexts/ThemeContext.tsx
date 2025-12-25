@@ -2,6 +2,8 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Theme } from '@/lib/types';
+import { useAuth } from './AuthContext';
+import { getUserPreferences, updateUserPreferences } from '@/lib/firebase/firestore';
 
 interface ThemeContextType {
   theme: Theme;
@@ -18,31 +20,65 @@ export const useTheme = () => useContext(ThemeContext);
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
+  const { user } = useAuth();
   // Initialize with 'dark' to prevent hydration mismatch
-  // Will be updated from localStorage in useEffect (client-side only)
   const [theme, setThemeState] = useState<Theme>('dark');
   const [mounted, setMounted] = useState(false);
+  const [preferencesLoaded, setPreferencesLoaded] = useState(false);
 
-  // Only access localStorage on client-side after mount
+  // Load theme from Firestore (or localStorage as fallback)
   useEffect(() => {
     setMounted(true);
-    if (typeof window !== 'undefined') {
+    const loadTheme = async () => {
+      if (typeof window === 'undefined') return;
+      
+      // Try Firestore first if user is logged in
+      if (user) {
+        try {
+          const prefs = await getUserPreferences(user.uid);
+          if (prefs?.theme && ['dark', 'light', 'purple', 'blue'].includes(prefs.theme)) {
+            setThemeState(prefs.theme);
+            document.documentElement.setAttribute('data-theme', prefs.theme);
+            setPreferencesLoaded(true);
+            return;
+          }
+        } catch (error) {
+          console.error('Error loading theme from Firestore:', error);
+        }
+      }
+      
+      // Fallback to localStorage
       const savedTheme = localStorage.getItem('theme') as Theme;
       if (savedTheme && ['dark', 'light', 'purple', 'blue'].includes(savedTheme)) {
         setThemeState(savedTheme);
         document.documentElement.setAttribute('data-theme', savedTheme);
       } else {
-        // Set default theme attribute
         document.documentElement.setAttribute('data-theme', 'dark');
       }
-    }
-  }, []);
+      setPreferencesLoaded(true);
+    };
 
-  const setTheme = (newTheme: Theme) => {
+    loadTheme();
+  }, [user]);
+
+  const setTheme = async (newTheme: Theme) => {
     setThemeState(newTheme);
     if (typeof window !== 'undefined') {
-      localStorage.setItem('theme', newTheme);
       document.documentElement.setAttribute('data-theme', newTheme);
+      
+      // Save to Firestore if user is logged in
+      if (user) {
+        try {
+          await updateUserPreferences(user.uid, { theme: newTheme });
+        } catch (error) {
+          console.error('Error saving theme to Firestore:', error);
+          // Fallback to localStorage
+          localStorage.setItem('theme', newTheme);
+        }
+      } else {
+        // Fallback to localStorage if not logged in
+        localStorage.setItem('theme', newTheme);
+      }
     }
   };
 

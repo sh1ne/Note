@@ -3,8 +3,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { getDoc, doc } from 'firebase/firestore';
-import { db } from '@/lib/firebase/config';
 import { deleteNote, updateTab, getNotebookBySlug } from '@/lib/firebase/firestore';
 import { Note } from '@/lib/types';
 import RichTextEditor from '@/components/editor/RichTextEditor';
@@ -15,7 +13,8 @@ import ConfirmDialog from '@/components/common/ConfirmDialog';
 import { useNote } from '@/hooks/useNote';
 import { useTabs } from '@/hooks/useTabs';
 import { useTabNavigation } from '@/hooks/useTabNavigation';
-import { findNoteTab } from '@/lib/utils/noteHelpers';
+import { findNoteTab, getNoteBySlug, generateUniqueNoteTitle } from '@/lib/utils/noteHelpers';
+import { createSlug } from '@/lib/utils/slug';
 
 // Helper function to highlight search results in TipTap
 function highlightSearchResults(editor: any, query: string) {
@@ -79,7 +78,7 @@ export default function NoteEditorPage() {
   const router = useRouter();
   const { user } = useAuth();
   const notebookSlug = params.notebookSlug as string;
-  const noteId = params.noteId as string;
+  const noteSlug = params.noteSlug as string;
   
   const [notebookId, setNotebookId] = useState<string | null>(null);
   const [initialNote, setInitialNote] = useState<Note | null>(null);
@@ -92,6 +91,8 @@ export default function NoteEditorPage() {
   const [showFind, setShowFind] = useState(false);
   const [findQuery, setFindQuery] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isOnline, setIsOnline] = useState(true);
+  const [isSavedToCloud, setIsSavedToCloud] = useState(false);
 
   // Look up notebook by slug
   useEffect(() => {
@@ -138,10 +139,12 @@ export default function NoteEditorPage() {
     handleContentChange,
     handleTitleChange,
   } = useNote({
-    noteId,
+    noteId: initialNote?.id || '',
     initialNote,
     onSaveComplete: async () => {
-      setLastSaved(new Date());
+      const now = new Date();
+      setLastSaved(now);
+      setIsSavedToCloud(true);
       // Update tab name if it's not a staple note
       if (note && note.tabId && note.tabId !== 'staple') {
         await updateTab(note.tabId, { name: note.title || 'Untitled Note' });
@@ -151,10 +154,48 @@ export default function NoteEditorPage() {
   });
 
   useEffect(() => {
-    if (user && noteId && notebookId) {
+    if (user && noteSlug && notebookId) {
       loadNote();
     }
-  }, [user, noteId, notebookId]);
+  }, [user, noteSlug, notebookId]);
+
+  // Monitor online/offline status
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    setIsOnline(navigator.onLine);
+    
+    const handleOnline = () => {
+      setIsOnline(true);
+    };
+    const handleOffline = () => {
+      setIsOnline(false);
+      setIsSavedToCloud(false); // Reset cloud save status when offline
+    };
+    
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  // Listen for sync events to update cloud save status
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    const handleSync = () => {
+      setIsSavedToCloud(true);
+    };
+    
+    window.addEventListener('note-synced', handleSync);
+    
+    return () => {
+      window.removeEventListener('note-synced', handleSync);
+    };
+  }, []);
 
   useEffect(() => {
     if (note && tabs.length > 0) {
@@ -168,19 +209,21 @@ export default function NoteEditorPage() {
   const loadNote = async () => {
     try {
       setError(null);
-      const noteRef = doc(db, 'notes', noteId);
-      const noteSnap = await getDoc(noteRef);
-      if (noteSnap.exists()) {
-        const noteData = {
-          id: noteSnap.id,
-          ...noteSnap.data(),
-          createdAt: noteSnap.data().createdAt.toDate(),
-          updatedAt: noteSnap.data().updatedAt.toDate(),
-          deletedAt: noteSnap.data().deletedAt?.toDate() || null,
-        } as Note;
-        
+      setLoading(true);
+      
+      if (!notebookId || !user) return;
+      
+      const noteData = await getNoteBySlug(noteSlug, notebookId, user.uid);
+      
+      if (noteData) {
         setInitialNote(noteData);
         setTitleValue(noteData.title || '');
+        
+        // Update URL if slug doesn't match (e.g., if title changed)
+        const expectedSlug = createSlug(noteData.title);
+        if (expectedSlug !== noteSlug) {
+          router.replace(`/${notebookSlug}/${expectedSlug}`);
+        }
       } else {
         setError('Note not found');
       }
@@ -202,6 +245,14 @@ export default function NoteEditorPage() {
       await updateTab(note.tabId, { name: newTitle || 'Untitled Note' });
       await refreshTabs();
     }
+    
+    // Update URL with new slug
+    if (note && notebookSlug) {
+      const newSlug = createSlug(newTitle);
+      if (newSlug !== noteSlug) {
+        router.replace(`/${notebookSlug}/${newSlug}`);
+      }
+    }
   };
 
   const handleTabClick = async (tabId: string) => {
@@ -218,12 +269,16 @@ export default function NoteEditorPage() {
   };
 
   const handleCreateNote = async () => {
-    if (!notebookId) return;
+    if (!notebookId || !user) return;
     const { createNote, createTab } = await import('@/lib/firebase/firestore');
     try {
+      // Generate unique title
+      const uniqueTitle = await generateUniqueNoteTitle('New Note', notebookId, user.uid);
+      const noteSlug = createSlug(uniqueTitle);
+      
       const newTabId = await createTab({
         notebookId,
-        name: 'New Note',
+        name: uniqueTitle,
         icon: '📄',
         order: 0,
         isLocked: false,
@@ -232,10 +287,10 @@ export default function NoteEditorPage() {
       });
 
       const newNoteId = await createNote({
-        userId: user!.uid,
+        userId: user.uid,
         notebookId,
         tabId: newTabId,
-        title: '',
+        title: uniqueTitle,
         content: '',
         contentPlain: '',
         images: [],
@@ -245,7 +300,7 @@ export default function NoteEditorPage() {
         deletedAt: null,
       });
 
-      router.push(`/${notebookSlug}/note/${newNoteId}`);
+      router.push(`/${notebookSlug}/${noteSlug}`);
     } catch (error) {
       console.error('Error creating note:', error);
     }
@@ -262,8 +317,9 @@ export default function NoteEditorPage() {
   };
 
   const handleDeleteConfirm = async () => {
+    if (!note) return;
     try {
-      await deleteNote(noteId);
+      await deleteNote(note.id);
       setShowDeleteConfirm(false);
       router.back();
     } catch (error) {
@@ -286,17 +342,45 @@ export default function NoteEditorPage() {
   }
 
   const formatDate = (date: Date) => {
-    return date.toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric', 
-      year: 'numeric' 
-    });
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    // Show relative time for recent notes
+    if (diffMins < 1) {
+      return 'Just now';
+    } else if (diffMins < 60) {
+      return `${diffMins}m ago`;
+    } else if (diffHours < 24) {
+      return `${diffHours}h ago`;
+    } else if (diffDays < 7) {
+      return `${diffDays}d ago`;
+    } else {
+      // Show date and time for older notes
+      return new Intl.DateTimeFormat('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined,
+        hour: 'numeric',
+        minute: '2-digit',
+      }).format(date);
+    }
   };
 
   return (
     <div className="min-h-screen bg-bg-primary text-text-primary pb-16">
+      {/* Offline Banner */}
+      {!isOnline && (
+        <div className="sticky top-0 z-30 bg-red-900/80 border-b border-red-600 px-4 py-2">
+          <p className="text-xs text-red-200 text-center">
+            <strong>⚠️ You're offline</strong> - Your notes are being saved locally and will sync when you're back online. <strong>Your data is safe.</strong>
+          </p>
+        </div>
+      )}
       {/* Header Bar */}
-      <div className="sticky top-0 bg-bg-primary border-b border-bg-secondary z-20">
+      <div className={`sticky ${!isOnline ? 'top-8' : 'top-0'} bg-bg-primary border-b border-bg-secondary z-20`}>
         <div className="flex items-center justify-between p-4">
           <div className="flex items-center gap-4">
             <button
@@ -336,15 +420,32 @@ export default function NoteEditorPage() {
               ↷
             </button>
             {isSaving && (
-              <span className="text-xs text-text-secondary">Saving...</span>
+              <span className="text-xs text-text-secondary">
+                {isOnline ? 'Saving to cloud...' : 'Saving locally...'}
+              </span>
             )}
             {lastSaved && !isSaving && (
               <span className="text-xs text-text-secondary">
-                Saved {lastSaved.toLocaleTimeString()}
+                {isOnline && isSavedToCloud 
+                  ? `Saved to cloud ${lastSaved.toLocaleTimeString()}`
+                  : isOnline
+                  ? `Saved locally ${lastSaved.toLocaleTimeString()}`
+                  : `Saved offline ${lastSaved.toLocaleTimeString()}`}
               </span>
+            )}
+            {!isOnline && (
+              <span className="text-xs text-red-400 ml-2">⚠️ Offline</span>
             )}
           </div>
           <div className="flex items-center gap-4">
+            <button
+              onClick={handleCreateNote}
+              className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded transition-colors font-semibold"
+              title="Create New Note"
+              aria-label="Create New Note"
+            >
+              +
+            </button>
             <button
               onClick={async () => {
                 if (!note) return;
@@ -537,6 +638,7 @@ export default function NoteEditorPage() {
             setEditor(ed);
             setEditorState(ed);
           }}
+          onCreateNote={handleCreateNote}
         />
       </div>
 

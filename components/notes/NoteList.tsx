@@ -9,7 +9,7 @@ import ConfirmDialog from '@/components/common/ConfirmDialog';
 interface NoteListProps {
   notes: Note[];
   notebookId: string;
-  onNoteClick: (noteId: string) => void;
+  onNoteClick: (note: Note) => void;
   onNoteDeleted?: () => void;
 }
 
@@ -88,7 +88,7 @@ export default function NoteList({ notes, onNoteClick, onNoteDeleted }: NoteList
             className="relative w-full p-4 bg-bg-secondary rounded hover:bg-bg-secondary/80 transition-colors"
           >
             <button
-              onClick={() => onNoteClick(note.id)}
+              onClick={() => onNoteClick(note)}
               className="w-full text-left"
             >
               <div className="flex items-start justify-between mb-2 pr-8">

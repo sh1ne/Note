@@ -45,6 +45,7 @@ export interface UserPreferences {
   userId: string;
   currentNotebookId: string;
   theme: 'dark' | 'light' | 'purple' | 'blue';
+  fontSize: 'small' | 'medium' | 'large';
   autoSave: boolean;
   autoSaveInterval: number;
   tabsLocked: boolean;

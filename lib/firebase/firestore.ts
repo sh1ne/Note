@@ -73,9 +73,13 @@ export const getNotebooks = async (userId: string): Promise<Notebook[]> => {
     } as Notebook);
   }
   
-  // Persist slugs if any were missing
+  // Persist slugs if any were missing (non-blocking)
+  // Don't block the app from loading if this fails
   if (needsUpdate) {
-    await batch.commit();
+    batch.commit().catch((err) => {
+      console.error('Failed to persist slugs to Firestore:', err);
+      // Log but don't throw - notebooks are already in memory with slugs
+    });
   }
   
   // Sort by createdAt client-side to avoid needing an index
@@ -128,7 +132,65 @@ export const getNotebookBySlug = async (userId: string, slug: string): Promise<N
   } as Notebook;
 };
 
-export const deleteNotebook = async (notebookId: string) => {
+/**
+ * Delete all notes for a specific notebook
+ */
+export const deleteAllNotesForNotebook = async (notebookId: string, userId?: string): Promise<number> => {
+  const constraints = [
+    where('notebookId', '==', notebookId)
+  ];
+  
+  if (userId) {
+    constraints.push(where('userId', '==', userId));
+  }
+  
+  const q = query(collection(db, 'notes'), ...constraints);
+  const snapshot = await getDocs(q);
+  
+  let deletedCount = 0;
+  for (const noteDoc of snapshot.docs) {
+    try {
+      await deleteDoc(doc(db, 'notes', noteDoc.id));
+      deletedCount++;
+    } catch (error) {
+      console.error(`Error deleting note ${noteDoc.id}:`, error);
+    }
+  }
+  
+  return deletedCount;
+};
+
+/**
+ * Delete all tabs for a notebook (including staple tabs)
+ */
+export const deleteAllTabsForNotebookIncludingStaple = async (notebookId: string): Promise<number> => {
+  const tabsRef = collection(db, 'tabs');
+  const q = query(tabsRef, where('notebookId', '==', notebookId));
+  const snapshot = await getDocs(q);
+  
+  let deletedCount = 0;
+  for (const tabDoc of snapshot.docs) {
+    try {
+      await deleteDoc(doc(db, 'tabs', tabDoc.id));
+      deletedCount++;
+    } catch (error) {
+      console.error(`Error deleting tab ${tabDoc.id}:`, error);
+    }
+  }
+  
+  return deletedCount;
+};
+
+export const deleteNotebook = async (notebookId: string, userId?: string) => {
+  // First, delete all notes for this notebook
+  const deletedNotesCount = await deleteAllNotesForNotebook(notebookId, userId);
+  console.log(`Deleted ${deletedNotesCount} notes for notebook ${notebookId}`);
+  
+  // Then, delete all tabs for this notebook (including staple tabs)
+  const deletedTabsCount = await deleteAllTabsForNotebookIncludingStaple(notebookId);
+  console.log(`Deleted ${deletedTabsCount} tabs for notebook ${notebookId}`);
+  
+  // Finally, delete the notebook itself
   await deleteDoc(doc(db, 'notebooks', notebookId));
 };
 
@@ -218,10 +280,68 @@ export const getNotes = async (
 
 export const updateNote = async (noteId: string, updates: Partial<Note>) => {
   const noteRef = doc(db, 'notes', noteId);
-  await updateDoc(noteRef, {
+  const updateData = {
     ...updates,
     updatedAt: Timestamp.now(),
+  };
+  
+  // Get note title for better logging (if available in updates)
+  const noteTitle = updates.title || 'unknown';
+  
+  console.log('[Firestore] Syncing note to cloud:', {
+    noteId,
+    title: noteTitle,
+    updates: Object.keys(updates),
+    timestamp: new Date().toISOString(),
   });
+  
+    try {
+      // First, try to get the current note to verify it exists and log its current state
+      const currentNote = await getDoc(noteRef);
+      if (!currentNote.exists()) {
+        console.error('[Firestore] ❌ Note does not exist in Firestore:', noteId);
+        throw new Error(`Note ${noteId} does not exist in Firestore`);
+      }
+      
+      const currentData = currentNote.data();
+      const currentNotebookId = currentData.notebookId;
+      const newNotebookId = updates.notebookId;
+      
+      // Check if notebookId is being updated and log a warning
+      if (newNotebookId && newNotebookId !== currentNotebookId) {
+        console.warn('[Firestore] ⚠️ Note notebookId mismatch detected:', {
+          noteId,
+          title: noteTitle,
+          currentNotebookId,
+          newNotebookId,
+          action: 'Updating notebookId to match current notebook',
+        });
+      }
+      
+      console.log('[Firestore] Current note in Firestore:', {
+        noteId,
+        title: currentData.title || 'unknown',
+        notebookId: currentNotebookId,
+        lastUpdated: currentData.updatedAt?.toDate?.()?.toISOString() || 'unknown',
+      });
+      
+      await updateDoc(noteRef, updateData);
+      
+      console.log('[Firestore] ✅ Successfully synced note to cloud:', {
+        noteId,
+        title: noteTitle,
+        updatedAt: new Date().toISOString(),
+        notebookId: newNotebookId || currentNotebookId,
+      });
+    } catch (error: any) {
+      console.error('[Firestore] ❌ Error syncing note:', {
+        noteId,
+        title: noteTitle,
+        error: error.message,
+        code: error.code,
+      });
+      throw error;
+    }
 };
 
 export const deleteNote = async (noteId: string) => {
@@ -231,8 +351,152 @@ export const deleteNote = async (noteId: string) => {
   });
 };
 
+export const restoreNote = async (noteId: string) => {
+  const noteRef = doc(db, 'notes', noteId);
+  await updateDoc(noteRef, {
+    deletedAt: null,
+    updatedAt: Timestamp.now(),
+  });
+};
+
 export const permanentlyDeleteNote = async (noteId: string) => {
   await deleteDoc(doc(db, 'notes', noteId));
+};
+
+/**
+ * Delete ALL notes for a user (use with caution!)
+ */
+export const deleteAllNotesForUser = async (userId: string): Promise<number> => {
+  const notesRef = collection(db, 'notes');
+  const q = query(notesRef, where('userId', '==', userId));
+  const snapshot = await getDocs(q);
+  
+  let deletedCount = 0;
+  for (const noteDoc of snapshot.docs) {
+    try {
+      await deleteDoc(doc(db, 'notes', noteDoc.id));
+      deletedCount++;
+    } catch (error) {
+      console.error(`Error deleting note ${noteDoc.id}:`, error);
+    }
+  }
+  
+  return deletedCount;
+};
+
+/**
+ * Delete ALL tabs for a notebook (use with caution!)
+ * This will delete all tabs except staple tabs (Scratch, Now, etc.)
+ */
+export const deleteAllTabsForNotebook = async (notebookId: string, keepStapleTabs: boolean = true): Promise<number> => {
+  const tabsRef = collection(db, 'tabs');
+  const q = query(tabsRef, where('notebookId', '==', notebookId));
+  const snapshot = await getDocs(q);
+  
+  let deletedCount = 0;
+  for (const tabDoc of snapshot.docs) {
+    const tabData = tabDoc.data();
+    // Skip staple tabs if keepStapleTabs is true
+    if (keepStapleTabs && tabData.isStaple) {
+      continue;
+    }
+    
+    try {
+      await deleteDoc(doc(db, 'tabs', tabDoc.id));
+      deletedCount++;
+    } catch (error) {
+      console.error(`Error deleting tab ${tabDoc.id}:`, error);
+    }
+  }
+  
+  return deletedCount;
+};
+
+/**
+ * Delete ALL tabs for a user across all notebooks (use with caution!)
+ */
+export const deleteAllTabsForUser = async (userId: string, keepStapleTabs: boolean = true): Promise<number> => {
+  // Get all notebooks for user
+  const notebooks = await getNotebooks(userId);
+  let totalDeleted = 0;
+  
+  for (const notebook of notebooks) {
+    const deleted = await deleteAllTabsForNotebook(notebook.id, keepStapleTabs);
+    totalDeleted += deleted;
+  }
+  
+  return totalDeleted;
+};
+
+/**
+ * Clean up orphaned tabs - tabs that belong to notebooks that don't exist
+ * or tabs that don't have corresponding notes (for non-staple tabs)
+ */
+export const cleanupOrphanedTabs = async (userId: string): Promise<{ deleted: number; orphaned: Array<{ tabId: string; tabName: string; reason: string }> }> => {
+  // Get all notebooks for user
+  const notebooks = await getNotebooks(userId);
+  const notebookIds = new Set(notebooks.map(nb => nb.id));
+  
+  // Get all tabs for user's notebooks
+  const tabsRef = collection(db, 'tabs');
+  const tabsSnapshot = await getDocs(tabsRef);
+  
+  const orphaned: Array<{ tabId: string; tabName: string; reason: string }> = [];
+  let deletedCount = 0;
+  
+  for (const tabDoc of tabsSnapshot.docs) {
+    const tabData = tabDoc.data();
+    const tabId = tabDoc.id;
+    const tabNotebookId = tabData.notebookId;
+    
+    // Skip if tab has no notebookId
+    if (!tabNotebookId) {
+      continue;
+    }
+    
+    // Check if tab belongs to a notebook that doesn't exist (orphaned)
+    if (!notebookIds.has(tabNotebookId)) {
+      orphaned.push({
+        tabId,
+        tabName: tabData.name || 'Unknown',
+        reason: `Notebook does not exist`
+      });
+      
+      // Delete orphaned tab
+      try {
+        await deleteDoc(doc(db, 'tabs', tabId));
+        deletedCount++;
+      } catch (error) {
+        console.error(`Error deleting orphaned tab ${tabId}:`, error);
+      }
+      continue;
+    }
+    
+    // For non-staple tabs in user's notebooks, check if they have a corresponding note
+    if (!tabData.isStaple) {
+      const notes = await getNotes(tabNotebookId, tabId, userId);
+      // Filter out deleted notes
+      const activeNotes = notes.filter(n => !n.deletedAt);
+      if (activeNotes.length === 0) {
+        // Tab has no active notes - it's orphaned
+        orphaned.push({
+          tabId,
+          tabName: tabData.name || 'Unknown',
+          reason: 'No corresponding notes found'
+        });
+        
+        // Delete orphaned tab
+        try {
+          await deleteDoc(doc(db, 'tabs', tabId));
+          deletedCount++;
+        } catch (error) {
+          console.error(`Error deleting orphaned tab ${tabId}:`, error);
+        }
+      }
+    }
+  }
+  
+  return { deleted: deletedCount, orphaned };
 };
 
 export const getDeletedNotes = async (

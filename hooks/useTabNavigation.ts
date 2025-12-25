@@ -3,6 +3,7 @@ import { useRouter } from 'next/navigation';
 import { Tab } from '@/lib/types';
 import { ensureStapleNoteExists, isStapleNoteTab, isSpecialTab } from '@/lib/utils/noteHelpers';
 import { getNotes } from '@/lib/firebase/firestore';
+import { createSlug } from '@/lib/utils/slug';
 
 interface UseTabNavigationOptions {
   notebookId: string; // Still need ID for data operations
@@ -33,22 +34,24 @@ export function useTabNavigation({ notebookId, notebookSlug, userId }: UseTabNav
       return 'redirect';
     }
     
-    // Staple tabs (Scratch, Now, etc.) - open the note directly
+    // Staple tabs (Scratch, Now, etc.) - open the note directly using slug
     if (isStapleNoteTab(tab)) {
       const stapleNote = await ensureStapleNoteExists(tab.name, notebookId, userId);
       if (stapleNote) {
-        router.push(`/${notebookSlug}/note/${stapleNote.id}`);
+        const slug = createSlug(stapleNote.title);
+        router.push(`/${notebookSlug}/${slug}`);
         return 'redirect';
       }
       return 'stay';
     }
     
-    // Regular note tabs - open the first note in that tab
+    // Regular note tabs - open the first note in that tab using slug
     if (!options?.skipRedirect) {
       try {
         const notesData = await getNotes(notebookId, tab.id, userId);
         if (notesData.length > 0) {
-          router.push(`/${notebookSlug}/note/${notesData[0].id}`);
+          const noteSlug = createSlug(notesData[0].title);
+          router.push(`/${notebookSlug}/${noteSlug}`);
           return 'redirect';
         }
       } catch (error) {
