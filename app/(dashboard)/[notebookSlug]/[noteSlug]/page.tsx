@@ -517,32 +517,40 @@ export default function NoteEditorPage() {
                       e.preventDefault();
                       e.stopPropagation();
                       if (!note) return;
+                      setShowShareMenu(false);
                       // Prevent editor from saving when clicking email
                       if (editor) {
                         editor.setEditable(false);
                       }
                       const textToShare = `${note.title || 'Untitled Note'}\n\n${plainText || ''}`;
                       const mailtoLink = `mailto:?subject=${encodeURIComponent(note.title || 'Untitled Note')}&body=${encodeURIComponent(textToShare)}`;
-                      // Use a temporary link element to avoid navigation/focus issues
-                      const a = document.createElement('a');
-                      a.href = mailtoLink;
-                      a.style.display = 'none';
-                      document.body.appendChild(a);
-                      a.click();
-                      // Show feedback
-                      setToast({ message: 'Opening email client...', type: 'info' });
-                      setTimeout(() => setToast(null), 2000);
-                      // Remove immediately to prevent any side effects
-                      setTimeout(() => {
-                        document.body.removeChild(a);
-                        // Re-enable editor after a delay
-                        if (editor) {
-                          setTimeout(() => {
-                            editor.setEditable(true);
-                          }, 500);
-                        }
-                      }, 100);
-                      setShowShareMenu(false);
+                      
+                      // Try window.location first (most reliable for mailto)
+                      try {
+                        window.location.href = mailtoLink;
+                        setToast({ message: 'Opening email client...', type: 'info' });
+                        setTimeout(() => setToast(null), 2000);
+                      } catch (err) {
+                        // Fallback: use temporary link
+                        const a = document.createElement('a');
+                        a.href = mailtoLink;
+                        a.target = '_blank';
+                        a.rel = 'noopener noreferrer';
+                        document.body.appendChild(a);
+                        a.click();
+                        setToast({ message: 'Opening email client...', type: 'info' });
+                        setTimeout(() => {
+                          document.body.removeChild(a);
+                          setTimeout(() => setToast(null), 2000);
+                        }, 100);
+                      }
+                      
+                      // Re-enable editor after a delay
+                      if (editor) {
+                        setTimeout(() => {
+                          editor.setEditable(true);
+                        }, 1000);
+                      }
                     }}
                     className="w-full text-left px-4 py-2 text-sm text-text-primary hover:bg-bg-primary transition-colors"
                   >
@@ -552,6 +560,8 @@ export default function NoteEditorPage() {
                     <button
                       onClick={async () => {
                         if (!note) return;
+                        // Close menu immediately so user doesn't see it while native dialog is open
+                        setShowShareMenu(false);
                         try {
                           // Check if share is actually available
                           if (!navigator.share) {
@@ -566,11 +576,10 @@ export default function NoteEditorPage() {
                           });
                           setToast({ message: 'Shared successfully!', type: 'success' });
                           setTimeout(() => setToast(null), 2000);
-                          setShowShareMenu(false);
                         } catch (err: any) {
                           if (err.name === 'AbortError') {
-                            // User cancelled, just close menu
-                            setShowShareMenu(false);
+                            // User cancelled native share dialog - no action needed, menu already closed
+                            // The native dialog has its own close/cancel button
                           } else if (err.name === 'NotAllowedError' || err.name === 'TypeError') {
                             // Share not supported or failed, fallback to clipboard
                             const textToShare = `${note.title || 'Untitled Note'}\n\n${plainText || ''}`;
@@ -586,7 +595,6 @@ export default function NoteEditorPage() {
                             setToast({ message: 'Failed to share. Please try again.', type: 'error' });
                             setTimeout(() => setToast(null), 3000);
                           }
-                          setShowShareMenu(false);
                         }
                       }}
                       className="w-full text-left px-4 py-2 text-sm text-text-primary hover:bg-bg-primary transition-colors"
