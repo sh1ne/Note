@@ -780,7 +780,7 @@ export default function MorePage() {
                     setPendingSyncCount(queue.length);
                     alert(`Test item added to sync queue. Pending count: ${queue.length}\n\nTo remove it, click "Sync Now" or clear it from browser DevTools > Application > IndexedDB > notes-db > syncQueue`);
             }}
-                  className="px-3 py-1.5 bg-orange-600 hover:bg-orange-700 text-white rounded transition-colors text-xs"
+                  className="px-3 py-1 text-xs bg-orange-600 hover:bg-orange-700 text-white rounded transition-colors"
                   title="Add test item to sync queue (dev only)"
                 >
                   Test Pending
@@ -1055,7 +1055,7 @@ export default function MorePage() {
                   alert('Error deleting notes. Check console for details.');
                 }
               }}
-              className="px-4 py-2 text-sm bg-red-600 hover:bg-red-700 text-white rounded transition-colors whitespace-nowrap font-bold"
+              className="px-3 py-1 text-xs bg-red-600 hover:bg-red-700 text-white rounded transition-colors whitespace-nowrap font-bold"
               title="Delete all notes and cleanup tabs"
             >
               Delete All Notes

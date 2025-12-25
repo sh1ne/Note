@@ -35,7 +35,7 @@ export default function Toast({
   }[type];
 
   return (
-    <div className="fixed top-4 right-4 z-50 animate-slide-in">
+    <div className="fixed top-4 right-4 z-[100] animate-slide-in">
       <div className={`${bgColor} text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-2 min-w-[200px] max-w-[400px]`}>
         <span>{type === 'success' ? '✓' : type === 'error' ? '✕' : 'ℹ'}</span>
         <p className="text-sm font-medium">{message}</p>

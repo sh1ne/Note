@@ -484,6 +484,16 @@ export default function NoteEditorPage() {
               </button>
               {showShareMenu && (
                 <div className="absolute right-0 top-full mt-2 bg-bg-secondary border border-bg-primary rounded-lg shadow-lg z-50 min-w-[200px]">
+                  <div className="flex items-center justify-between px-4 py-2 border-b border-bg-primary">
+                    <span className="text-xs font-semibold text-text-primary">Share Note</span>
+                    <button
+                      onClick={() => setShowShareMenu(false)}
+                      className="text-text-secondary hover:text-text-primary transition-colors"
+                      aria-label="Close menu"
+                    >
+                      ✕
+                    </button>
+                  </div>
                   <button
                     onClick={async () => {
                       if (!note) return;
@@ -507,6 +517,10 @@ export default function NoteEditorPage() {
                       e.preventDefault();
                       e.stopPropagation();
                       if (!note) return;
+                      // Prevent editor from saving when clicking email
+                      if (editor) {
+                        editor.setEditable(false);
+                      }
                       const textToShare = `${note.title || 'Untitled Note'}\n\n${plainText || ''}`;
                       const mailtoLink = `mailto:?subject=${encodeURIComponent(note.title || 'Untitled Note')}&body=${encodeURIComponent(textToShare)}`;
                       // Use a temporary link element to avoid navigation/focus issues
@@ -518,6 +532,12 @@ export default function NoteEditorPage() {
                       // Remove immediately to prevent any side effects
                       setTimeout(() => {
                         document.body.removeChild(a);
+                        // Re-enable editor after a delay
+                        if (editor) {
+                          setTimeout(() => {
+                            editor.setEditable(true);
+                          }, 500);
+                        }
                       }, 100);
                       setShowShareMenu(false);
                     }}
@@ -734,6 +754,12 @@ export default function NoteEditorPage() {
           onCreateNote={handleCreateNote}
         />
       )}
+      <Toast
+        message={toast?.message || ''}
+        type={toast?.type || 'info'}
+        isVisible={!!toast}
+        onClose={() => setToast(null)}
+      />
     </div>
   );
 }
