@@ -198,8 +198,6 @@ export default function NotebookPage() {
 
   const activeTab = getTabById(activeTabId);
   const isAllNotesTab = activeTab?.name === 'All Notes';
-  const [showSearch, setShowSearch] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
 
   return (
     <div className="min-h-screen bg-bg-primary text-text-primary pb-16">

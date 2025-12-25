@@ -8,6 +8,7 @@ import { getNotebooks, getNotes } from '@/lib/firebase/firestore';
 import { Notebook, Note } from '@/lib/types';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import ConfirmDialog from '@/components/common/ConfirmDialog';
 
 function StorageUsageDisplay({ userId }: { userId: string }) {
   const [usage, setUsage] = useState<{ notes: number; estimatedSize: string } | null>(null);

@@ -17,6 +17,63 @@ import { useTabs } from '@/hooks/useTabs';
 import { useTabNavigation } from '@/hooks/useTabNavigation';
 import { findNoteTab } from '@/lib/utils/noteHelpers';
 
+// Helper function to highlight search results in TipTap
+function highlightSearchResults(editor: any, query: string) {
+  if (!editor || !query) return;
+  
+  try {
+    // Clear all existing highlights
+    editor.chain().unsetHighlight().run();
+    
+    // Get document and find text positions
+    const { doc } = editor.state;
+    const queryLower = query.toLowerCase();
+    let textOffset = 0;
+    const matches: Array<{ from: number; to: number }> = [];
+    
+    // First pass: find all matches and their document positions
+    doc.descendants((node: any, pos: number) => {
+      if (node.isText) {
+        const nodeText = node.text;
+        const nodeTextLower = nodeText.toLowerCase();
+        let searchIndex = 0;
+        
+        while (true) {
+          const index = nodeTextLower.indexOf(queryLower, searchIndex);
+          if (index === -1) break;
+          
+          const from = pos + index;
+          const to = from + query.length;
+          
+          if (to <= pos + nodeText.length) {
+            matches.push({ from, to });
+          }
+          
+          searchIndex = index + 1;
+        }
+      }
+    });
+    
+    // Second pass: apply highlights (in reverse to maintain positions)
+    matches.reverse().forEach((match) => {
+      try {
+        editor.chain()
+          .setTextSelection({ from: match.from, to: match.to })
+          .setHighlight({ color: '#fbbf24' })
+          .run();
+      } catch (err) {
+        // Skip if highlighting fails
+      }
+    });
+    
+    // Focus editor
+    editor.commands.focus();
+  } catch (err) {
+    console.error('Error highlighting search results:', err);
+    editor.commands.focus();
+  }
+}
+
 export default function NoteEditorPage() {
   const params = useParams();
   const router = useRouter();
@@ -265,25 +322,33 @@ export default function NoteEditorPage() {
           <div className="flex items-center gap-4">
             <button
               onClick={async () => {
-                if (navigator.share && note) {
+                if (!note) return;
+                
+                const textToShare = `${note.title || 'Untitled Note'}\n\n${plainText || ''}`;
+                
+                // Try Web Share API first, but always fall back to clipboard
+                if (navigator.share) {
                   try {
                     await navigator.share({
                       title: note.title || 'Untitled Note',
                       text: plainText || '',
                     });
-                  } catch (err) {
-                    // User cancelled or error
-                    console.log('Share cancelled');
+                    return; // Success, exit early
+                  } catch (err: any) {
+                    // If user cancelled (AbortError), don't show error
+                    if (err.name === 'AbortError') {
+                      return;
+                    }
+                    // For other errors, fall through to clipboard
                   }
-                } else {
-                  // Fallback: copy to clipboard
-                  const textToShare = `${note?.title || 'Untitled Note'}\n\n${plainText || ''}`;
-                  try {
-                    await navigator.clipboard.writeText(textToShare);
-                    alert('Note copied to clipboard!');
-                  } catch (err) {
-                    alert('Failed to copy note');
-                  }
+                }
+                
+                // Fallback: copy to clipboard
+                try {
+                  await navigator.clipboard.writeText(textToShare);
+                  alert('Note copied to clipboard!');
+                } catch (err) {
+                  alert('Failed to copy note. Please try again.');
                 }
               }}
               className="text-text-primary hover:text-text-secondary transition-colors"
@@ -384,7 +449,29 @@ export default function NoteEditorPage() {
             <input
               type="text"
               value={findQuery}
-              onChange={(e) => setFindQuery(e.target.value)}
+              onChange={(e) => {
+                setFindQuery(e.target.value);
+                // Clear previous highlights
+                if (editor) {
+                  editor.commands.unsetHighlight();
+                }
+                // Highlight matches as user types
+                if (editor && e.target.value) {
+                  highlightSearchResults(editor, e.target.value);
+                }
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && editor && findQuery) {
+                  highlightSearchResults(editor, findQuery);
+                }
+                if (e.key === 'Escape') {
+                  if (editor) {
+                    editor.commands.unsetHighlight();
+                  }
+                  setShowFind(false);
+                  setFindQuery('');
+                }
+              }}
               placeholder="Search in note..."
               className="flex-1 px-3 py-2 bg-bg-primary border border-text-secondary rounded text-text-primary focus:outline-none focus:border-text-primary"
               autoFocus
@@ -392,13 +479,7 @@ export default function NoteEditorPage() {
             <button
               onClick={() => {
                 if (editor && findQuery) {
-                  // Simple find - scroll to first occurrence
-                  const text = editor.getText();
-                  const index = text.toLowerCase().indexOf(findQuery.toLowerCase());
-                  if (index !== -1) {
-                    // TipTap doesn't have built-in find, so we'll just highlight
-                    editor.commands.focus();
-                  }
+                  highlightSearchResults(editor, findQuery);
                 }
               }}
               className="px-4 py-2 bg-bg-primary text-text-primary rounded hover:bg-bg-secondary"
@@ -407,6 +488,9 @@ export default function NoteEditorPage() {
             </button>
             <button
               onClick={() => {
+                if (editor) {
+                  editor.commands.unsetHighlight();
+                }
                 setShowFind(false);
                 setFindQuery('');
               }}
