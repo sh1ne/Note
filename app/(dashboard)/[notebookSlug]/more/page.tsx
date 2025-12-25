@@ -4,15 +4,15 @@ import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { logOut } from '@/lib/firebase/auth';
 import { useTheme } from '@/contexts/ThemeContext';
-import { getNotebooks, getNotes } from '@/lib/firebase/firestore';
+import { getNotebooks, getNotes, getNotebookBySlug } from '@/lib/firebase/firestore';
 import { Notebook, Note } from '@/lib/types';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import ConfirmDialog from '@/components/common/ConfirmDialog';
+import { createSlug } from '@/lib/utils/slug';
 
-function StorageUsageDisplay({ userId }: { userId: string }) {
+function StorageUsageDisplay({ userId, notebookId }: { userId: string; notebookId: string }) {
   const [usage, setUsage] = useState<{ notes: number; estimatedSize: string } | null>(null);
-  const params = useParams();
-  const notebookId = params.notebookId as string;
 
   useEffect(() => {
     if (userId && notebookId) {
@@ -23,11 +23,13 @@ function StorageUsageDisplay({ userId }: { userId: string }) {
   const calculateStorage = async () => {
     try {
       const notes = await getNotes(notebookId, undefined, userId);
+      // Exclude staple notes and deleted notes from count
+      const regularNotes = notes.filter((n) => n && n.tabId !== 'staple' && !n.deletedAt);
       // Rough estimate: each note ~1-5KB, images are stored separately
-      const estimatedBytes = notes.length * 3000; // 3KB average per note
+      const estimatedBytes = regularNotes.length * 3000; // 3KB average per note
       const estimatedMB = (estimatedBytes / (1024 * 1024)).toFixed(2);
       setUsage({
-        notes: notes.length,
+        notes: regularNotes.length,
         estimatedSize: estimatedMB,
       });
     } catch (error) {
@@ -66,12 +68,51 @@ export default function MorePage() {
   const router = useRouter();
   const { user } = useAuth();
   const { theme, setTheme } = useTheme();
-  const notebookId = params.notebookId as string;
+  const notebookSlug = params.notebookSlug as string;
+  const [notebookId, setNotebookId] = useState<string | null>(null);
   const [notebooks, setNotebooks] = useState<Notebook[]>([]);
+  const [showDefaultConfirm, setShowDefaultConfirm] = useState<{ notebookId: string; notebookName: string } | null>(null);
+  const [showDeletedNotes, setShowDeletedNotes] = useState(false);
+  const [deletedNotes, setDeletedNotes] = useState<Note[]>([]);
+  const [fontSize, setFontSize] = useState<'small' | 'medium' | 'large'>('medium');
+  const [autoSave, setAutoSave] = useState(true);
+
+  // Look up notebook by slug
+  useEffect(() => {
+    const loadNotebook = async () => {
+      if (!user || !notebookSlug) return;
+      
+      try {
+        const notebook = await getNotebookBySlug(user.uid, notebookSlug);
+        if (!notebook) {
+          router.push('/');
+          return;
+        }
+        setNotebookId(notebook.id);
+      } catch (err) {
+        console.error('Error loading notebook:', err);
+        router.push('/');
+      }
+    };
+    
+    loadNotebook();
+  }, [user, notebookSlug, router]);
 
   useEffect(() => {
     if (user) {
       loadNotebooks();
+    }
+    // Load font size and auto-save from localStorage
+    if (typeof window !== 'undefined') {
+      const savedFontSize = localStorage.getItem('fontSize') as 'small' | 'medium' | 'large' | null;
+      const savedAutoSave = localStorage.getItem('autoSave');
+      if (savedFontSize && ['small', 'medium', 'large'].includes(savedFontSize)) {
+        setFontSize(savedFontSize);
+        document.documentElement.setAttribute('data-font-size', savedFontSize);
+      }
+      if (savedAutoSave !== null) {
+        setAutoSave(savedAutoSave === 'true');
+      }
     }
   }, [user]);
 
@@ -92,7 +133,7 @@ export default function MorePage() {
   };
 
   const handleBack = () => {
-    router.push(`/notebook/${notebookId}`);
+    router.push(`/${notebookSlug}`);
   };
 
   const handleLogout = async () => {
@@ -104,6 +145,10 @@ export default function MorePage() {
       alert('Error logging out. Please try again.');
     }
   };
+
+  if (!notebookId) {
+    return <div className="min-h-screen bg-bg-primary text-text-primary flex items-center justify-center">Loading...</div>;
+  }
 
   return (
     <div className="min-h-screen bg-bg-primary text-text-primary pb-16">
@@ -178,6 +223,10 @@ export default function MorePage() {
                       isDefault: false,
                     });
 
+                    // Get the new notebook to get its slug
+                    const newNotebook = await getNotebookBySlug(user!.uid, createSlug(notebookName.trim()));
+                    const newNotebookSlug = newNotebook?.slug || '';
+
                     // Create default tabs for new notebook
                     const STAPLE_NOTES = [
                       { name: 'Scratch', icon: '✏️', order: 1 },
@@ -232,9 +281,7 @@ export default function MorePage() {
                       createdAt: new Date(),
                     });
 
-                    // Don't update current notebook preference - stay on current notebook
                     await loadNotebooks();
-                    // Don't navigate - stay on More page
                   } catch (error) {
                     console.error('Error creating notebook:', error);
                     alert('Failed to create notebook');
@@ -263,7 +310,7 @@ export default function MorePage() {
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
                       <Link
-                            href={`/notebook/${notebook.id}`}
+                        href={`/${notebook.slug}`}
                         className="block"
                       >
                         <h3 className="font-semibold">{notebook.name}</h3>
@@ -274,29 +321,11 @@ export default function MorePage() {
                     </div>
                     {!notebook.isDefault && (
                       <button
-                        onClick={async (e) => {
+                        onClick={(e) => {
                           e.preventDefault();
-                          if (confirm(`Set "${notebook.name}" as default notebook?`)) {
-                            try {
-                              const { updateNotebook, getNotebooks, updateUserPreferences } = await import('@/lib/firebase/firestore');
-                              // Remove default from all notebooks
-                              const allNotebooks = await getNotebooks(user!.uid);
-                              for (const nb of allNotebooks) {
-                                if (nb.isDefault) {
-                                  await updateNotebook(nb.id, { isDefault: false });
-                                }
-                              }
-                              // Set this notebook as default
-                              await updateNotebook(notebook.id, { isDefault: true });
-                              await updateUserPreferences(user!.uid, { currentNotebookId: notebook.id });
-                              await loadNotebooks();
-                            } catch (error) {
-                              console.error('Error setting default notebook:', error);
-                              alert('Failed to set default notebook');
-                            }
-                          }
+                          setShowDefaultConfirm({ notebookId: notebook.id, notebookName: notebook.name });
                         }}
-                        className="ml-2 px-2 py-1 text-xs bg-bg-secondary hover:bg-bg-secondary/80 rounded"
+                        className="ml-2 px-2 py-1 text-xs bg-bg-secondary hover:bg-bg-secondary/80 rounded text-text-primary"
                         title="Set as default"
                       >
                         Make Default
@@ -317,7 +346,7 @@ export default function MorePage() {
         {/* Storage Usage */}
         <div className="bg-bg-secondary rounded-lg p-4">
           <h2 className="text-lg font-semibold mb-3">Storage Usage</h2>
-          {user && <StorageUsageDisplay userId={user.uid} />}
+          {user && notebookId && <StorageUsageDisplay userId={user.uid} notebookId={notebookId} />}
         </div>
 
         {/* Sync Status */}
@@ -359,30 +388,26 @@ export default function MorePage() {
 
         {/* Trash/Deleted Notes */}
         <div className="bg-bg-secondary rounded-lg p-4">
-          <h2 className="text-lg font-semibold mb-3">Trash</h2>
-          <button
-            onClick={async () => {
-              try {
-                const firestore = await import('@/lib/firebase/firestore');
-                const deletedNotes = await firestore.getDeletedNotes(notebookId, user?.uid);
-                
-                if (deletedNotes.length === 0) {
-                  alert('No deleted notes found');
-                  return;
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-lg font-semibold">Trash</h2>
+            <button
+              onClick={async () => {
+                try {
+                  const firestore = await import('@/lib/firebase/firestore');
+                  const notes = await firestore.getDeletedNotes(notebookId, user?.uid);
+                  setDeletedNotes(notes);
+                  setShowDeletedNotes(true);
+                } catch (error) {
+                  console.error('Error loading deleted notes:', error);
+                  alert('Failed to load deleted notes');
                 }
-                
-                const noteList = deletedNotes.map((n: Note, i: number) => `${i + 1}. ${n.title || 'Untitled'} (Deleted: ${n.deletedAt?.toLocaleDateString()})`).join('\n');
-                alert(`Deleted Notes (${deletedNotes.length}):\n\n${noteList}`);
-              } catch (error) {
-                console.error('Error loading deleted notes:', error);
-                alert('Failed to load deleted notes');
-              }
-            }}
-            className="w-full px-4 py-2 bg-bg-secondary hover:bg-bg-secondary/80 text-text-primary rounded transition-colors"
-          >
-            View Deleted Notes
-          </button>
-          <p className="text-xs text-text-secondary mt-2">Notes deleted in the last 30 days</p>
+              }}
+              className="px-3 py-1 text-sm bg-bg-primary hover:bg-bg-primary/80 text-text-primary rounded transition-colors"
+            >
+              View Deleted Notes
+            </button>
+          </div>
+          <p className="text-xs text-text-secondary">Notes deleted in the last 30 days</p>
         </div>
 
         {/* Settings */}
@@ -391,11 +416,43 @@ export default function MorePage() {
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-sm text-text-primary">Auto-save</span>
-              <span className="text-xs text-text-secondary">Enabled</span>
+              <button
+                onClick={() => {
+                  const newValue = !autoSave;
+                  setAutoSave(newValue);
+                  localStorage.setItem('autoSave', String(newValue));
+                }}
+                className={`px-3 py-1 text-xs rounded transition-colors ${
+                  autoSave
+                    ? 'bg-green-600 text-white hover:bg-green-700'
+                    : 'bg-gray-700 text-text-secondary hover:bg-gray-600'
+                }`}
+              >
+                {autoSave ? 'Enabled' : 'Disabled'}
+              </button>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-text-primary">Font Size</span>
-              <span className="text-xs text-text-secondary">Medium</span>
+              <div className="flex gap-2">
+                {(['small', 'medium', 'large'] as const).map((size) => (
+                  <button
+                    key={size}
+                    onClick={() => {
+                      setFontSize(size);
+                      localStorage.setItem('fontSize', size);
+                      // Apply font size to document
+                      document.documentElement.setAttribute('data-font-size', size);
+                    }}
+                    className={`px-2 py-1 text-xs rounded transition-colors ${
+                      fontSize === size
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-bg-primary text-text-secondary hover:bg-bg-primary/80'
+                    }`}
+                  >
+                    {size.charAt(0).toUpperCase() + size.slice(1)}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         </div>
@@ -407,6 +464,81 @@ export default function MorePage() {
           <p className="text-xs text-text-secondary">A simple note-taking app built with Next.js and Firebase</p>
         </div>
       </div>
+
+      {/* Make Default Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={!!showDefaultConfirm}
+        title="Set Default Notebook"
+        message={`Set "${showDefaultConfirm?.notebookName}" as your default notebook?`}
+        onConfirm={async () => {
+          if (!showDefaultConfirm || !user) return;
+          try {
+            const { updateNotebook, getNotebooks, updateUserPreferences } = await import('@/lib/firebase/firestore');
+            // Remove default from all notebooks
+            const allNotebooks = await getNotebooks(user.uid);
+            for (const nb of allNotebooks) {
+              if (nb.isDefault) {
+                await updateNotebook(nb.id, { isDefault: false });
+              }
+            }
+            // Set this notebook as default
+            await updateNotebook(showDefaultConfirm.notebookId, { isDefault: true });
+            await updateUserPreferences(user.uid, { currentNotebookId: showDefaultConfirm.notebookId });
+            await loadNotebooks();
+            setShowDefaultConfirm(null);
+          } catch (error) {
+            console.error('Error setting default notebook:', error);
+            alert('Failed to set default notebook');
+            setShowDefaultConfirm(null);
+          }
+        }}
+        onCancel={() => setShowDefaultConfirm(null)}
+        confirmText="Set Default"
+        cancelText="Cancel"
+      />
+
+      {/* Deleted Notes Dialog */}
+      {showDeletedNotes && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-bg-secondary rounded-lg p-6 max-w-2xl w-full mx-4 border border-bg-secondary max-h-[80vh] overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-text-primary">Deleted Notes ({deletedNotes.length})</h3>
+              <button
+                onClick={() => {
+                  setShowDeletedNotes(false);
+                  setDeletedNotes([]);
+                }}
+                className="text-text-secondary hover:text-text-primary"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="overflow-y-auto flex-1">
+              {deletedNotes.length === 0 ? (
+                <p className="text-text-secondary text-center py-8">No deleted notes found</p>
+              ) : (
+                <div className="space-y-2">
+                  {deletedNotes.map((note) => (
+                    <div
+                      key={note.id}
+                      className="p-3 bg-bg-primary rounded border border-bg-secondary"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <h4 className="font-semibold text-text-primary">{note.title || 'Untitled'}</h4>
+                          <p className="text-xs text-text-secondary mt-1">
+                            Deleted: {note.deletedAt?.toLocaleDateString()} {note.deletedAt?.toLocaleTimeString()}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

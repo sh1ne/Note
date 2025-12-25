@@ -39,9 +39,13 @@ export default function NotebookPage() {
       const prefs = await getUserPreferences(user.uid);
       
       if (prefs?.currentNotebookId) {
-        // User has a notebook, go directly to it
-        router.push(`/notebook/${prefs.currentNotebookId}`);
-        return;
+        // Get notebook to get its slug
+        const notebooks = await getNotebooks(user.uid);
+        const currentNotebook = notebooks.find(nb => nb.id === prefs.currentNotebookId);
+        if (currentNotebook) {
+          router.push(`/${currentNotebook.slug}`);
+          return;
+        }
       }
 
       // Check if user has any notebooks
@@ -49,9 +53,9 @@ export default function NotebookPage() {
       
       if (notebooks.length > 0) {
         // Use first notebook
-        const notebookId = notebooks[0].id;
-        await updateUserPreferences(user.uid, { currentNotebookId: notebookId });
-        router.push(`/notebook/${notebookId}`);
+        const notebook = notebooks[0];
+        await updateUserPreferences(user.uid, { currentNotebookId: notebook.id });
+        router.push(`/${notebook.slug}`);
         return;
       }
 
@@ -130,8 +134,15 @@ export default function NotebookPage() {
       // Save current notebook preference
       await updateUserPreferences(user.uid, { currentNotebookId: notebookId });
 
-      // Redirect to notebook
-      router.push(`/notebook/${notebookId}`);
+      // Get notebook to get its slug for redirect
+      const notebooks = await getNotebooks(user.uid);
+      const newNotebook = notebooks.find(nb => nb.id === notebookId);
+      if (newNotebook) {
+        router.push(`/${newNotebook.slug}`);
+      } else {
+        // Fallback to ID if slug not found (shouldn't happen)
+        router.push(`/notebook/${notebookId}`);
+      }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to create notebook';
       console.error('Error creating default notebook:', err);

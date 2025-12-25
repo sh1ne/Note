@@ -98,8 +98,16 @@ export default function SignupPage() {
         createdAt: new Date(),
       });
 
-      // Redirect directly to the notebook (not dashboard)
+      // Get notebook to get its slug for redirect
+      const { getNotebooks } = await import('@/lib/firebase/firestore');
+      const notebooks = await getNotebooks(userId);
+      const newNotebook = notebooks.find(nb => nb.id === notebookId);
+      if (newNotebook) {
+        router.push(`/${newNotebook.slug}`);
+      } else {
+        // Fallback
         router.push(`/notebook/${notebookId}`);
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to sign up');
       setLoading(false);

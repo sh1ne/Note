@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { getDoc, doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
-import { deleteNote, updateTab } from '@/lib/firebase/firestore';
+import { deleteNote, updateTab, getNotebookBySlug } from '@/lib/firebase/firestore';
 import { Note } from '@/lib/types';
 import RichTextEditor from '@/components/editor/RichTextEditor';
 import BottomNav from '@/components/layout/BottomNav';
@@ -78,9 +78,10 @@ export default function NoteEditorPage() {
   const params = useParams();
   const router = useRouter();
   const { user } = useAuth();
-  const notebookId = params.notebookId as string;
+  const notebookSlug = params.notebookSlug as string;
   const noteId = params.noteId as string;
-
+  
+  const [notebookId, setNotebookId] = useState<string | null>(null);
   const [initialNote, setInitialNote] = useState<Note | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -92,14 +93,37 @@ export default function NoteEditorPage() {
   const [findQuery, setFindQuery] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  // Use custom hooks
+  // Look up notebook by slug
+  useEffect(() => {
+    const loadNotebook = async () => {
+      if (!user || !notebookSlug) return;
+      
+      try {
+        const notebook = await getNotebookBySlug(user.uid, notebookSlug);
+        if (!notebook) {
+          setError('Notebook not found');
+          return;
+        }
+        setNotebookId(notebook.id);
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Failed to load notebook';
+        console.error('Error loading notebook:', err);
+        setError(errorMessage);
+      }
+    };
+    
+    loadNotebook();
+  }, [user, notebookSlug]);
+
+  // Use custom hooks (only after notebookId is loaded)
   const { tabs, activeTabId, setActiveTabId, getTabById, refreshTabs } = useTabs({ 
-    notebookId,
+    notebookId: notebookId || '',
     defaultTabName: 'Scratch'
   });
 
   const { navigateToTab } = useTabNavigation({
-    notebookId,
+    notebookId: notebookId || '',
+    notebookSlug: notebookSlug,
     userId: user?.uid || '',
   });
 
@@ -127,7 +151,7 @@ export default function NoteEditorPage() {
   });
 
   useEffect(() => {
-    if (user && noteId) {
+    if (user && noteId && notebookId) {
       loadNote();
     }
   }, [user, noteId, notebookId]);
@@ -194,6 +218,7 @@ export default function NoteEditorPage() {
   };
 
   const handleCreateNote = async () => {
+    if (!notebookId) return;
     const { createNote, createTab } = await import('@/lib/firebase/firestore');
     try {
       const newTabId = await createTab({
@@ -220,7 +245,7 @@ export default function NoteEditorPage() {
         deletedAt: null,
       });
 
-      router.push(`/notebook/${notebookId}/note/${newNoteId}`);
+      router.push(`/${notebookSlug}/note/${newNoteId}`);
     } catch (error) {
       console.error('Error creating note:', error);
     }
@@ -247,7 +272,7 @@ export default function NoteEditorPage() {
     }
   };
 
-  if (loading) {
+  if (!notebookId || loading) {
     return <LoadingSpinner message="Loading note..." />;
   }
 

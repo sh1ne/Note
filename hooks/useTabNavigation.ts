@@ -5,7 +5,8 @@ import { ensureStapleNoteExists, isStapleNoteTab, isSpecialTab } from '@/lib/uti
 import { getNotes } from '@/lib/firebase/firestore';
 
 interface UseTabNavigationOptions {
-  notebookId: string;
+  notebookId: string; // Still need ID for data operations
+  notebookSlug: string; // Use slug for URLs
   userId: string;
 }
 
@@ -13,7 +14,7 @@ interface UseTabNavigationOptions {
  * Unified navigation state machine for tab clicks
  * Handles all tab navigation logic in one place
  */
-export function useTabNavigation({ notebookId, userId }: UseTabNavigationOptions) {
+export function useTabNavigation({ notebookId, notebookSlug, userId }: UseTabNavigationOptions) {
   const router = useRouter();
 
   const navigateToTab = useCallback(async (
@@ -23,12 +24,12 @@ export function useTabNavigation({ notebookId, userId }: UseTabNavigationOptions
     // Special tabs: "All Notes" and "More"
     if (tab.name === 'All Notes') {
       // Navigate to notebook page with view param for shareable URLs
-      router.push(`/notebook/${notebookId}?view=all-notes`);
+      router.push(`/${notebookSlug}?view=all-notes`);
       return 'load-list';
     }
     
     if (tab.name === 'More') {
-      router.push(`/notebook/${notebookId}/more`);
+      router.push(`/${notebookSlug}/more`);
       return 'redirect';
     }
     
@@ -36,7 +37,7 @@ export function useTabNavigation({ notebookId, userId }: UseTabNavigationOptions
     if (isStapleNoteTab(tab)) {
       const stapleNote = await ensureStapleNoteExists(tab.name, notebookId, userId);
       if (stapleNote) {
-        router.push(`/notebook/${notebookId}/note/${stapleNote.id}`);
+        router.push(`/${notebookSlug}/note/${stapleNote.id}`);
         return 'redirect';
       }
       return 'stay';
@@ -47,7 +48,7 @@ export function useTabNavigation({ notebookId, userId }: UseTabNavigationOptions
       try {
         const notesData = await getNotes(notebookId, tab.id, userId);
         if (notesData.length > 0) {
-          router.push(`/notebook/${notebookId}/note/${notesData[0].id}`);
+          router.push(`/${notebookSlug}/note/${notesData[0].id}`);
           return 'redirect';
         }
       } catch (error) {
@@ -56,7 +57,7 @@ export function useTabNavigation({ notebookId, userId }: UseTabNavigationOptions
     }
     
     return 'stay';
-  }, [notebookId, userId, router]);
+  }, [notebookId, notebookSlug, userId, router]);
 
   return { navigateToTab };
 }

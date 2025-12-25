@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { getNotes, createNote, createTab } from '@/lib/firebase/firestore';
+import { getNotes, createNote, createTab, getNotebookBySlug } from '@/lib/firebase/firestore';
 import { Note } from '@/lib/types';
 import BottomNav from '@/components/layout/BottomNav';
 import NoteList from '@/components/notes/NoteList';
@@ -18,27 +18,53 @@ export default function NotebookPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useAuth();
-  const notebookId = params.notebookId as string;
-
+  const notebookSlug = params.notebookSlug as string;
+  
+  const [notebookId, setNotebookId] = useState<string | null>(null);
   const [notes, setNotes] = useState<Note[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const hasHandledInitialLoad = useRef(false);
 
-  // Use custom hooks
+  // Look up notebook by slug
+  useEffect(() => {
+    const loadNotebook = async () => {
+      if (!user || !notebookSlug) return;
+      
+      try {
+        const notebook = await getNotebookBySlug(user.uid, notebookSlug);
+        if (!notebook) {
+          setError('Notebook not found');
+          return;
+        }
+        setNotebookId(notebook.id);
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Failed to load notebook';
+        console.error('Error loading notebook:', err);
+        setError(errorMessage);
+      }
+    };
+    
+    loadNotebook();
+  }, [user, notebookSlug]);
+
+  // Use custom hooks (only after notebookId is loaded)
   const { tabs, activeTabId, setActiveTabId, getTabById, loading } = useTabs({ 
-    notebookId,
+    notebookId: notebookId || '',
     defaultTabName: 'Scratch'
   });
 
   const { navigateToTab } = useTabNavigation({
-    notebookId,
+    notebookId: notebookId || '',
+    notebookSlug: notebookSlug,
     userId: user?.uid || '',
   });
 
   // Handle initial load - redirect staple tabs to their notes or show All Notes
   useEffect(() => {
     const handleInitialLoad = async () => {
-      if (tabs.length > 0 && activeTabId && user && !hasHandledInitialLoad.current) {
+      if (tabs.length > 0 && activeTabId && user && notebookId && !hasHandledInitialLoad.current) {
         // Check URL for view param (for shareable links)
         const viewParam = searchParams.get('view');
         if (viewParam === 'all-notes') {
@@ -48,7 +74,7 @@ export default function NotebookPage() {
             await loadAllNotes();
             hasHandledInitialLoad.current = true;
             // Clean up URL after loading (optional - keeps URLs clean)
-            router.replace(`/notebook/${notebookId}`);
+            router.replace(`/${notebookSlug}`);
             return;
           }
         }
@@ -66,7 +92,7 @@ export default function NotebookPage() {
       }
     };
     handleInitialLoad();
-  }, [tabs, activeTabId, user, getTabById, navigateToTab, searchParams, router, notebookId]);
+  }, [tabs, activeTabId, user, notebookId, getTabById, navigateToTab, searchParams, router, notebookSlug]);
 
   // Load notes when active tab changes (after initial load)
   useEffect(() => {
@@ -138,7 +164,7 @@ export default function NotebookPage() {
         deletedAt: null,
       });
 
-      router.push(`/notebook/${notebookId}/note/${noteId}`);
+      router.push(`/${notebookSlug}/note/${noteId}`);
     } catch (error) {
       console.error('Error creating note:', error);
     }
@@ -174,7 +200,7 @@ export default function NotebookPage() {
     }
   };
 
-  if (loading) {
+  if (!notebookId || loading) {
     return <LoadingSpinner message="Loading notebook..." />;
   }
 
@@ -199,18 +225,92 @@ export default function NotebookPage() {
 
   return (
     <div className="min-h-screen bg-bg-primary text-text-primary pb-16">
+      {/* Header Bar for All Notes */}
+      {isAllNotesTab && (
+        <div className="sticky top-0 bg-bg-primary border-b border-bg-secondary z-20">
+          <div className="flex items-center justify-between p-4">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => router.back()}
+                className="text-text-primary hover:text-text-secondary transition-colors"
+                title="Back"
+                aria-label="Back"
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M15 18l-6-6 6-6"/>
+                </svg>
+              </button>
+              <button
+                onClick={() => {
+                  // Undo/redo not applicable for note list
+                }}
+                disabled
+                className="text-text-secondary transition-colors disabled:opacity-30"
+                title="Undo"
+                aria-label="Undo"
+              >
+                ↶
+              </button>
+              <button
+                onClick={() => {
+                  // Undo/redo not applicable for note list
+                }}
+                disabled
+                className="text-text-secondary transition-colors disabled:opacity-30"
+                title="Redo"
+                aria-label="Redo"
+              >
+                ↷
+              </button>
+            </div>
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => {
+                  setShowSearch(!showSearch);
+                  if (showSearch) {
+                    setSearchQuery('');
+                  }
+                }}
+                className="text-text-primary hover:text-text-secondary transition-colors"
+                title="Search"
+                aria-label="Search"
+              >
+                🔍
+              </button>
+            </div>
+          </div>
+          {showSearch && (
+            <div className="px-4 pb-2">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  // Clear previous highlights
+                }}
+                placeholder="Search notes..."
+                className="w-full px-3 py-2 bg-bg-secondary border border-text-secondary rounded text-text-primary focus:outline-none focus:border-text-primary"
+                autoFocus
+              />
+            </div>
+          )}
+        </div>
+      )}
       <div className="container mx-auto p-4">
-        {activeTab && (
+        {activeTab && !isAllNotesTab && (
           <h1 className="text-2xl font-bold mb-4">{activeTab.name}</h1>
         )}
         {notes.length === 0 && !isAllNotesTab ? (
           <p className="text-text-secondary">No notes yet. Create one with the + button.</p>
         ) : (
           <NoteList
-            notes={notes}
+            notes={searchQuery ? notes.filter(note => 
+              (note.title || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+              (note.contentPlain || '').toLowerCase().includes(searchQuery.toLowerCase())
+            ) : notes}
             notebookId={notebookId}
             onNoteClick={(noteId) => {
-              router.push(`/notebook/${notebookId}/note/${noteId}`);
+              router.push(`/${notebookSlug}/note/${noteId}`);
             }}
             onNoteDeleted={() => {
               if (isAllNotesTab) {
@@ -231,3 +331,4 @@ export default function NotebookPage() {
     </div>
   );
 }
+

@@ -8,6 +8,7 @@ export interface Notebook {
   id: string;
   userId: string;
   name: string;
+  slug: string; // URL-friendly version of name
   createdAt: Date;
   updatedAt: Date;
   isDefault: boolean;
