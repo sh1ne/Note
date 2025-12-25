@@ -514,43 +514,28 @@ export default function NoteEditorPage() {
                   </button>
                   <button
                     onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
                       if (!note) return;
                       setShowShareMenu(false);
-                      // Prevent editor from saving when clicking email
-                      if (editor) {
-                        editor.setEditable(false);
-                      }
+                      
                       const textToShare = `${note.title || 'Untitled Note'}\n\n${plainText || ''}`;
                       const mailtoLink = `mailto:?subject=${encodeURIComponent(note.title || 'Untitled Note')}&body=${encodeURIComponent(textToShare)}`;
                       
-                      // Try window.location first (most reliable for mailto)
-                      try {
-                        window.location.href = mailtoLink;
+                      // Create a visible anchor element and click it
+                      // This is the most reliable way to trigger mailto links
+                      const a = document.createElement('a');
+                      a.href = mailtoLink;
+                      a.style.position = 'fixed';
+                      a.style.left = '-9999px';
+                      a.style.top = '-9999px';
+                      document.body.appendChild(a);
+                      
+                      // Use setTimeout to ensure the element is in the DOM
+                      setTimeout(() => {
+                        a.click();
+                        document.body.removeChild(a);
                         setToast({ message: 'Opening email client...', type: 'info' });
                         setTimeout(() => setToast(null), 2000);
-                      } catch (err) {
-                        // Fallback: use temporary link
-                        const a = document.createElement('a');
-                        a.href = mailtoLink;
-                        a.target = '_blank';
-                        a.rel = 'noopener noreferrer';
-                        document.body.appendChild(a);
-                        a.click();
-                        setToast({ message: 'Opening email client...', type: 'info' });
-                        setTimeout(() => {
-                          document.body.removeChild(a);
-                          setTimeout(() => setToast(null), 2000);
-                        }, 100);
-                      }
-                      
-                      // Re-enable editor after a delay
-                      if (editor) {
-                        setTimeout(() => {
-                          editor.setEditable(true);
-                        }, 1000);
-                      }
+                      }, 10);
                     }}
                     className="w-full text-left px-4 py-2 text-sm text-text-primary hover:bg-bg-primary transition-colors"
                   >
