@@ -22,6 +22,8 @@ export default function NotebookPage() {
 
   const [notes, setNotes] = useState<Note[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const hasHandledInitialLoad = useRef(false);
 
   // Use custom hooks
@@ -196,18 +198,91 @@ export default function NotebookPage() {
 
   const activeTab = getTabById(activeTabId);
   const isAllNotesTab = activeTab?.name === 'All Notes';
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   return (
     <div className="min-h-screen bg-bg-primary text-text-primary pb-16">
+      {/* Header Bar for All Notes */}
+      {isAllNotesTab && (
+        <div className="sticky top-0 bg-bg-primary border-b border-bg-secondary z-20">
+          <div className="flex items-center justify-between p-4">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => router.back()}
+                className="text-text-primary hover:text-text-secondary transition-colors"
+                title="Back"
+                aria-label="Back"
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M15 18l-6-6 6-6"/>
+                </svg>
+              </button>
+              <button
+                onClick={() => {
+                  // Undo/redo not applicable for note list
+                }}
+                disabled
+                className="text-text-secondary transition-colors disabled:opacity-30"
+                title="Undo"
+                aria-label="Undo"
+              >
+                ↶
+              </button>
+              <button
+                onClick={() => {
+                  // Undo/redo not applicable for note list
+                }}
+                disabled
+                className="text-text-secondary transition-colors disabled:opacity-30"
+                title="Redo"
+                aria-label="Redo"
+              >
+                ↷
+              </button>
+            </div>
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => {
+                  setShowSearch(!showSearch);
+                  if (showSearch) {
+                    setSearchQuery('');
+                  }
+                }}
+                className="text-text-primary hover:text-text-secondary transition-colors"
+                title="Search"
+                aria-label="Search"
+              >
+                🔍
+              </button>
+            </div>
+          </div>
+          {showSearch && (
+            <div className="px-4 pb-2">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search notes..."
+                className="w-full px-3 py-2 bg-bg-secondary border border-text-secondary rounded text-text-primary focus:outline-none focus:border-text-primary"
+                autoFocus
+              />
+            </div>
+          )}
+        </div>
+      )}
       <div className="container mx-auto p-4">
-        {activeTab && (
+        {activeTab && !isAllNotesTab && (
           <h1 className="text-2xl font-bold mb-4">{activeTab.name}</h1>
         )}
         {notes.length === 0 && !isAllNotesTab ? (
           <p className="text-text-secondary">No notes yet. Create one with the + button.</p>
         ) : (
           <NoteList
-            notes={notes}
+            notes={searchQuery ? notes.filter(note => 
+              (note.title || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+              (note.contentPlain || '').toLowerCase().includes(searchQuery.toLowerCase())
+            ) : notes}
             notebookId={notebookId}
             onNoteClick={(noteId) => {
               router.push(`/notebook/${notebookId}/note/${noteId}`);
@@ -231,3 +306,4 @@ export default function NotebookPage() {
     </div>
   );
 }
+

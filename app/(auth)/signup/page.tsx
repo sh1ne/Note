@@ -99,7 +99,7 @@ export default function SignupPage() {
       });
 
       // Redirect directly to the notebook (not dashboard)
-      router.push(`/dashboard/notebook/${notebookId}`);
+        router.push(`/notebook/${notebookId}`);
     } catch (err: any) {
       setError(err.message || 'Failed to sign up');
       setLoading(false);

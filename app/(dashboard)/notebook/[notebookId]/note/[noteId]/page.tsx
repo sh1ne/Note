@@ -334,9 +334,6 @@ export default function NoteEditorPage() {
         confirmText="Delete"
         cancelText="Cancel"
       />
-          </div>
-        </div>
-      </div>
 
       {/* Note Title and Date */}
       <div className="bg-bg-secondary border-b border-bg-secondary px-4 py-3">
@@ -446,3 +443,4 @@ export default function NoteEditorPage() {
     </div>
   );
 }
+

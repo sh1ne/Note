@@ -20,7 +20,7 @@ export default function LoginPage() {
 
     try {
       await signIn(email, password);
-      router.push('/dashboard');
+        router.push('/notebook');
     } catch (err: any) {
       setError(err.message || 'Failed to sign in');
     } finally {

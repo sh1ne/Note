@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import LoadingSpinner from '@/components/common/LoadingSpinner';
 
 export default function Home() {
   const router = useRouter();
@@ -11,16 +12,12 @@ export default function Home() {
   useEffect(() => {
     if (!loading) {
       if (user) {
-        router.push('/dashboard');
+        router.push('/notebook');
       } else {
         router.push('/login');
       }
     }
   }, [user, loading, router]);
 
-  return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-24 bg-black text-white">
-      <p>Loading...</p>
-    </main>
-  );
+  return <LoadingSpinner message="Loading..." />;
 }

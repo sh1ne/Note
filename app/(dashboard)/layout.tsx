@@ -3,6 +3,7 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
+import LoadingSpinner from '@/components/common/LoadingSpinner';
 
 export default function DashboardLayout({
   children,
@@ -19,11 +20,11 @@ export default function DashboardLayout({
   }, [user, loading, router]);
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-black text-white">
-        <p>Loading...</p>
-      </div>
-    );
+    return <LoadingSpinner message="Loading..." />;
+  }
+
+  if (typeof window !== 'undefined' && !user && !loading) {
+    return null;
   }
 
   if (!user) {

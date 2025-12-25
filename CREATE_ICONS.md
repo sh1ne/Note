@@ -26,3 +26,5 @@ You can also just use a simple design:
 
 For now, the app will work without icons - you'll just see a 404 error in the console but the app functions normally.
 
+
+

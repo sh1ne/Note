@@ -72,3 +72,5 @@ export const removeFromSyncQueue = async (noteId: string) => {
   await database.delete('syncQueue', noteId);
 };
 
+
+

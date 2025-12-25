@@ -71,7 +71,7 @@ body {
 .tiptap p.is-editor-empty:first-child::before {
   content: 'Start writing...';
   float: left;
-  color: #6b7280;
+  color: var(--text-secondary);
   pointer-events: none;
   height: 0;
   opacity: 0.6;
@@ -104,5 +104,22 @@ body {
   --bg-secondary: #132f4c;
   --text-primary: #ffffff;
   --text-secondary: #90caf9;
+}
+
+/* Font size variables */
+[data-font-size="small"] {
+  font-size: 14px;
+}
+
+[data-font-size="medium"] {
+  font-size: 16px;
+}
+
+[data-font-size="large"] {
+  font-size: 18px;
+}
+
+body {
+  font-size: var(--font-size, 16px);
 }
 

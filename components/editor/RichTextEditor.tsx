@@ -51,7 +51,7 @@ export default function RichTextEditor({
         },
       }),
       TextAlign.configure({
-        types: ['heading', 'paragraph'],
+        types: ['heading', 'paragraph', 'taskItem'],
       }),
       TextStyle,
       Color,
@@ -89,7 +89,7 @@ export default function RichTextEditor({
     },
     editorProps: {
       attributes: {
-        class: 'prose prose-invert max-w-none focus:outline-none min-h-[400px] text-white',
+        class: 'prose prose-invert max-w-none focus:outline-none min-h-[400px] text-text-primary',
       },
     },
   });
@@ -134,12 +134,15 @@ export default function RichTextEditor({
   }
 
   return (
-    <div className="bg-black text-white min-h-[calc(100vh-200px)]">
+    <div className="bg-bg-primary text-text-primary min-h-[calc(100vh-200px)]">
       {showToolbar && <EditorToolbar editor={editor} />}
       <div className="p-4">
         <EditorContent editor={editor} />
       </div>
       <style jsx global>{`
+        .tiptap {
+          color: var(--text-primary);
+        }
         .tiptap ul[data-type="taskList"] {
           list-style: none;
           padding: 0;
@@ -185,6 +188,9 @@ export default function RichTextEditor({
         .tiptap ol li {
           margin: 0.25rem 0;
         }
+        .tiptap p.is-editor-empty:first-child::before {
+          color: var(--text-secondary);
+        }
       `}</style>
     </div>
   );
@@ -196,7 +202,7 @@ function EditorToolbar({ editor }: { editor: any }) {
   }
 
   return (
-    <div className="editor-toolbar flex flex-wrap gap-2 p-2 border-b border-gray-800 bg-gray-900/80 backdrop-blur-sm fixed bottom-16 left-0 right-0 z-10 md:sticky md:top-0 md:bottom-auto">
+    <div className="editor-toolbar flex flex-wrap gap-2 p-2 border-b border-bg-secondary bg-bg-secondary/80 backdrop-blur-sm fixed bottom-16 left-0 right-0 z-10 md:sticky md:top-0 md:bottom-auto">
       {/* Text Formatting */}
       <button
         onClick={(e) => {
@@ -205,7 +211,7 @@ function EditorToolbar({ editor }: { editor: any }) {
           // Keep focus on editor
           setTimeout(() => editor.commands.focus(), 10);
         }}
-        className={`px-3 py-1 rounded transition-colors ${editor.isActive('bold') ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-800'}`}
+        className={`px-3 py-1 rounded transition-colors ${editor.isActive('bold') ? 'bg-bg-secondary text-text-primary' : 'text-text-secondary hover:bg-bg-secondary'}`}
         title="Bold"
       >
         <strong>B</strong>
@@ -324,7 +330,7 @@ function EditorToolbar({ editor }: { editor: any }) {
       <button
         onClick={() => editor.chain().focus().undo().run()}
         disabled={!editor.can().undo()}
-        className="px-3 py-1 rounded transition-colors disabled:opacity-50 text-gray-300 hover:bg-gray-800"
+            className="px-3 py-1 rounded transition-colors disabled:opacity-50 text-text-secondary hover:bg-bg-secondary"
         title="Undo"
       >
         ↶
@@ -332,7 +338,7 @@ function EditorToolbar({ editor }: { editor: any }) {
       <button
         onClick={() => editor.chain().focus().redo().run()}
         disabled={!editor.can().redo()}
-        className="px-3 py-1 rounded transition-colors disabled:opacity-50 text-gray-300 hover:bg-gray-800"
+            className="px-3 py-1 rounded transition-colors disabled:opacity-50 text-text-secondary hover:bg-bg-secondary"
         title="Redo"
       >
         ↷

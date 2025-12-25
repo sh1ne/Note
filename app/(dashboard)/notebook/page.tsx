@@ -1,7 +1,7 @@
 'use client';
 
 import { useAuth } from '@/contexts/AuthContext';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { getNotebooks, createNotebook, createTab, createNote } from '@/lib/firebase/firestore';
 import { getUserPreferences, updateUserPreferences } from '@/lib/firebase/firestore';
@@ -15,7 +15,7 @@ const STAPLE_NOTES = [
   { name: 'Long-term', icon: '📆', order: 4 },
 ];
 
-export default function DashboardPage() {
+export default function NotebookPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -30,7 +30,7 @@ export default function DashboardPage() {
     }
   }, [user, authLoading, router]);
 
-  const initializeUser = async () => {
+  const initializeUser = useCallback(async () => {
     if (!user) return;
 
     try {
@@ -62,7 +62,7 @@ export default function DashboardPage() {
       console.error('Error initializing user:', err);
       setError(errorMessage);
     }
-  };
+  }, [user, router]);
 
   const createDefaultNotebook = async () => {
     if (!user) return;

@@ -51,3 +51,5 @@ export interface UserPreferences {
 
 export type Theme = 'dark' | 'light' | 'purple' | 'blue';
 
+
+
