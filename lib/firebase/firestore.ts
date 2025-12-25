@@ -46,18 +46,37 @@ export const getNotebooks = async (userId: string): Promise<Notebook[]> => {
     where('userId', '==', userId)
   );
   const snapshot = await getDocs(q);
-  const notebooks = snapshot.docs.map((doc) => {
-    const data = doc.data();
+  const notebooks: Notebook[] = [];
+  const batch = writeBatch(db);
+  let needsUpdate = false;
+  
+  for (const docSnapshot of snapshot.docs) {
+    const data = docSnapshot.data();
     // Ensure slug exists (for backwards compatibility with existing notebooks)
-    const slug = data.slug || createSlug(data.name || 'notebook');
-    return {
-      id: doc.id,
+    let slug = data.slug;
+    if (!slug) {
+      slug = createSlug(data.name || 'notebook');
+      // Ensure uniqueness
+      const existingSlugs = notebooks.map(nb => nb.slug || '');
+      slug = ensureUniqueSlug(slug, existingSlugs);
+      // Update in Firestore
+      batch.update(docSnapshot.ref, { slug });
+      needsUpdate = true;
+    }
+    
+    notebooks.push({
+      id: docSnapshot.id,
       ...data,
       slug,
       createdAt: data.createdAt.toDate(),
       updatedAt: data.updatedAt.toDate(),
-    };
-  }) as Notebook[];
+    } as Notebook);
+  }
+  
+  // Persist slugs if any were missing
+  if (needsUpdate) {
+    await batch.commit();
+  }
   
   // Sort by createdAt client-side to avoid needing an index
   return notebooks.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
