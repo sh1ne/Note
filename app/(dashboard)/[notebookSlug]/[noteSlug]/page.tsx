@@ -8,6 +8,7 @@ import { Note } from '@/lib/types';
 import RichTextEditor from '@/components/editor/RichTextEditor';
 import BottomNav from '@/components/layout/BottomNav';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
+import Toast from '@/components/common/Toast';
 import ErrorMessage from '@/components/common/ErrorMessage';
 import ConfirmDialog from '@/components/common/ConfirmDialog';
 import { useNote } from '@/hooks/useNote';
@@ -94,6 +95,7 @@ export default function NoteEditorPage() {
   const [isOnline, setIsOnline] = useState(true);
   const [isSavedToCloud, setIsSavedToCloud] = useState(false);
   const [showShareMenu, setShowShareMenu] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   const shareMenuRef = useRef<HTMLDivElement>(null);
 
   // Close share menu when clicking outside
@@ -488,10 +490,12 @@ export default function NoteEditorPage() {
                       const textToShare = `${note.title || 'Untitled Note'}\n\n${plainText || ''}`;
                       try {
                         await navigator.clipboard.writeText(textToShare);
-                        alert('Note copied to clipboard!');
+                        setToast({ message: 'Note copied to clipboard!', type: 'success' });
                         setShowShareMenu(false);
+                        setTimeout(() => setToast(null), 3000);
                       } catch (err) {
-                        alert('Failed to copy note. Please try again.');
+                        setToast({ message: 'Failed to copy note. Please try again.', type: 'error' });
+                        setTimeout(() => setToast(null), 3000);
                       }
                     }}
                     className="w-full text-left px-4 py-2 text-sm text-text-primary hover:bg-bg-primary transition-colors"
@@ -499,11 +503,22 @@ export default function NoteEditorPage() {
                     📋 Copy to Clipboard
                   </button>
                   <button
-                    onClick={async () => {
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
                       if (!note) return;
                       const textToShare = `${note.title || 'Untitled Note'}\n\n${plainText || ''}`;
                       const mailtoLink = `mailto:?subject=${encodeURIComponent(note.title || 'Untitled Note')}&body=${encodeURIComponent(textToShare)}`;
-                      window.location.href = mailtoLink;
+                      // Use a temporary link element to avoid navigation/focus issues
+                      const a = document.createElement('a');
+                      a.href = mailtoLink;
+                      a.style.display = 'none';
+                      document.body.appendChild(a);
+                      a.click();
+                      // Remove immediately to prevent any side effects
+                      setTimeout(() => {
+                        document.body.removeChild(a);
+                      }, 100);
                       setShowShareMenu(false);
                     }}
                     className="w-full text-left px-4 py-2 text-sm text-text-primary hover:bg-bg-primary transition-colors"

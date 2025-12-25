@@ -9,6 +9,7 @@ import { Notebook, Note } from '@/lib/types';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import ConfirmDialog from '@/components/common/ConfirmDialog';
+import Toast from '@/components/common/Toast';
 import { createSlug } from '@/lib/utils/slug';
 import BottomNav from '@/components/layout/BottomNav';
 import { useTabs } from '@/hooks/useTabs';
@@ -119,6 +120,8 @@ export default function MorePage() {
   const [syncError, setSyncError] = useState<string | null>(null);
   const [isManualSyncing, setIsManualSyncing] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+  const [showDeletePermanentConfirm, setShowDeletePermanentConfirm] = useState<{ noteId: string; noteTitle: string } | null>(null);
 
   // Use tabs for bottom navigation
   const { tabs, activeTabId, setActiveTabId, getTabById, refreshTabs } = useTabs({ 
@@ -1306,10 +1309,12 @@ export default function MorePage() {
                                 await restoreNote(note.id);
                                 // Remove from list
                                 setDeletedNotes(deletedNotes.filter(n => n.id !== note.id));
-                                alert('Note restored successfully!');
+                                setToast({ message: 'Note restored successfully!', type: 'success' });
+                                setTimeout(() => setToast(null), 3000);
                               } catch (error) {
                                 console.error('Error restoring note:', error);
-                                alert('Failed to restore note. Please try again.');
+                                setToast({ message: 'Failed to restore note. Please try again.', type: 'error' });
+                                setTimeout(() => setToast(null), 3000);
                               }
                             }}
                             className="px-3 py-1 text-xs bg-green-600 hover:bg-green-700 text-white rounded transition-colors whitespace-nowrap"
@@ -1318,20 +1323,8 @@ export default function MorePage() {
                             Restore
                           </button>
                           <button
-                            onClick={async () => {
-                              if (!confirm(`Permanently delete "${note.title || 'Untitled'}"? This cannot be undone.`)) {
-                                return;
-                              }
-                              try {
-                                const { permanentlyDeleteNote } = await import('@/lib/firebase/firestore');
-                                await permanentlyDeleteNote(note.id);
-                                // Remove from list
-                                setDeletedNotes(deletedNotes.filter(n => n.id !== note.id));
-                                alert('Note permanently deleted.');
-                              } catch (error) {
-                                console.error('Error permanently deleting note:', error);
-                                alert('Failed to delete note. Please try again.');
-                              }
+                            onClick={() => {
+                              setShowDeletePermanentConfirm({ noteId: note.id, noteTitle: note.title || 'Untitled' });
                             }}
                             className="px-3 py-1 text-xs bg-red-600 hover:bg-red-700 text-white rounded transition-colors whitespace-nowrap"
                             title="Permanently delete"
@@ -1397,6 +1390,40 @@ export default function MorePage() {
           }}
         />
       )}
+
+      {/* Permanent Delete Confirmation */}
+      <ConfirmDialog
+        isOpen={!!showDeletePermanentConfirm}
+        title="Permanently Delete Note"
+        message={`Are you sure you want to permanently delete "${showDeletePermanentConfirm?.noteTitle}"? This cannot be undone.`}
+        onConfirm={async () => {
+          if (!showDeletePermanentConfirm) return;
+          try {
+            const { permanentlyDeleteNote } = await import('@/lib/firebase/firestore');
+            await permanentlyDeleteNote(showDeletePermanentConfirm.noteId);
+            // Remove from list
+            setDeletedNotes(deletedNotes.filter(n => n.id !== showDeletePermanentConfirm.noteId));
+            setToast({ message: 'Note permanently deleted.', type: 'success' });
+            setTimeout(() => setToast(null), 3000);
+            setShowDeletePermanentConfirm(null);
+          } catch (error) {
+            console.error('Error permanently deleting note:', error);
+            setToast({ message: 'Failed to delete note. Please try again.', type: 'error' });
+            setTimeout(() => setToast(null), 3000);
+            setShowDeletePermanentConfirm(null);
+          }
+        }}
+        onCancel={() => setShowDeletePermanentConfirm(null)}
+        confirmText="Delete Permanently"
+        cancelText="Cancel"
+      />
+
+      <Toast
+        message={toast?.message || ''}
+        type={toast?.type || 'info'}
+        isVisible={!!toast}
+        onClose={() => setToast(null)}
+      />
     </div>
   );
 }

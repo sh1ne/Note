@@ -26,7 +26,35 @@ export default function NotebookPage() {
   const [error, setError] = useState<string | null>(null);
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<Note[]>([]);
   const hasHandledInitialLoad = useRef(false);
+
+  // Handle search including staple notes
+  useEffect(() => {
+    const performSearch = async () => {
+      if (!searchQuery || !notebookId || !user) {
+        setSearchResults([]);
+        return;
+      }
+
+      try {
+        // Get all notes including staple notes for search
+        const allNotes = await getNotes(notebookId, undefined, user.uid);
+        const query = searchQuery.toLowerCase();
+        const results = allNotes.filter(n => 
+          n && !n.deletedAt && 
+          ((n.title || '').toLowerCase().includes(query) ||
+           (n.contentPlain || '').toLowerCase().includes(query))
+        );
+        setSearchResults(results);
+      } catch (error) {
+        console.error('Error searching notes:', error);
+        setSearchResults([]);
+      }
+    };
+
+    performSearch();
+  }, [searchQuery, notebookId, user]);
 
   // Look up notebook by slug
   useEffect(() => {
@@ -127,11 +155,12 @@ export default function NotebookPage() {
     if (!user || !notebookId) return;
     try {
       setError(null);
-      // Get all notes including staple notes (Scratch, Now, Short-Term, Long-term)
+      // Get all notes including staple notes (Scratch, Now, Short-Term, Long-term) for search
       const notesData = await getNotes(notebookId, undefined, user.uid);
-      // Include all notes (both regular and staple), just exclude deleted ones
-      const allNotes = notesData.filter((n) => n && !n.deletedAt);
-      setNotes(allNotes);
+      // Exclude staple notes from display, but keep them for search
+      // Staple notes have tabId === 'staple'
+      const regularNotes = notesData.filter((n) => n && !n.deletedAt && n.tabId !== 'staple');
+      setNotes(regularNotes);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load notes';
       console.error('Error loading all notes:', err);
@@ -319,10 +348,7 @@ export default function NotebookPage() {
           <p className="text-text-secondary">No notes yet. Create one with the + button.</p>
         ) : (
           <NoteList
-            notes={searchQuery ? notes.filter(note => 
-              (note.title || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-              (note.contentPlain || '').toLowerCase().includes(searchQuery.toLowerCase())
-            ) : notes}
+            notes={searchQuery ? searchResults : notes}
             notebookId={notebookId}
             onNoteClick={(note) => {
               const noteSlug = createSlug(note.title);
