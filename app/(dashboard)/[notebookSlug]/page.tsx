@@ -41,10 +41,10 @@ export default function NotebookPage() {
         // Get all notes including staple notes for search
         const allNotes = await getNotes(notebookId, undefined, user.uid);
         const query = searchQuery.toLowerCase();
+        // Only search note content, not titles
         const results = allNotes.filter(n => 
           n && !n.deletedAt && 
-          ((n.title || '').toLowerCase().includes(query) ||
-           (n.contentPlain || '').toLowerCase().includes(query))
+          (n.contentPlain || '').toLowerCase().includes(query)
         );
         setSearchResults(results);
       } catch (error) {

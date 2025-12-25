@@ -529,6 +529,9 @@ export default function NoteEditorPage() {
                       a.style.display = 'none';
                       document.body.appendChild(a);
                       a.click();
+                      // Show feedback
+                      setToast({ message: 'Opening email client...', type: 'info' });
+                      setTimeout(() => setToast(null), 2000);
                       // Remove immediately to prevent any side effects
                       setTimeout(() => {
                         document.body.removeChild(a);
@@ -550,15 +553,40 @@ export default function NoteEditorPage() {
                       onClick={async () => {
                         if (!note) return;
                         try {
+                          // Check if share is actually available
+                          if (!navigator.share) {
+                            setToast({ message: 'Share not available on this device', type: 'error' });
+                            setTimeout(() => setToast(null), 3000);
+                            return;
+                          }
+                          
                           await navigator.share({
                             title: note.title || 'Untitled Note',
                             text: plainText || '',
                           });
+                          setToast({ message: 'Shared successfully!', type: 'success' });
+                          setTimeout(() => setToast(null), 2000);
                           setShowShareMenu(false);
                         } catch (err: any) {
-                          if (err.name !== 'AbortError') {
-                            alert('Failed to share. Please try again.');
+                          if (err.name === 'AbortError') {
+                            // User cancelled, just close menu
+                            setShowShareMenu(false);
+                          } else if (err.name === 'NotAllowedError' || err.name === 'TypeError') {
+                            // Share not supported or failed, fallback to clipboard
+                            const textToShare = `${note.title || 'Untitled Note'}\n\n${plainText || ''}`;
+                            try {
+                              await navigator.clipboard.writeText(textToShare);
+                              setToast({ message: 'Share not available. Copied to clipboard instead!', type: 'info' });
+                              setTimeout(() => setToast(null), 3000);
+                            } catch (clipErr) {
+                              setToast({ message: 'Share failed. Please try copying manually.', type: 'error' });
+                              setTimeout(() => setToast(null), 3000);
+                            }
+                          } else {
+                            setToast({ message: 'Failed to share. Please try again.', type: 'error' });
+                            setTimeout(() => setToast(null), 3000);
                           }
+                          setShowShareMenu(false);
                         }
                       }}
                       className="w-full text-left px-4 py-2 text-sm text-text-primary hover:bg-bg-primary transition-colors"
