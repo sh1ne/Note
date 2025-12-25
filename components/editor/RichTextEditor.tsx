@@ -284,7 +284,7 @@ function EditorToolbar({ editor, onCreateNote }: { editor: any; onCreateNote?: (
           // Keep focus on editor
           setTimeout(() => editor.commands.focus(), 10);
         }}
-        className={`px-3 py-1.5 rounded transition-all text-text-secondary hover:text-text-primary ${
+        className={`px-3 py-1.5 rounded transition-all text-text-primary hover:text-text-primary ${
           editor.isActive('bold') 
             ? 'bg-blue-600/20 border-2 border-blue-500 text-blue-400 font-semibold' 
             : 'border-2 border-transparent hover:bg-bg-primary/30'
@@ -393,7 +393,7 @@ function EditorToolbar({ editor, onCreateNote }: { editor: any; onCreateNote?: (
           editor.chain().focus().setTextAlign('left').run();
           setTimeout(() => editor.commands.focus(), 10);
         }}
-        className={`px-3 py-1.5 rounded transition-all text-text-secondary hover:text-text-primary ${
+        className={`px-3 py-1.5 rounded transition-all text-text-primary hover:text-text-primary ${
           isLeftActive 
             ? 'bg-blue-600/20 border-2 border-blue-500 text-blue-400' 
             : 'border-2 border-transparent hover:bg-bg-primary/30'
@@ -443,7 +443,7 @@ function EditorToolbar({ editor, onCreateNote }: { editor: any; onCreateNote?: (
       <button
         onClick={() => editor.chain().focus().undo().run()}
         disabled={!editor.can().undo()}
-        className="px-3 py-1.5 rounded transition-all disabled:opacity-50 text-text-secondary hover:text-text-primary border-2 border-transparent hover:bg-bg-primary/30"
+        className="px-3 py-1.5 rounded transition-all disabled:opacity-50 text-text-primary hover:text-text-primary border-2 border-transparent hover:bg-bg-primary/30"
         title="Undo"
       >
         ↶
@@ -451,25 +451,12 @@ function EditorToolbar({ editor, onCreateNote }: { editor: any; onCreateNote?: (
       <button
         onClick={() => editor.chain().focus().redo().run()}
         disabled={!editor.can().redo()}
-        className="px-3 py-1.5 rounded transition-all disabled:opacity-50 text-text-secondary hover:text-text-primary border-2 border-transparent hover:bg-bg-primary/30"
+        className="px-3 py-1.5 rounded transition-all disabled:opacity-50 text-text-primary hover:text-text-primary border-2 border-transparent hover:bg-bg-primary/30"
         title="Redo"
       >
         ↷
       </button>
       </div>
-      {/* Create Note Button */}
-      {onCreateNote && (
-        <button
-          onClick={(e) => {
-            e.preventDefault();
-            onCreateNote();
-          }}
-          className="px-3 py-1.5 rounded transition-all bg-green-600 hover:bg-green-700 text-white font-semibold border-2 border-green-500"
-          title="Create New Note"
-        >
-          +
-        </button>
-      )}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { deleteNote, updateTab, getNotebookBySlug } from '@/lib/firebase/firestore';
@@ -93,6 +93,25 @@ export default function NoteEditorPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
   const [isSavedToCloud, setIsSavedToCloud] = useState(false);
+  const [showShareMenu, setShowShareMenu] = useState(false);
+  const shareMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close share menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (shareMenuRef.current && !shareMenuRef.current.contains(event.target as Node)) {
+        setShowShareMenu(false);
+      }
+    };
+
+    if (showShareMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showShareMenu]);
 
   // Look up notebook by slug
   useEffect(() => {
@@ -446,46 +465,95 @@ export default function NoteEditorPage() {
             >
               +
             </button>
-            <button
-              onClick={async () => {
-                if (!note) return;
-                
-                const textToShare = `${note.title || 'Untitled Note'}\n\n${plainText || ''}`;
-                
-                // Try Web Share API first, but always fall back to clipboard
-                if (navigator.share) {
-                  try {
-                    await navigator.share({
-                      title: note.title || 'Untitled Note',
-                      text: plainText || '',
-                    });
-                    return; // Success, exit early
-                  } catch (err: any) {
-                    // If user cancelled (AbortError), don't show error
-                    if (err.name === 'AbortError') {
-                      return;
-                    }
-                    // For other errors, fall through to clipboard
-                  }
-                }
-                
-                // Fallback: copy to clipboard
-                try {
-                  await navigator.clipboard.writeText(textToShare);
-                  alert('Note copied to clipboard!');
-                } catch (err) {
-                  alert('Failed to copy note. Please try again.');
-                }
-              }}
-              className="text-text-primary hover:text-text-secondary transition-colors"
-              title="Share"
-              aria-label="Share"
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                <path d="M12 8v8M8 12l4-4 4 4"/>
-              </svg>
-            </button>
+            <div className="relative" ref={shareMenuRef}>
+              <button
+                onClick={() => setShowShareMenu(!showShareMenu)}
+                className="text-text-primary hover:text-text-secondary transition-colors"
+                title="Share Note"
+                aria-label="Share Note"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="18" cy="5" r="3"/>
+                  <circle cx="6" cy="12" r="3"/>
+                  <circle cx="18" cy="19" r="3"/>
+                  <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+                  <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                </svg>
+              </button>
+              {showShareMenu && (
+                <div className="absolute right-0 top-full mt-2 bg-bg-secondary border border-bg-primary rounded-lg shadow-lg z-50 min-w-[200px]">
+                  <button
+                    onClick={async () => {
+                      if (!note) return;
+                      const textToShare = `${note.title || 'Untitled Note'}\n\n${plainText || ''}`;
+                      try {
+                        await navigator.clipboard.writeText(textToShare);
+                        alert('Note copied to clipboard!');
+                        setShowShareMenu(false);
+                      } catch (err) {
+                        alert('Failed to copy note. Please try again.');
+                      }
+                    }}
+                    className="w-full text-left px-4 py-2 text-sm text-text-primary hover:bg-bg-primary transition-colors"
+                  >
+                    📋 Copy to Clipboard
+                  </button>
+                  <button
+                    onClick={async () => {
+                      if (!note) return;
+                      const textToShare = `${note.title || 'Untitled Note'}\n\n${plainText || ''}`;
+                      const mailtoLink = `mailto:?subject=${encodeURIComponent(note.title || 'Untitled Note')}&body=${encodeURIComponent(textToShare)}`;
+                      window.location.href = mailtoLink;
+                      setShowShareMenu(false);
+                    }}
+                    className="w-full text-left px-4 py-2 text-sm text-text-primary hover:bg-bg-primary transition-colors"
+                  >
+                    📧 Share via Email
+                  </button>
+                  {navigator.share && (
+                    <button
+                      onClick={async () => {
+                        if (!note) return;
+                        try {
+                          await navigator.share({
+                            title: note.title || 'Untitled Note',
+                            text: plainText || '',
+                          });
+                          setShowShareMenu(false);
+                        } catch (err: any) {
+                          if (err.name !== 'AbortError') {
+                            alert('Failed to share. Please try again.');
+                          }
+                        }
+                      }}
+                      className="w-full text-left px-4 py-2 text-sm text-text-primary hover:bg-bg-primary transition-colors"
+                    >
+                      📤 Share via App
+                    </button>
+                  )}
+                  <button
+                    onClick={async () => {
+                      if (!note) return;
+                      // Export as plain text file
+                      const textToShare = `${note.title || 'Untitled Note'}\n\n${plainText || ''}`;
+                      const blob = new Blob([textToShare], { type: 'text/plain' });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = `${(note.title || 'Untitled Note').replace(/[^a-z0-9]/gi, '_')}.txt`;
+                      document.body.appendChild(a);
+                      a.click();
+                      document.body.removeChild(a);
+                      URL.revokeObjectURL(url);
+                      setShowShareMenu(false);
+                    }}
+                    className="w-full text-left px-4 py-2 text-sm text-text-primary hover:bg-bg-primary transition-colors"
+                  >
+                    💾 Export as Text File
+                  </button>
+                </div>
+              )}
+            </div>
             <button
               onClick={() => {
                 setShowFind(!showFind);

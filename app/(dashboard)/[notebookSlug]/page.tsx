@@ -127,9 +127,11 @@ export default function NotebookPage() {
     if (!user || !notebookId) return;
     try {
       setError(null);
+      // Get all notes including staple notes (Scratch, Now, Short-Term, Long-term)
       const notesData = await getNotes(notebookId, undefined, user.uid);
-      const regularNotes = notesData.filter((n) => n && n.tabId !== 'staple' && !n.deletedAt);
-      setNotes(regularNotes);
+      // Include all notes (both regular and staple), just exclude deleted ones
+      const allNotes = notesData.filter((n) => n && !n.deletedAt);
+      setNotes(allNotes);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load notes';
       console.error('Error loading all notes:', err);
@@ -269,6 +271,14 @@ export default function NotebookPage() {
               </button>
             </div>
             <div className="flex items-center gap-4">
+              <button
+                onClick={handleCreateNote}
+                className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded transition-colors font-semibold"
+                title="Create New Note"
+                aria-label="Create New Note"
+              >
+                +
+              </button>
               <button
                 onClick={() => {
                   setShowSearch(!showSearch);
