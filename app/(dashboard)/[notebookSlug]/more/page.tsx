@@ -746,6 +746,178 @@ export default function MorePage() {
               Sync error: {syncError}
             </p>
           )}
+          
+          {/* Sync Testing Panel - Development Only */}
+          {process.env.NODE_ENV === 'development' && (
+            <details className="mt-4 pt-4 border-t border-bg-primary">
+              <summary className="cursor-pointer text-sm font-semibold text-yellow-400 hover:text-yellow-300 mb-3">
+                🧪 Sync Testing & Edge Cases (Dev Only)
+              </summary>
+              <div className="space-y-3 mt-3">
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={async () => {
+                      const { addToSyncQueue, getSyncQueue } = await import('@/lib/utils/localStorage');
+                      const testNoteId = 'test-pending-' + Date.now();
+                      await addToSyncQueue(testNoteId, {
+                        title: 'Test Pending Note',
+                        content: 'This is a test to verify pending sync state',
+                      });
+                      const queue = await getSyncQueue();
+                      setPendingSyncCount(queue.length);
+                      setToast({ message: `Test item added. Queue: ${queue.length}`, type: 'info' });
+                      setTimeout(() => setToast(null), 2000);
+                    }}
+                    className="px-3 py-1.5 text-xs bg-orange-600 hover:bg-orange-700 text-white rounded transition-colors"
+                  >
+                    Add Test Item
+                  </button>
+                  
+                  <button
+                    onClick={async () => {
+                      if (!notebookId || !user) {
+                        setToast({ message: 'No notebook or user found', type: 'error' });
+                        setTimeout(() => setToast(null), 2000);
+                        return;
+                      }
+                      const { getNotes } = await import('@/lib/firebase/firestore');
+                      const { addToSyncQueue, getSyncQueue } = await import('@/lib/utils/localStorage');
+                      const notes = await getNotes(notebookId, undefined, user.uid);
+                      if (notes.length === 0) {
+                        setToast({ message: 'No notes found to test with', type: 'error' });
+                        setTimeout(() => setToast(null), 2000);
+                        return;
+                      }
+                      const testNote = notes[0];
+                      // Add a real note to queue (simulates a failed sync)
+                      await addToSyncQueue(testNote.id, {
+                        title: testNote.title,
+                        content: testNote.content + ' [QUEUED FOR TEST]',
+                        contentPlain: testNote.contentPlain + ' [QUEUED FOR TEST]',
+                      });
+                      const queue = await getSyncQueue();
+                      setPendingSyncCount(queue.length);
+                      setToast({ message: `Real note "${testNote.title}" added to queue. Will sync to Firebase!`, type: 'info' });
+                      setTimeout(() => setToast(null), 3000);
+                    }}
+                    className="px-3 py-1.5 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
+                  >
+                    Add Real Note to Queue
+                  </button>
+                  
+                  <button
+                    onClick={async () => {
+                      const { getSyncQueue } = await import('@/lib/utils/localStorage');
+                      const queue = await getSyncQueue();
+                      const queueInfo = queue.map(item => ({
+                        noteId: item.noteId,
+                        title: item.data.title || 'Untitled',
+                        isTest: item.noteId.startsWith('test-pending-'),
+                      }));
+                      console.log('[Sync Test] Queue contents:', queueInfo);
+                      setToast({ 
+                        message: `Queue: ${queue.length} items (${queueInfo.filter(i => !i.isTest).length} real, ${queueInfo.filter(i => i.isTest).length} test). Check console for details.`, 
+                        type: 'info' 
+                      });
+                      setTimeout(() => setToast(null), 4000);
+                    }}
+                    className="px-3 py-1.5 text-xs bg-purple-600 hover:bg-purple-700 text-white rounded transition-colors"
+                  >
+                    View Queue Contents
+                  </button>
+                  
+                  <button
+                    onClick={async () => {
+                      const { getSyncQueue, removeFromSyncQueue } = await import('@/lib/utils/localStorage');
+                      const queue = await getSyncQueue();
+                      for (const item of queue) {
+                        await removeFromSyncQueue(item.noteId);
+                      }
+                      setPendingSyncCount(0);
+                      setToast({ message: 'Queue cleared!', type: 'success' });
+                      setTimeout(() => setToast(null), 2000);
+                    }}
+                    className="px-3 py-1.5 text-xs bg-red-600 hover:bg-red-700 text-white rounded transition-colors"
+                  >
+                    Clear Queue
+                  </button>
+                  
+                  <button
+                    onClick={async () => {
+                      try {
+                        const { getNotes } = await import('@/lib/firebase/firestore');
+                        if (!notebookId || !user) {
+                          setToast({ message: 'No notebook or user found', type: 'error' });
+                          setTimeout(() => setToast(null), 2000);
+                          return;
+                        }
+                        const startTime = Date.now();
+                        await getNotes(notebookId, undefined, user.uid);
+                        const duration = Date.now() - startTime;
+                        setToast({ message: `✅ Firebase connected! Response time: ${duration}ms`, type: 'success' });
+                        setTimeout(() => setToast(null), 3000);
+                      } catch (error: any) {
+                        setToast({ message: `❌ Firebase error: ${error.message}`, type: 'error' });
+                        setTimeout(() => setToast(null), 3000);
+                      }
+                    }}
+                    className="px-3 py-1.5 text-xs bg-green-600 hover:bg-green-700 text-white rounded transition-colors"
+                  >
+                    Test Firebase Connection
+                  </button>
+                  
+                  <button
+                    onClick={async () => {
+                      if (!notebookId || !user) {
+                        setToast({ message: 'No notebook or user found', type: 'error' });
+                        setTimeout(() => setToast(null), 2000);
+                        return;
+                      }
+                      const { getNotes } = await import('@/lib/firebase/firestore');
+                      const notes = await getNotes(notebookId, undefined, user.uid);
+                      const firestoreNoteIds = new Set(notes.map(n => n.id));
+                      const { getSyncQueue } = await import('@/lib/utils/localStorage');
+                      const queue = await getSyncQueue();
+                      const realQueueItems = queue.filter(item => !item.noteId.startsWith('test-pending-'));
+                      const validItems = realQueueItems.filter(item => firestoreNoteIds.has(item.noteId));
+                      const invalidItems = realQueueItems.filter(item => !firestoreNoteIds.has(item.noteId));
+                      
+                      console.log('[Sync Test] Queue validation:', {
+                        total: queue.length,
+                        real: realQueueItems.length,
+                        valid: validItems.length,
+                        invalid: invalidItems.length,
+                        invalidNoteIds: invalidItems.map(i => i.noteId),
+                      });
+                      
+                      setToast({ 
+                        message: `Queue: ${realQueueItems.length} real items (${validItems.length} valid, ${invalidItems.length} invalid). Check console.`, 
+                        type: invalidItems.length > 0 ? 'error' : 'info' 
+                      });
+                      setTimeout(() => setToast(null), 4000);
+                    }}
+                    className="px-3 py-1.5 text-xs bg-yellow-600 hover:bg-yellow-700 text-white rounded transition-colors"
+                  >
+                    Validate Queue vs Firebase
+                  </button>
+                </div>
+                
+                <div className="text-xs text-text-secondary space-y-1 pt-2 border-t border-bg-primary">
+                  <p><strong>Test Scenarios:</strong></p>
+                  <ul className="list-disc list-inside space-y-1 ml-2">
+                    <li><strong>Add Test Item:</strong> Adds fake item (won't sync to Firebase, auto-removed after 30s)</li>
+                    <li><strong>Add Real Note:</strong> Adds actual note to queue (WILL sync to Firebase when processed)</li>
+                    <li><strong>View Queue:</strong> Shows queue contents in console</li>
+                    <li><strong>Clear Queue:</strong> Removes all items from queue</li>
+                    <li><strong>Test Firebase:</strong> Verifies connection to Firestore</li>
+                    <li><strong>Validate Queue:</strong> Checks if queued note IDs exist in Firebase</li>
+                  </ul>
+                  <p className="mt-2 text-yellow-400"><strong>💡 Tip:</strong> Go offline in DevTools (Network tab → Offline) then edit a note to test real offline sync!</p>
+                </div>
+              </div>
+            </details>
+          )}
+          
           <div className="flex items-center justify-between mt-3 pt-3 border-t border-bg-primary">
             <details className="text-xs">
               <summary className="text-text-secondary cursor-pointer hover:text-text-primary">
