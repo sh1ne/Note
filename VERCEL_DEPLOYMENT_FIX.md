@@ -24,50 +24,60 @@ Black screen on https://note-three-delta.vercel.app/ - This is because Firebase 
 2. Click on your project: "note"
 3. Go to **Settings** tab
 4. Click **Environment Variables** in left sidebar
-5. Add these 6 variables (one at a time):
+5. Click **"Add Environment Variable"** button (top right)
+6. Add these 6 variables (one at a time):
 
    **Variable 1:**
    - Name: `NEXT_PUBLIC_FIREBASE_API_KEY`
    - Value: (paste your apiKey)
-   - Environment: Select all (Production, Preview, Development)
+   - Environment: **Check all three boxes** (Production ✅, Preview ✅, Development ✅)
    - Click "Save"
 
    **Variable 2:**
    - Name: `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`
    - Value: (paste your authDomain)
-   - Environment: Select all
+   - Environment: **Check all three boxes** (Production ✅, Preview ✅, Development ✅)
    - Click "Save"
 
    **Variable 3:**
    - Name: `NEXT_PUBLIC_FIREBASE_PROJECT_ID`
    - Value: (paste your projectId)
-   - Environment: Select all
+   - Environment: **Check all three boxes** (Production ✅, Preview ✅, Development ✅)
    - Click "Save"
 
    **Variable 4:**
    - Name: `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`
    - Value: (paste your storageBucket)
-   - Environment: Select all
+   - Environment: **Check all three boxes** (Production ✅, Preview ✅, Development ✅)
    - Click "Save"
 
    **Variable 5:**
    - Name: `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`
    - Value: (paste your messagingSenderId)
-   - Environment: Select all
+   - Environment: **Check all three boxes** (Production ✅, Preview ✅, Development ✅)
    - Click "Save"
 
    **Variable 6:**
    - Name: `NEXT_PUBLIC_FIREBASE_APP_ID`
    - Value: (paste your appId)
-   - Environment: Select all
+   - Environment: **Check all three boxes** (Production ✅, Preview ✅, Development ✅)
    - Click "Save"
+
+**Note**: If you already added a variable with only "Production" selected:
+- Click the **three dots (⋯)** next to the variable
+- Click **"Edit"**
+- Check the boxes for **Preview** and **Development** as well
+- Click "Save"
 
 ### Step 3: Redeploy
 1. After adding all 6 variables, go to **Deployments** tab
 2. Click the three dots (⋯) on the latest deployment
 3. Click **Redeploy**
-4. Wait for deployment to complete (~2 minutes)
-5. Visit https://note-three-delta.vercel.app/ again
+4. **Important**: Select "Use existing Build Cache" (faster) or "Rebuild" (cleaner)
+5. Wait for deployment to complete (~2 minutes)
+6. Visit https://note-three-delta.vercel.app/ again
+
+**Note**: If you only set variables to "Production", that's fine for now! Your production site will work. You can add Preview/Development later if needed.
 
 ### Step 4: Verify
 - Should see login/signup page (not black screen)
