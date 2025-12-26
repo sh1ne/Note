@@ -95,23 +95,34 @@
 
 **Steps**:
 1. Go to More page → Sync Status section
-2. Click "Add Invalid Note ID" (red button)
-3. **Check console immediately**: Should see `[Sync Test] Adding invalid note ID to queue: invalid-note-id-...`
-4. **Observe UI**: Pending count increases
-5. **Wait 30 seconds OR click "Sync Now"**
-6. **Check console**: Should see RED ERROR messages:
+2. **Note current pending count** (e.g., "0 pending" or "1 pending")
+3. Click "Add Invalid Note ID" (red button)
+4. **Check console immediately**: Should see `[Sync Test] Adding invalid note ID to queue: invalid-note-id-...`
+5. **Observe UI**: Pending count increases (e.g., "1 pending" or "2 pending")
+6. **Wait 30 seconds OR click "Sync Now"**
+7. **Check console**: Should see RED ERROR messages:
    - `[Firestore] ❌ Note does not exist in Firestore: invalid-note-id-...`
    - `[Firestore] ❌ Error syncing note:`
    - `Error syncing note invalid-note-id-...: Error: Note ... does not exist in Firestore`
-7. **Observe UI**: 
+8. **Observe UI**: 
    - Error message appears: "Sync error: Failed to sync note. Will retry automatically."
-   - Pending count stays the same (item remains in queue)
-8. **Verify**: Click "View Queue Contents" → Check console → Should see the invalid note ID still in queue
-9. **Clean up**: Click "Clear Queue" to remove it
+   - Pending count stays the same (item remains in queue - this is CORRECT behavior)
+9. **Verify in Firebase Console**:
+   - Go to Firestore → `notes` collection
+   - **Search for the invalid note ID** (from console: `invalid-note-id-1766708219536`)
+   - **Expected**: ❌ The note should NOT exist in Firebase (this is correct!)
+   - If it doesn't exist = ✅ Test passed (error handling working)
+   - If it exists = ❌ Something is wrong
+10. **Verify queue**: Click "View Queue Contents" → Check console → Should see the invalid note ID still in queue
+11. **Clean up**: Click "Clear Queue" to remove it
 
 **What this tests**: Error handling when note doesn't exist, queue retry logic
 
-**Expected Result**: ❌ Error (this is correct! The note doesn't exist, so it should fail)
+**Expected Result**: ❌ **ERRORS ARE CORRECT!** 
+- The note doesn't exist, so it SHOULD fail
+- The errors prove the system correctly identifies invalid notes
+- The item stays in queue (will keep retrying - this is expected behavior)
+- **Success = Seeing the errors** (means error handling works!)
 
 ---
 
@@ -140,23 +151,45 @@
 
 ---
 
-### Test 5: Offline Sync Test
+### Test 5: Offline Sync Test (Complete Verification)
 **Purpose**: Test that notes save locally when offline and sync when back online
 
 **Steps**:
-1. Open any note in the editor
-2. **Look at note editor header** (top right) - note the current state
-3. Open DevTools (F12) → Network tab
-4. **Check the "Offline" checkbox** (this simulates no internet)
-5. **Edit the note**: Type something new
-6. **Observe note editor header**: Should show "X pending" (e.g., "1 pending" or "2 pending")
-7. **Wait a few seconds**: The pending count should update
-8. **Go back online**: Uncheck "Offline" in Network tab
-9. **Option A**: Wait ~30 seconds for automatic sync
-10. **Option B**: Click "Sync Now" button (on More page)
-11. **Observe**: Pending count in note editor header decreases
-12. **Check console**: Should see `[Firestore] ✅ Successfully synced note to cloud:`
-13. **Verify in Firebase Console**: Check the note was updated with your offline changes
+1. **Before starting**: Note which note you'll test (e.g., "Scratch" or "New Note 1")
+2. **Open Firebase Console** (keep it open in another tab):
+   - Go to https://console.firebase.google.com
+   - Select your project → Firestore Database → `notes` collection
+   - Find your test note (search by title or scroll)
+   - **Note the current `content` and `updatedAt` timestamp** (write it down or screenshot)
+3. **Open the note in editor** (in your app)
+4. **Look at note editor header** (top right) - note current pending count
+5. **Open DevTools** (F12) → Network tab
+6. **Check the "Offline" checkbox** (this simulates no internet)
+7. **Edit the note**: Type something unique like "OFFLINE TEST [YOUR NAME] [TIMESTAMP]" 
+   - Example: "OFFLINE TEST Ryan 4:25pm"
+   - Make it unique so you can find it later
+8. **Observe note editor header**: Should show "X pending" (e.g., "1 pending" or "2 pending")
+   - The pending count increases because the note can't sync while offline
+9. **Wait 5-10 seconds**: The pending count should stay the same (still offline)
+10. **Go back online**: Uncheck "Offline" in Network tab
+11. **Click "Sync Now" button** (on More page) to force immediate sync
+   - OR wait ~30 seconds for automatic sync
+12. **Observe note editor header**: Pending count should decrease
+13. **Check console**: Should see:
+    - `[Firestore] Syncing note to cloud:` (with your note ID)
+    - `[Firestore] ✅ Successfully synced note to cloud:`
+14. **Verify in Firebase Console** (the tab you kept open):
+    - **Refresh the page** (or click the note again)
+    - **Check `content` field**: Should contain your unique text "OFFLINE TEST [YOUR NAME] [TIMESTAMP]"
+    - **Check `updatedAt` timestamp**: Should be recent (just now or a few seconds ago)
+    - **Compare**: The `updatedAt` should be NEWER than what you noted before step 2
+15. **Success criteria**:
+    - ✅ Your unique text appears in Firebase `content`
+    - ✅ `updatedAt` timestamp is recent
+    - ✅ Pending count went back to 0
+    - ✅ Console shows successful sync
+
+**What this tests**: Offline saving, queue persistence, automatic sync when back online, Firebase verification
 
 **What this tests**: Offline saving, queue persistence, automatic sync when back online
 

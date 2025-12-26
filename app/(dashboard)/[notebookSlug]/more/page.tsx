@@ -795,10 +795,11 @@ export default function MorePage() {
                         title: testNote.title,
                         notebookId: testNote.notebookId,
                       });
+                      // Remove existing [QUEUED FOR TEST] tag if present to avoid duplicates
                       await addToSyncQueue(testNote.id, {
-                        title: testNote.title,
-                        content: testNote.content + ' [QUEUED FOR TEST]',
-                        contentPlain: testNote.contentPlain + ' [QUEUED FOR TEST]',
+                        title: testNote.title.replace(/ \[QUEUED FOR TEST\]/g, ''),
+                        content: testNote.content.replace(/ \[QUEUED FOR TEST\]/g, '') + ' [QUEUED FOR TEST]',
+                        contentPlain: testNote.contentPlain.replace(/ \[QUEUED FOR TEST\]/g, '') + ' [QUEUED FOR TEST]',
                       });
                       const queue = await getSyncQueue();
                       setPendingSyncCount(queue.length);
@@ -950,11 +951,18 @@ export default function MorePage() {
                       // Add multiple notes to queue (up to 5)
                       const notesToQueue = notes.slice(0, Math.min(5, notes.length));
                       console.log('[Sync Test] Adding multiple notes to queue:', notesToQueue.length);
-                      for (const note of notesToQueue) {
+                      // Filter out notes that already have [MULTI-TEST] to avoid duplicates
+                      const uniqueNotes = notesToQueue.filter(note => !note.title.includes('[MULTI-TEST]'));
+                      if (uniqueNotes.length === 0) {
+                        setToast({ message: 'All notes already have [MULTI-TEST]. Try "Clear Queue" first.', type: 'info' });
+                        setTimeout(() => setToast(null), 3000);
+                        return;
+                      }
+                      for (const note of uniqueNotes.slice(0, Math.min(5, uniqueNotes.length))) {
                         await addToSyncQueue(note.id, {
-                          title: note.title + ' [MULTI-TEST]',
-                          content: note.content + ' [MULTI-TEST]',
-                          contentPlain: note.contentPlain + ' [MULTI-TEST]',
+                          title: note.title.replace(/ \[MULTI-TEST\]/g, '') + ' [MULTI-TEST]',
+                          content: note.content.replace(/ \[MULTI-TEST\]/g, '') + ' [MULTI-TEST]',
+                          contentPlain: note.contentPlain.replace(/ \[MULTI-TEST\]/g, '') + ' [MULTI-TEST]',
                         });
                       }
                       const queue = await getSyncQueue();
