@@ -40,74 +40,163 @@
 
 ---
 
-## Sync Testing Scenarios
+## Step-by-Step Testing Instructions
 
-### 1. Test Pending (UI Test)
-- **Button**: "Add Test Item" (orange)
-- **What it does**: Adds a fake item to sync queue
-- **Expected**: 
-  - Pending count increases
-  - Orange dot appears
-  - Shows "X pending"
-  - Auto-removed after 30 seconds (check console: `[Sync Queue] Skipping test item`)
+### Test 1: Test Pending (UI Test)
+**Purpose**: Verify the UI correctly shows pending items
 
-### 2. Real Note Sync Test
-- **Button**: "Add Real Note to Queue" (blue)
-- **What it does**: Adds an actual note to queue (will sync to Firebase)
-- **Expected**:
-  - Console shows: `[Sync Test] Adding real note to queue:`
-  - Pending count increases
-  - After 30 seconds (or click "Sync Now"), console shows:
-    - `[Firestore] Syncing note to cloud:`
-    - `[Firestore] ✅ Successfully synced note to cloud:`
-  - Check Firebase Console → notes collection → verify the note was updated
-  - Pending count decreases
+**Steps**:
+1. Go to More page → Sync Status section
+2. Click "Add Test Item" (orange button)
+3. **Observe**:
+   - Pending count should increase (e.g., "1 pending")
+   - Orange pulsing dot appears
+   - Text changes to "1 pending" instead of "All changes saved"
+4. **Wait 30 seconds** (or click "Sync Now")
+5. **Check console**: Should see `[Sync Queue] Skipping test item: test-pending-...`
+6. **Observe**: Pending count goes back to 0, green dot returns
 
-### 3. Invalid Note ID Test
-- **Button**: "Add Invalid Note ID" (red) - NEW!
-- **What it does**: Adds a note with a fake ID that doesn't exist in Firebase
-- **Expected**:
-  - Pending count increases
-  - When sync tries, it will fail (note doesn't exist)
-  - Console shows error: `Error syncing note invalid-note-id-...`
-  - Item stays in queue (error handling test)
-  - Use "View Queue Contents" to see it's still there
+**What this tests**: UI correctly displays pending state
 
-### 4. Multiple Pending Test
-- **Button**: "Add Multiple Notes" (indigo) - NEW!
-- **What it does**: Adds up to 5 real notes to queue
-- **Expected**:
-  - Pending count shows "5 pending" (or however many notes you have)
-  - They sync one by one every 30 seconds
-  - Or click "Sync Now" to sync all at once
-  - Watch console to see each one sync sequentially
+---
 
-### 5. Offline Sync Test
-- **Steps**:
-  1. Open a note in the editor
-  2. Open DevTools → Network tab → Check "Offline"
-  3. Edit the note (type something)
-  4. **NEW**: You'll see "X pending" in the note editor header (top right)
-  5. The note saves locally immediately
-  6. Go back online (uncheck "Offline")
-  7. Wait 30 seconds or click "Sync Now"
-  8. Note syncs to Firebase
-  9. Pending count goes to 0
+### Test 2: Real Note Sync Test (Firebase Verification)
+**Purpose**: Verify notes actually sync to Firebase Firestore
 
-### 6. Queue Validation Test
-- **Button**: "Validate Queue vs Firebase" (yellow)
-- **What it does**: Checks if queued note IDs actually exist in Firebase
-- **Expected**:
-  - Console shows validation results
-  - Identifies any orphaned/invalid queue items
-  - Toast shows: "X real items (Y valid, Z invalid)"
+**Steps**:
+1. Go to More page → Sync Status section
+2. **Before starting**: Note which note will be tested (check console after clicking)
+3. Click "Add Real Note to Queue" (blue button)
+4. **Immediately check console**: Should see `[Sync Test] Adding real note to queue:` with noteId and title
+5. **Observe UI**: Pending count increases, orange dot appears
+6. **Option A - Wait**: Wait ~30 seconds for automatic sync
+7. **Option B - Immediate**: Click "Sync Now" button to sync immediately
+8. **Check console**: Should see:
+   - `[Firestore] Syncing note to cloud:` (with noteId)
+   - `[Firestore] Current note in Firestore:` (shows current state)
+   - `[Firestore] ✅ Successfully synced note to cloud:` (confirms success)
+9. **Verify in Firebase Console**:
+   - Go to https://console.firebase.google.com
+   - Select your project
+   - Go to Firestore Database → `notes` collection
+   - Find the note by ID (from console log)
+   - **Check**:
+     - `updatedAt` timestamp matches console log timestamp
+     - `content` field contains `[QUEUED FOR TEST]`
+     - `title` matches what you saw in console
+10. **Observe UI**: Pending count decreases
 
-### 7. Firebase Connection Test
-- **Button**: "Test Firebase Connection" (green)
-- **What it does**: Verifies you can read from Firestore
-- **Expected**:
-  - Toast shows: "✅ Firebase connected! Response time: Xms"
-  - If fails: Shows error message
+**What this tests**: End-to-end sync from queue → Firebase → UI update
+
+---
+
+### Test 3: Invalid Note ID Test (Error Handling)
+**Purpose**: Test what happens when a note ID doesn't exist in Firebase
+
+**Steps**:
+1. Go to More page → Sync Status section
+2. Click "Add Invalid Note ID" (red button)
+3. **Check console immediately**: Should see `[Sync Test] Adding invalid note ID to queue: invalid-note-id-...`
+4. **Observe UI**: Pending count increases
+5. **Wait 30 seconds OR click "Sync Now"**
+6. **Check console**: Should see RED ERROR messages:
+   - `[Firestore] ❌ Note does not exist in Firestore: invalid-note-id-...`
+   - `[Firestore] ❌ Error syncing note:`
+   - `Error syncing note invalid-note-id-...: Error: Note ... does not exist in Firestore`
+7. **Observe UI**: 
+   - Error message appears: "Sync error: Failed to sync note. Will retry automatically."
+   - Pending count stays the same (item remains in queue)
+8. **Verify**: Click "View Queue Contents" → Check console → Should see the invalid note ID still in queue
+9. **Clean up**: Click "Clear Queue" to remove it
+
+**What this tests**: Error handling when note doesn't exist, queue retry logic
+
+**Expected Result**: ❌ Error (this is correct! The note doesn't exist, so it should fail)
+
+---
+
+### Test 4: Multiple Pending Test (Queue Processing)
+**Purpose**: Test processing multiple items in the queue
+
+**Steps**:
+1. Go to More page → Sync Status section
+2. Click "Add Multiple Notes" (purple/indigo button)
+3. **Check console immediately**: Should see `[Sync Test] Adding multiple notes to queue: 5` (or however many notes you have)
+4. **Observe UI**: Pending count shows "5 pending" (or "6 pending" if you had 1 already)
+5. **Click "Sync Now"** to process all at once
+6. **Watch console**: Should see multiple sync operations:
+   - Each note syncs sequentially
+   - `[Firestore] Syncing note to cloud:` for each note
+   - `[Firestore] ✅ Successfully synced note to cloud:` for each note
+   - All notes should have `[MULTI-TEST]` in their content
+7. **Observe UI**: Pending count decreases as each note syncs
+8. **Verify in Firebase Console**:
+   - Go to Firestore → `notes` collection
+   - Find the notes (use noteIds from console)
+   - Check that `content` contains `[MULTI-TEST]`
+   - Check `updatedAt` timestamps are recent
+
+**What this tests**: Queue processes multiple items correctly, sequential sync
+
+---
+
+### Test 5: Offline Sync Test
+**Purpose**: Test that notes save locally when offline and sync when back online
+
+**Steps**:
+1. Open any note in the editor
+2. **Look at note editor header** (top right) - note the current state
+3. Open DevTools (F12) → Network tab
+4. **Check the "Offline" checkbox** (this simulates no internet)
+5. **Edit the note**: Type something new
+6. **Observe note editor header**: Should show "X pending" (e.g., "1 pending" or "2 pending")
+7. **Wait a few seconds**: The pending count should update
+8. **Go back online**: Uncheck "Offline" in Network tab
+9. **Option A**: Wait ~30 seconds for automatic sync
+10. **Option B**: Click "Sync Now" button (on More page)
+11. **Observe**: Pending count in note editor header decreases
+12. **Check console**: Should see `[Firestore] ✅ Successfully synced note to cloud:`
+13. **Verify in Firebase Console**: Check the note was updated with your offline changes
+
+**What this tests**: Offline saving, queue persistence, automatic sync when back online
+
+---
+
+### Test 6: Queue Validation Test
+**Purpose**: Find orphaned/invalid items in the queue
+
+**Steps**:
+1. Go to More page → Sync Status section
+2. **First, add an invalid note**: Click "Add Invalid Note ID" (red button)
+3. **Then, add a real note**: Click "Add Real Note to Queue" (blue button)
+4. Click "Validate Queue vs Firebase" (yellow button)
+5. **Check console**: Should see validation object:
+   ```javascript
+   {
+     total: 2,
+     real: 2,
+     valid: 1,      // Real note that exists
+     invalid: 1,    // Invalid note that doesn't exist
+     invalidNoteIds: ['invalid-note-id-...']
+   }
+   ```
+6. **Check toast**: Should show "Queue: 2 real items (1 valid, 1 invalid). Check console."
+7. **What to do**: The invalid items are identified - you can clear them with "Clear Queue" or leave them (they'll keep retrying)
+
+**What this tests**: Identifies problematic queue items that will never sync
+
+---
+
+### Test 7: Firebase Connection Test
+**Purpose**: Verify you can connect to Firebase
+
+**Steps**:
+1. Go to More page → Sync Status section
+2. Click "Test Firebase Connection" (green button)
+3. **Check toast**: Should show "✅ Firebase connected! Response time: Xms"
+4. **If it fails**: Check your internet connection and Firebase config
+
+**What this tests**: Basic Firebase connectivity
 
 ---
 
@@ -136,12 +225,56 @@ The sync queue processes **automatically every 30 seconds**. So when you add a r
 
 ---
 
-## Firebase Console Verification
+## Firebase Console Verification - Step by Step
 
-To verify sync is working:
-1. Go to Firebase Console → Firestore Database
-2. Navigate to `notes` collection
-3. Find the note ID from console logs
-4. Check `updatedAt` timestamp - should match console log timestamp
-5. Check `content` - should have `[QUEUED FOR TEST]` or `[MULTI-TEST]` if you used test buttons
+### How to Check Firebase After Testing
+
+**Step 1: Open Firebase Console**
+1. Go to https://console.firebase.google.com
+2. Select your project
+3. Click "Firestore Database" in the left sidebar
+
+**Step 2: Find Your Notes**
+1. Click on the `notes` collection
+2. You'll see a list of all notes with their IDs
+
+**Step 3: Find the Test Note**
+1. Look at your console logs - find the `noteId` from the sync logs
+2. In Firebase Console, search for that note ID (use browser Find/Ctrl+F)
+3. Or scroll through the list to find it
+
+**Step 4: Verify the Sync Worked**
+For each test, check these fields:
+
+**After "Add Real Note to Queue" test:**
+- ✅ `updatedAt` - Should be recent (matches console log timestamp)
+- ✅ `content` - Should contain `[QUEUED FOR TEST]`
+- ✅ `title` - Should match the note title from console
+
+**After "Add Multiple Notes" test:**
+- ✅ Multiple notes should have `[MULTI-TEST]` in their `content`
+- ✅ All should have recent `updatedAt` timestamps
+- ✅ Count how many were updated (should match how many you added)
+
+**After "Invalid Note ID" test:**
+- ❌ The invalid note ID should NOT appear in Firebase (it doesn't exist)
+- ✅ This confirms the error handling worked correctly
+
+**After offline sync test:**
+- ✅ The note you edited offline should have your changes
+- ✅ `updatedAt` should be recent (when it synced after going online)
+
+### What to Look For in Firebase
+
+**Good Signs (Everything Working):**
+- ✅ Notes have recent `updatedAt` timestamps
+- ✅ `content` matches what you typed
+- ✅ `notebookId` is correct
+- ✅ No duplicate notes
+
+**Bad Signs (Problems):**
+- ❌ `updatedAt` is old (note didn't sync)
+- ❌ Missing notes (should be there but aren't)
+- ❌ Wrong `notebookId` (note in wrong notebook)
+- ❌ Duplicate notes (same content, different IDs)
 
