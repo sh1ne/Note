@@ -471,24 +471,6 @@ function EditorToolbar({ editor, onCreateNote }: { editor: any; onCreateNote?: (
           <path d="M2 2h12v1H2V2zm4 3h8v1H6V5zm-4 3h12v1H2V8zm4 3h8v1H6v-1z"/>
         </svg>
       </button>
-
-      {/* Undo/Redo */}
-      <button
-        onClick={() => editor.chain().focus().undo().run()}
-        disabled={!editor.can().undo()}
-        className="px-2.5 py-1.5 rounded transition-all disabled:opacity-50 text-black dark:text-white hover:text-text-primary border-2 border-transparent hover:bg-bg-primary/30 shrink-0"
-        title="Undo"
-      >
-        ↶
-      </button>
-      <button
-        onClick={() => editor.chain().focus().redo().run()}
-        disabled={!editor.can().redo()}
-        className="px-2.5 py-1.5 rounded transition-all disabled:opacity-50 text-black dark:text-white hover:text-text-primary border-2 border-transparent hover:bg-bg-primary/30 shrink-0"
-        title="Redo"
-      >
-        ↷
-      </button>
       </div>
     </div>
   );
