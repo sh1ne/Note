@@ -1,5 +1,5 @@
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
-import { getAuth, Auth } from 'firebase/auth';
+import { getAuth, Auth, setPersistence, browserLocalPersistence } from 'firebase/auth';
 import { getFirestore, Firestore, enableNetwork, disableNetwork } from 'firebase/firestore';
 import { getStorage, FirebaseStorage } from 'firebase/storage';
 
@@ -27,6 +27,11 @@ if (typeof window !== 'undefined') {
   auth = getAuth(app);
   db = getFirestore(app);
   storage = getStorage(app);
+  
+  // Set auth persistence to keep users logged in
+  setPersistence(auth, browserLocalPersistence).catch((error) => {
+    console.warn('Auth persistence warning:', error);
+  });
   
   // Ensure Firestore network is enabled
   enableNetwork(db).catch((error) => {
