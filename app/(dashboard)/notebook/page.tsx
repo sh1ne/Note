@@ -35,6 +35,11 @@ export default function NotebookPage() {
 
     try {
       setError(null);
+      setLoading(true);
+      
+      // Add a small delay to ensure Firestore is ready
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       // Get user preferences to find current notebook
       const prefs = await getUserPreferences(user.uid);
       
@@ -61,10 +66,17 @@ export default function NotebookPage() {
 
       // No notebooks exist, create default one with staple notes
       await createDefaultNotebook();
-    } catch (err) {
+    } catch (err: any) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to initialize';
       console.error('Error initializing user:', err);
-      setError(errorMessage);
+      
+      // Check if it's an offline error
+      if (err?.code === 'unavailable' || err?.message?.includes('offline')) {
+        setError('Connection issue. Please check your internet and try again.');
+      } else {
+        setError(errorMessage);
+      }
+      setLoading(false);
     }
   }, [user, router]);
 

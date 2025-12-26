@@ -1,6 +1,6 @@
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
 import { getAuth, Auth } from 'firebase/auth';
-import { getFirestore, Firestore } from 'firebase/firestore';
+import { getFirestore, Firestore, enableNetwork, disableNetwork } from 'firebase/firestore';
 import { getStorage, FirebaseStorage } from 'firebase/storage';
 
 const firebaseConfig = {
@@ -27,6 +27,11 @@ if (typeof window !== 'undefined') {
   auth = getAuth(app);
   db = getFirestore(app);
   storage = getStorage(app);
+  
+  // Ensure Firestore network is enabled
+  enableNetwork(db).catch((error) => {
+    console.warn('Firestore network enable warning:', error);
+  });
 }
 
 export { app, auth, db, storage };

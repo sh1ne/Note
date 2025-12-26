@@ -11,8 +11,49 @@ import {
   orderBy,
   Timestamp,
   writeBatch,
+  enableNetwork,
 } from 'firebase/firestore';
 import { db } from './config';
+
+// Helper to ensure network is enabled before Firestore operations
+const ensureNetwork = async () => {
+  try {
+    await enableNetwork(db);
+  } catch (error) {
+    // Network might already be enabled, ignore error
+    console.warn('Network enable warning:', error);
+  }
+};
+
+// Retry helper for Firestore operations
+const retryFirestoreOperation = async <T>(
+  operation: () => Promise<T>,
+  maxRetries = 3,
+  delay = 1000
+): Promise<T> => {
+  let lastError: Error | null = null;
+  
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      await ensureNetwork();
+      return await operation();
+    } catch (error: any) {
+      lastError = error;
+      // If it's an offline error, wait and retry
+      if (error?.code === 'unavailable' || error?.message?.includes('offline')) {
+        if (i < maxRetries - 1) {
+          await new Promise(resolve => setTimeout(resolve, delay * (i + 1)));
+          continue;
+        }
+      }
+      // For other errors, throw immediately
+      throw error;
+    }
+  }
+  
+  throw lastError || new Error('Operation failed after retries');
+};
+
 import { Notebook, Tab, Note, UserPreferences } from '../types';
 import { createSlug, ensureUniqueSlug } from '../utils/slug';
 
@@ -41,13 +82,14 @@ export const createNotebook = async (notebook: Omit<Notebook, 'id' | 'slug'> & {
 };
 
 export const getNotebooks = async (userId: string): Promise<Notebook[]> => {
-  const q = query(
-    collection(db, 'notebooks'),
-    where('userId', '==', userId)
-  );
-  const snapshot = await getDocs(q);
-  const notebooks: Notebook[] = [];
-  const batch = writeBatch(db);
+  return retryFirestoreOperation(async () => {
+    const q = query(
+      collection(db, 'notebooks'),
+      where('userId', '==', userId)
+    );
+    const snapshot = await getDocs(q);
+    const notebooks: Notebook[] = [];
+    const batch = writeBatch(db);
   let needsUpdate = false;
   
   for (const docSnapshot of snapshot.docs) {
@@ -82,8 +124,9 @@ export const getNotebooks = async (userId: string): Promise<Notebook[]> => {
     });
   }
   
-  // Sort by createdAt client-side to avoid needing an index
-  return notebooks.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    // Sort by createdAt client-side to avoid needing an index
+    return notebooks.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  });
 };
 
 export const updateNotebook = async (
