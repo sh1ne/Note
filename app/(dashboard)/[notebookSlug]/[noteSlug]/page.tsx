@@ -520,22 +520,28 @@ export default function NoteEditorPage() {
                       const textToShare = `${note.title || 'Untitled Note'}\n\n${plainText || ''}`;
                       const mailtoLink = `mailto:?subject=${encodeURIComponent(note.title || 'Untitled Note')}&body=${encodeURIComponent(textToShare)}`;
                       
-                      // Create a visible anchor element and click it
-                      // This is the most reliable way to trigger mailto links
-                      const a = document.createElement('a');
-                      a.href = mailtoLink;
-                      a.style.position = 'fixed';
-                      a.style.left = '-9999px';
-                      a.style.top = '-9999px';
-                      document.body.appendChild(a);
-                      
-                      // Use setTimeout to ensure the element is in the DOM
-                      setTimeout(() => {
-                        a.click();
-                        document.body.removeChild(a);
+                      // Try multiple methods to open email client
+                      // Method 1: Direct window.location (most reliable)
+                      try {
+                        window.location.href = mailtoLink;
                         setToast({ message: 'Opening email client...', type: 'info' });
-                        setTimeout(() => setToast(null), 2000);
-                      }, 10);
+                        setTimeout(() => setToast(null), 3000);
+                      } catch (err) {
+                        // Method 2: Create anchor and click
+                        const a = document.createElement('a');
+                        a.href = mailtoLink;
+                        a.style.position = 'fixed';
+                        a.style.left = '-9999px';
+                        a.style.top = '-9999px';
+                        document.body.appendChild(a);
+                        
+                        setTimeout(() => {
+                          a.click();
+                          document.body.removeChild(a);
+                          setToast({ message: 'Opening email client...', type: 'info' });
+                          setTimeout(() => setToast(null), 3000);
+                        }, 10);
+                      }
                     }}
                     className="w-full text-left px-4 py-2 text-sm text-text-primary hover:bg-bg-primary transition-colors"
                   >

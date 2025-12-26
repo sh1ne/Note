@@ -248,9 +248,11 @@ export default function MorePage() {
       try {
         const { getSyncQueue } = await import('@/lib/utils/localStorage');
         const queue = await getSyncQueue();
-        // Filter out test items from count
+        // Include test items in count for testing purposes (they'll be skipped during actual sync)
+        // This allows the Test Pending button to work properly
+        setPendingSyncCount(queue.length);
+        // Filter out test items only for clearing sync start time
         const realQueueItems = queue.filter(item => !item.noteId.startsWith('test-pending-'));
-        setPendingSyncCount(realQueueItems.length);
         // Don't set isSyncing based on queue - only sync events should control that
         // Only clear sync start time if queue is empty
         if (realQueueItems.length === 0 && syncStartTime && !isSyncing) {
@@ -775,9 +777,15 @@ export default function MorePage() {
                       content: 'This is a test to verify pending sync state',
                     });
                     console.log('[Test] Added test item to sync queue. Check "More" page to see pending count.');
-                    // Refresh queue count
+                    // Refresh queue count - include test items for testing
                     const queue = await getSyncQueue();
+                    // Set count including test items so we can see the pending state
                     setPendingSyncCount(queue.length);
+                    // Use setTimeout to ensure state update happens after any useEffect
+                    setTimeout(async () => {
+                      const updatedQueue = await getSyncQueue();
+                      setPendingSyncCount(updatedQueue.length);
+                    }, 100);
                     alert(`Test item added to sync queue. Pending count: ${queue.length}\n\nTo remove it, click "Sync Now" or clear it from browser DevTools > Application > IndexedDB > notes-db > syncQueue`);
             }}
                   className="px-3 py-1 text-xs bg-orange-600 hover:bg-orange-700 text-white rounded transition-colors"
