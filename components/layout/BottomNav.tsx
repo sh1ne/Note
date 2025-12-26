@@ -48,8 +48,8 @@ export default function BottomNav({
               activeTabId === tab.id ? 'bg-bg-secondary' : ''
             }`}
           >
-            <span className="text-lg mb-0.5 shrink-0">{tab.icon}</span>
-            <span className="text-[10px] leading-tight truncate w-full text-center px-0.5">{tab.name === 'Long-term' ? 'Long' : tab.name === 'Short-Term' ? 'Short' : tab.name}</span>
+            <span className="text-lg shrink-0" style={{ lineHeight: '1.2' }}>{tab.icon}</span>
+            <span className="text-[10px] leading-tight truncate w-full text-center px-0.5 mt-0.5" style={{ minHeight: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{tab.name === 'Long-term' ? 'Long' : tab.name === 'Short-Term' ? 'Short' : tab.name}</span>
           </button>
         ))}
       </div>

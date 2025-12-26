@@ -213,6 +213,16 @@ export default function NoteEditorPage() {
     }
   }, [user, noteSlug, notebookId]);
 
+  // Save note when navigating away
+  useEffect(() => {
+    return () => {
+      // Component unmounting - save immediately
+      if (note && editor) {
+        saveNote(true); // Force immediate save
+      }
+    };
+  }, [note, editor, saveNote]);
+
   // Monitor online/offline status
   useEffect(() => {
     if (typeof window === 'undefined') return;

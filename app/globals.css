@@ -144,6 +144,10 @@ body {
   .pb-safe {
     padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
   }
+  
+  .mb-safe {
+    margin-bottom: max(0px, env(safe-area-inset-bottom));
+  }
 }
 
 .animate-slide-in {

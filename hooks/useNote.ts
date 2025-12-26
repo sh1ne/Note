@@ -128,7 +128,11 @@ export function useNote({ noteId, initialNote, onSaveComplete }: UseNoteOptions)
     if (forceImmediate) {
       await performSave();
     } else {
-      // Debounce cloud sync (2.5 seconds)
+      // Debounce cloud sync (2.5 seconds) - but ensure we capture all content
+      // Clear any existing timeout first
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
       saveTimeoutRef.current = setTimeout(performSave, 2500);
     }
   }, [note, noteId, onSaveComplete]);
