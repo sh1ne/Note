@@ -95,8 +95,41 @@ export default function NoteEditorPage() {
   const [isOnline, setIsOnline] = useState(true);
   const [isSavedToCloud, setIsSavedToCloud] = useState(false);
   const [showShareMenu, setShowShareMenu] = useState(false);
+  const [pendingSyncCount, setPendingSyncCount] = useState(0);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   const shareMenuRef = useRef<HTMLDivElement>(null);
+
+  // Check sync queue periodically to show pending count (especially useful when offline)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    const checkSyncQueue = async () => {
+      try {
+        const { getSyncQueue } = await import('@/lib/utils/localStorage');
+        const queue = await getSyncQueue();
+        setPendingSyncCount(queue.length);
+      } catch (error) {
+        console.error('Error checking sync queue:', error);
+      }
+    };
+
+    // Check immediately
+    checkSyncQueue();
+
+    // Check every 5 seconds
+    const interval = setInterval(checkSyncQueue, 5000);
+
+    // Listen for sync events
+    const handleSync = () => checkSyncQueue();
+    window.addEventListener('note-synced', handleSync);
+    window.addEventListener('note-sync-error', handleSync);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('note-synced', handleSync);
+      window.removeEventListener('note-sync-error', handleSync);
+    };
+  }, []);
 
   // Close share menu when clicking outside
   useEffect(() => {
@@ -456,6 +489,11 @@ export default function NoteEditorPage() {
             )}
             {!isOnline && (
               <span className="text-xs text-red-400 ml-2">⚠️ Offline</span>
+            )}
+            {pendingSyncCount > 0 && (
+              <span className="text-xs text-orange-400 ml-2">
+                {pendingSyncCount} pending
+              </span>
             )}
           </div>
           <div className="flex items-center gap-4">

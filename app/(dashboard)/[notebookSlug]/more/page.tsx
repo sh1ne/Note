@@ -790,6 +790,11 @@ export default function MorePage() {
                       }
                       const testNote = notes[0];
                       // Add a real note to queue (simulates a failed sync)
+                      console.log('[Sync Test] Adding real note to queue:', {
+                        noteId: testNote.id,
+                        title: testNote.title,
+                        notebookId: testNote.notebookId,
+                      });
                       await addToSyncQueue(testNote.id, {
                         title: testNote.title,
                         content: testNote.content + ' [QUEUED FOR TEST]',
@@ -797,6 +802,7 @@ export default function MorePage() {
                       });
                       const queue = await getSyncQueue();
                       setPendingSyncCount(queue.length);
+                      console.log('[Sync Test] Queue after adding real note:', queue.length, 'items');
                       setToast({ message: `Real note "${testNote.title}" added to queue. Will sync to Firebase!`, type: 'info' });
                       setTimeout(() => setToast(null), 3000);
                     }}
@@ -900,19 +906,85 @@ export default function MorePage() {
                   >
                     Validate Queue vs Firebase
                   </button>
+                  
+                  <button
+                    onClick={async () => {
+                      const { addToSyncQueue, getSyncQueue } = await import('@/lib/utils/localStorage');
+                      // Add a note with an invalid/fake ID that doesn't exist in Firebase
+                      const invalidNoteId = 'invalid-note-id-' + Date.now();
+                      console.log('[Sync Test] Adding invalid note ID to queue:', invalidNoteId);
+                      await addToSyncQueue(invalidNoteId, {
+                        title: 'Invalid Note (Test)',
+                        content: 'This note ID does not exist in Firebase',
+                        contentPlain: 'This note ID does not exist in Firebase',
+                      });
+                      const queue = await getSyncQueue();
+                      setPendingSyncCount(queue.length);
+                      console.log('[Sync Test] Invalid note added. Queue:', queue.length, 'items');
+                      setToast({ 
+                        message: `Invalid note ID added to queue. It will fail to sync (expected). Check console.`, 
+                        type: 'info' 
+                      });
+                      setTimeout(() => setToast(null), 4000);
+                    }}
+                    className="px-3 py-1.5 text-xs bg-red-600 hover:bg-red-700 text-white rounded transition-colors"
+                  >
+                    Add Invalid Note ID
+                  </button>
+                  
+                  <button
+                    onClick={async () => {
+                      if (!notebookId || !user) {
+                        setToast({ message: 'No notebook or user found', type: 'error' });
+                        setTimeout(() => setToast(null), 2000);
+                        return;
+                      }
+                      const { getNotes } = await import('@/lib/firebase/firestore');
+                      const { addToSyncQueue, getSyncQueue } = await import('@/lib/utils/localStorage');
+                      const notes = await getNotes(notebookId, undefined, user.uid);
+                      if (notes.length === 0) {
+                        setToast({ message: 'No notes found to test with', type: 'error' });
+                        setTimeout(() => setToast(null), 2000);
+                        return;
+                      }
+                      // Add multiple notes to queue (up to 5)
+                      const notesToQueue = notes.slice(0, Math.min(5, notes.length));
+                      console.log('[Sync Test] Adding multiple notes to queue:', notesToQueue.length);
+                      for (const note of notesToQueue) {
+                        await addToSyncQueue(note.id, {
+                          title: note.title + ' [MULTI-TEST]',
+                          content: note.content + ' [MULTI-TEST]',
+                          contentPlain: note.contentPlain + ' [MULTI-TEST]',
+                        });
+                      }
+                      const queue = await getSyncQueue();
+                      setPendingSyncCount(queue.length);
+                      console.log('[Sync Test] Multiple notes added. Queue:', queue.length, 'items');
+                      setToast({ 
+                        message: `Added ${notesToQueue.length} notes to queue. They will sync one by one.`, 
+                        type: 'info' 
+                      });
+                      setTimeout(() => setToast(null), 3000);
+                    }}
+                    className="px-3 py-1.5 text-xs bg-indigo-600 hover:bg-indigo-700 text-white rounded transition-colors"
+                  >
+                    Add Multiple Notes
+                  </button>
                 </div>
                 
                 <div className="text-xs text-text-secondary space-y-1 pt-2 border-t border-bg-primary">
                   <p><strong>Test Scenarios:</strong></p>
                   <ul className="list-disc list-inside space-y-1 ml-2">
                     <li><strong>Add Test Item:</strong> Adds fake item (won't sync to Firebase, auto-removed after 30s)</li>
-                    <li><strong>Add Real Note:</strong> Adds actual note to queue (WILL sync to Firebase when processed)</li>
+                    <li><strong>Add Real Note:</strong> Adds actual note to queue (WILL sync to Firebase when processed) - Check console for logs</li>
+                    <li><strong>Add Invalid Note ID:</strong> Adds note with fake ID (will fail to sync - tests error handling)</li>
+                    <li><strong>Add Multiple Notes:</strong> Adds up to 5 notes to queue (tests multiple pending items)</li>
                     <li><strong>View Queue:</strong> Shows queue contents in console</li>
                     <li><strong>Clear Queue:</strong> Removes all items from queue</li>
                     <li><strong>Test Firebase:</strong> Verifies connection to Firestore</li>
                     <li><strong>Validate Queue:</strong> Checks if queued note IDs exist in Firebase</li>
                   </ul>
-                  <p className="mt-2 text-yellow-400"><strong>💡 Tip:</strong> Go offline in DevTools (Network tab → Offline) then edit a note to test real offline sync!</p>
+                  <p className="mt-2 text-yellow-400"><strong>💡 Tip:</strong> Go offline in DevTools (Network tab → Offline) then edit a note. The pending count will show in the note editor header!</p>
                 </div>
               </div>
             </details>
