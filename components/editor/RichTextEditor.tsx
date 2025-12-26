@@ -274,8 +274,8 @@ function EditorToolbar({ editor, onCreateNote }: { editor: any; onCreateNote?: (
                        editor.getHTML().includes('style="text-align:left"');
 
   return (
-    <div className="editor-toolbar flex flex-wrap items-center justify-between gap-2 p-2 border-b border-bg-secondary bg-bg-secondary/80 backdrop-blur-sm fixed bottom-16 left-0 right-0 z-10 md:sticky md:top-0 md:bottom-auto">
-      <div className="flex flex-wrap gap-2">
+    <div className="editor-toolbar flex items-center justify-between gap-1 p-2 border-b border-bg-secondary bg-bg-secondary/80 backdrop-blur-sm fixed bottom-16 left-0 right-0 z-10 md:sticky md:top-0 md:bottom-auto overflow-x-auto">
+      <div className="flex items-center gap-1 flex-nowrap min-w-0">
       {/* Text Formatting */}
       <button
         onClick={(e) => {
@@ -284,7 +284,7 @@ function EditorToolbar({ editor, onCreateNote }: { editor: any; onCreateNote?: (
           // Keep focus on editor
           setTimeout(() => editor.commands.focus(), 10);
         }}
-        className={`px-3 py-1.5 rounded transition-all text-text-primary hover:text-text-primary ${
+        className={`px-2.5 py-1.5 rounded transition-all text-text-primary hover:text-text-primary shrink-0 ${
           editor.isActive('bold') 
             ? 'bg-blue-600/20 border-2 border-blue-500 text-blue-400 font-semibold' 
             : 'border-2 border-transparent hover:bg-bg-primary/30'
@@ -299,7 +299,7 @@ function EditorToolbar({ editor, onCreateNote }: { editor: any; onCreateNote?: (
           editor.chain().focus().toggleItalic().run();
           setTimeout(() => editor.commands.focus(), 10);
         }}
-        className={`px-3 py-1.5 rounded transition-all text-text-secondary hover:text-text-primary ${
+        className={`px-2.5 py-1.5 rounded transition-all text-text-secondary hover:text-text-primary shrink-0 ${
           editor.isActive('italic') 
             ? 'bg-blue-600/20 border-2 border-blue-500 text-blue-400 font-semibold' 
             : 'border-2 border-transparent hover:bg-bg-primary/30'
@@ -314,7 +314,7 @@ function EditorToolbar({ editor, onCreateNote }: { editor: any; onCreateNote?: (
           editor.chain().focus().toggleUnderline().run();
           setTimeout(() => editor.commands.focus(), 10);
         }}
-        className={`px-3 py-1.5 rounded transition-all text-text-secondary hover:text-text-primary ${
+        className={`px-2.5 py-1.5 rounded transition-all text-text-secondary hover:text-text-primary shrink-0 ${
           editor.isActive('underline') 
             ? 'bg-blue-600/20 border-2 border-blue-500 text-blue-400 font-semibold' 
             : 'border-2 border-transparent hover:bg-bg-primary/30'
@@ -329,7 +329,7 @@ function EditorToolbar({ editor, onCreateNote }: { editor: any; onCreateNote?: (
           editor.chain().focus().toggleStrike().run();
           setTimeout(() => editor.commands.focus(), 10);
         }}
-        className={`px-3 py-1.5 rounded transition-all text-text-secondary hover:text-text-primary ${
+        className={`px-2.5 py-1.5 rounded transition-all text-text-secondary hover:text-text-primary shrink-0 ${
           editor.isActive('strike') 
             ? 'bg-blue-600/20 border-2 border-blue-500 text-blue-400 font-semibold' 
             : 'border-2 border-transparent hover:bg-bg-primary/30'
@@ -346,7 +346,7 @@ function EditorToolbar({ editor, onCreateNote }: { editor: any; onCreateNote?: (
           editor.chain().focus().toggleBulletList().run();
           setTimeout(() => editor.commands.focus(), 10);
         }}
-        className={`px-3 py-1.5 rounded transition-all text-text-secondary hover:text-text-primary ${
+        className={`px-2.5 py-1.5 rounded transition-all text-text-secondary hover:text-text-primary shrink-0 ${
           editor.isActive('bulletList') 
             ? 'bg-blue-600/20 border-2 border-blue-500 text-blue-400 font-semibold' 
             : 'border-2 border-transparent hover:bg-bg-primary/30'
@@ -361,7 +361,7 @@ function EditorToolbar({ editor, onCreateNote }: { editor: any; onCreateNote?: (
           editor.chain().focus().toggleOrderedList().run();
           setTimeout(() => editor.commands.focus(), 10);
         }}
-        className={`px-3 py-1.5 rounded transition-all text-text-secondary hover:text-text-primary ${
+        className={`px-2.5 py-1.5 rounded transition-all text-text-secondary hover:text-text-primary shrink-0 ${
           editor.isActive('orderedList') 
             ? 'bg-blue-600/20 border-2 border-blue-500 text-blue-400 font-semibold' 
             : 'border-2 border-transparent hover:bg-bg-primary/30'
@@ -376,7 +376,7 @@ function EditorToolbar({ editor, onCreateNote }: { editor: any; onCreateNote?: (
           editor.chain().focus().toggleTaskList().run();
           setTimeout(() => editor.commands.focus(), 10);
         }}
-        className={`px-3 py-1.5 rounded transition-all text-text-secondary hover:text-text-primary ${
+        className={`px-2.5 py-1.5 rounded transition-all text-text-secondary hover:text-text-primary shrink-0 ${
           editor.isActive('taskList') 
             ? 'bg-blue-600/20 border-2 border-blue-500 text-blue-400 font-semibold' 
             : 'border-2 border-transparent hover:bg-bg-primary/30'
@@ -393,7 +393,7 @@ function EditorToolbar({ editor, onCreateNote }: { editor: any; onCreateNote?: (
           editor.chain().focus().setTextAlign('left').run();
           setTimeout(() => editor.commands.focus(), 10);
         }}
-        className={`px-3 py-1.5 rounded transition-all text-text-primary hover:text-text-primary ${
+        className={`px-2.5 py-1.5 rounded transition-all text-text-primary hover:text-text-primary shrink-0 ${
           isLeftActive 
             ? 'bg-blue-600/20 border-2 border-blue-500 text-blue-400' 
             : 'border-2 border-transparent hover:bg-bg-primary/30'
@@ -410,7 +410,7 @@ function EditorToolbar({ editor, onCreateNote }: { editor: any; onCreateNote?: (
           editor.chain().focus().setTextAlign('center').run();
           setTimeout(() => editor.commands.focus(), 10);
         }}
-        className={`px-3 py-1.5 rounded transition-all text-text-secondary hover:text-text-primary ${
+        className={`px-2.5 py-1.5 rounded transition-all text-text-secondary hover:text-text-primary shrink-0 ${
           editor.isActive({ textAlign: 'center' }) 
             ? 'bg-blue-600/20 border-2 border-blue-500 text-blue-400' 
             : 'border-2 border-transparent hover:bg-bg-primary/30'
@@ -427,7 +427,7 @@ function EditorToolbar({ editor, onCreateNote }: { editor: any; onCreateNote?: (
           editor.chain().focus().setTextAlign('right').run();
           setTimeout(() => editor.commands.focus(), 10);
         }}
-        className={`px-3 py-1.5 rounded transition-all text-text-secondary hover:text-text-primary ${
+        className={`px-2.5 py-1.5 rounded transition-all text-text-secondary hover:text-text-primary shrink-0 ${
           editor.isActive({ textAlign: 'right' }) 
             ? 'bg-blue-600/20 border-2 border-blue-500 text-blue-400' 
             : 'border-2 border-transparent hover:bg-bg-primary/30'
@@ -443,7 +443,7 @@ function EditorToolbar({ editor, onCreateNote }: { editor: any; onCreateNote?: (
       <button
         onClick={() => editor.chain().focus().undo().run()}
         disabled={!editor.can().undo()}
-        className="px-3 py-1.5 rounded transition-all disabled:opacity-50 text-text-primary hover:text-text-primary border-2 border-transparent hover:bg-bg-primary/30"
+        className="px-2.5 py-1.5 rounded transition-all disabled:opacity-50 text-text-primary hover:text-text-primary border-2 border-transparent hover:bg-bg-primary/30 shrink-0"
         title="Undo"
       >
         ↶
@@ -451,7 +451,7 @@ function EditorToolbar({ editor, onCreateNote }: { editor: any; onCreateNote?: (
       <button
         onClick={() => editor.chain().focus().redo().run()}
         disabled={!editor.can().redo()}
-        className="px-3 py-1.5 rounded transition-all disabled:opacity-50 text-text-primary hover:text-text-primary border-2 border-transparent hover:bg-bg-primary/30"
+        className="px-2.5 py-1.5 rounded transition-all disabled:opacity-50 text-text-primary hover:text-text-primary border-2 border-transparent hover:bg-bg-primary/30 shrink-0"
         title="Redo"
       >
         ↷

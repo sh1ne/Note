@@ -439,12 +439,12 @@ export default function NoteEditorPage() {
           <div className="flex items-center gap-4">
             <button
               onClick={handleBack}
-              className="text-text-primary hover:text-text-secondary transition-colors"
+              className="p-2 text-text-primary hover:text-text-secondary hover:bg-bg-secondary rounded-lg transition-colors"
               title="Back"
               aria-label="Back"
             >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M15 18l-6-6 6-6"/>
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M19 12H5M12 19l-7-7 7-7"/>
               </svg>
             </button>
             <button
@@ -454,11 +454,14 @@ export default function NoteEditorPage() {
                 }
               }}
               disabled={editor && !editor.can().undo()}
-              className="text-text-primary hover:text-text-secondary transition-colors disabled:opacity-50"
+              className="p-2 text-text-primary hover:text-text-secondary hover:bg-bg-secondary rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               title="Undo"
               aria-label="Undo"
             >
-              ↶
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 7v6h6"/>
+                <path d="M21 17a9 9 0 00-9-9 9 9 0 00-6 2.3L3 13"/>
+              </svg>
             </button>
             <button
               onClick={() => {
@@ -467,11 +470,14 @@ export default function NoteEditorPage() {
                 }
               }}
               disabled={editor && !editor.can().redo()}
-              className="text-text-primary hover:text-text-secondary transition-colors disabled:opacity-50"
+              className="p-2 text-text-primary hover:text-text-secondary hover:bg-bg-secondary rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               title="Redo"
               aria-label="Redo"
             >
-              ↷
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 7v6h-6"/>
+                <path d="M3 17a9 9 0 019-9 9 9 0 016 2.3L21 13"/>
+              </svg>
             </button>
             {isSaving && (
               <span className="text-xs text-text-secondary">

@@ -30,8 +30,8 @@ export default function BottomNav({
   const sortedTabs = [...regularTabsToShow, ...sortedStapleTabs];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-bg-primary border-t border-bg-secondary z-50">
-      <div className="flex items-center justify-around h-16 px-2">
+    <nav className="fixed bottom-0 left-0 right-0 bg-bg-primary border-t border-bg-secondary z-50 rounded-t-3xl overflow-hidden">
+      <div className="flex items-center justify-around h-16 px-2 safe-area-inset-bottom">
         <button
           onClick={onCreateNote}
           className="flex flex-col items-center justify-center w-12 h-12 bg-green-600 hover:bg-green-700 text-white rounded transition-colors"
@@ -44,12 +44,12 @@ export default function BottomNav({
           <button
             key={tab.id}
             onClick={() => onTabClick(tab.id)}
-            className={`flex flex-col items-center justify-center flex-1 h-12 text-text-primary hover:bg-bg-secondary rounded ${
+            className={`flex flex-col items-center justify-center flex-1 h-12 text-text-primary hover:bg-bg-secondary rounded min-w-0 ${
               activeTabId === tab.id ? 'bg-bg-secondary' : ''
             }`}
           >
-            <span className="text-lg mb-1">{tab.icon}</span>
-            <span className="text-xs">{tab.name}</span>
+            <span className="text-lg mb-0.5 shrink-0">{tab.icon}</span>
+            <span className="text-[10px] leading-tight truncate w-full text-center px-0.5">{tab.name === 'Long-term' ? 'Long' : tab.name === 'Short-Term' ? 'Short' : tab.name}</span>
           </button>
         ))}
       </div>
