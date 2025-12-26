@@ -513,35 +513,54 @@ export default function NoteEditorPage() {
                     📋 Copy to Clipboard
                   </button>
                   <button
-                    onClick={(e) => {
+                    onClick={async (e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
                       if (!note) return;
                       setShowShareMenu(false);
                       
                       const textToShare = `${note.title || 'Untitled Note'}\n\n${plainText || ''}`;
                       const mailtoLink = `mailto:?subject=${encodeURIComponent(note.title || 'Untitled Note')}&body=${encodeURIComponent(textToShare)}`;
                       
-                      // Try multiple methods to open email client
-                      // Method 1: Direct window.location (most reliable)
+                      // Check if we're on mobile (mailto usually works on mobile)
+                      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+                      
+                      // Try to open mailto link
+                      let mailtoWorked = false;
+                      
+                      // Method 1: Try window.location (works on mobile, may not work on desktop without email client)
                       try {
+                        // On mobile, this should work
+                        // On desktop without email client, it will silently fail
                         window.location.href = mailtoLink;
-                        setToast({ message: 'Opening email client...', type: 'info' });
-                        setTimeout(() => setToast(null), 3000);
+                        mailtoWorked = true;
+                        setToast({ message: 'Opening email...', type: 'info' });
+                        setTimeout(() => setToast(null), 2000);
                       } catch (err) {
-                        // Method 2: Create anchor and click
-                        const a = document.createElement('a');
-                        a.href = mailtoLink;
-                        a.style.position = 'fixed';
-                        a.style.left = '-9999px';
-                        a.style.top = '-9999px';
-                        document.body.appendChild(a);
-                        
-                        setTimeout(() => {
-                          a.click();
-                          document.body.removeChild(a);
-                          setToast({ message: 'Opening email client...', type: 'info' });
-                          setTimeout(() => setToast(null), 3000);
-                        }, 10);
+                        // Fall through to clipboard
                       }
+                      
+                      // If mailto didn't work (or we're on desktop), offer clipboard as fallback
+                      // Wait a moment to see if mailto actually opened
+                      setTimeout(async () => {
+                        // If on desktop or if mailto might not have worked, offer clipboard
+                        if (!isMobile) {
+                          try {
+                            await navigator.clipboard.writeText(textToShare);
+                            setToast({ 
+                              message: 'Email client not available. Note copied to clipboard! You can paste it into your email.', 
+                              type: 'info' 
+                            });
+                            setTimeout(() => setToast(null), 4000);
+                          } catch (clipErr) {
+                            setToast({ 
+                              message: 'Email client not available. Please copy the note manually.', 
+                              type: 'error' 
+                            });
+                            setTimeout(() => setToast(null), 3000);
+                          }
+                        }
+                      }, 500);
                     }}
                     className="w-full text-left px-4 py-2 text-sm text-text-primary hover:bg-bg-primary transition-colors"
                   >
