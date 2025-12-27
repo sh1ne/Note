@@ -5,6 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
 import { isAuthenticated } from '@/lib/utils/authState';
+import { traceLoginNav } from '@/lib/utils/loginNavTrace';
 
 export default function DashboardLayout({
   children,
@@ -166,12 +167,14 @@ export default function DashboardLayout({
         // Online, no user, no IndexedDB auth state, not on dashboard - redirect to login
         console.log(`[AUTH_TRACE][DashboardLayout][REDIRECT_TRIGGERED][route=${pathname}][online=${!isOffline}][reason=no_auth_online][timestamp=${timestamp}] ⚠️ REDIRECTING TO LOGIN`);
         console.log('[DashboardLayout] No auth state - redirecting to login');
+        traceLoginNav('DashboardLayout_online_no_auth');
         hasRedirectedRef.current = true;
         router.push('/login');
       } else if (!user && isOffline && !hasIndexedDBAuth && canRedirectRef.current) {
         // Offline, no user, no IndexedDB auth, not on dashboard route - redirect to login
         console.log(`[AUTH_TRACE][DashboardLayout][REDIRECT_TRIGGERED][route=${pathname}][online=${!isOffline}][reason=no_auth_offline][timestamp=${timestamp}] ⚠️ REDIRECTING TO LOGIN`);
         console.log('[DashboardLayout] Offline, no auth state, not on dashboard - redirecting to login');
+        traceLoginNav('DashboardLayout_offline_no_auth');
         hasRedirectedRef.current = true;
         router.push('/login');
       } else {

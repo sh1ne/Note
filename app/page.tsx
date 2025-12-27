@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
+import { traceLoginNav } from '@/lib/utils/loginNavTrace';
 
 export default function Home() {
   const router = useRouter();
@@ -14,6 +15,7 @@ export default function Home() {
       if (user) {
         router.push('/notebook');
       } else {
+        traceLoginNav('HomePage_no_user');
         router.push('/login');
       }
     }

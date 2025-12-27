@@ -506,6 +506,8 @@ export default function MorePage() {
   const handleLogout = async () => {
     try {
       await logOut();
+      const { traceLoginNav } = await import('@/lib/utils/loginNavTrace');
+      traceLoginNav('MorePage_logout');
       router.push('/login');
     } catch (error) {
       console.error('Error logging out:', error);

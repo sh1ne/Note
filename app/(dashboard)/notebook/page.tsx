@@ -7,6 +7,7 @@ import { getNotebooks, createNotebook, createTab, createNote } from '@/lib/fireb
 import { getUserPreferences, updateUserPreferences } from '@/lib/firebase/firestore';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
 import ErrorMessage from '@/components/common/ErrorMessage';
+import { traceLoginNav } from '@/lib/utils/loginNavTrace';
 
 const STAPLE_NOTES = [
   { name: 'Scratch', icon: '✏️', order: 1 },
@@ -25,6 +26,7 @@ export default function NotebookPage() {
       if (user) {
         initializeUser();
       } else {
+        traceLoginNav('NotebookPage_no_user');
         router.push('/login');
       }
     }
