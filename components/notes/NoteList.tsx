@@ -16,6 +16,8 @@ interface NoteListProps {
 export default function NoteList({ notes, onNoteClick, onNoteDeleted }: NoteListProps) {
   const router = useRouter();
   const [deleteConfirm, setDeleteConfirm] = useState<{ noteId: string; noteTitle: string } | null>(null);
+  const [selectedNotes, setSelectedNotes] = useState<Set<string>>(new Set());
+  const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
 
   if (notes.length === 0) {
     return (
@@ -79,58 +81,148 @@ export default function NoteList({ notes, onNoteClick, onNoteDeleted }: NoteList
     }
   };
 
+  const toggleNoteSelection = (noteId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedNotes((prev) => {
+      const next = new Set(prev);
+      if (next.has(noteId)) {
+        next.delete(noteId);
+      } else {
+        next.add(noteId);
+      }
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedNotes.size === notes.length) {
+      setSelectedNotes(new Set());
+    } else {
+      setSelectedNotes(new Set(notes.map((n) => n.id)));
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedNotes.size === 0) return;
+    setBulkDeleteConfirm(true);
+  };
+
+  const handleBulkDeleteConfirm = async () => {
+    try {
+      const deletePromises = Array.from(selectedNotes).map((noteId) => deleteNote(noteId));
+      await Promise.all(deletePromises);
+      setSelectedNotes(new Set());
+      setBulkDeleteConfirm(false);
+      if (onNoteDeleted) {
+        onNoteDeleted();
+      }
+    } catch (error) {
+      console.error('Error deleting notes:', error);
+      alert('Failed to delete some notes');
+      setBulkDeleteConfirm(false);
+    }
+  };
+
+  const hasSelection = selectedNotes.size > 0;
+
   return (
     <>
-      <div className="space-y-1">
-        {notes.map((note) => (
-          <div
-            key={note.id}
-            className="relative w-full p-2 bg-bg-secondary rounded hover:bg-bg-secondary/80 transition-colors"
-          >
+      {/* Bulk actions bar */}
+      {hasSelection && (
+        <div className="sticky top-0 bg-bg-secondary border-b border-bg-primary p-3 z-10 flex items-center justify-between mb-2">
+          <span className="text-sm text-text-primary">
+            {selectedNotes.size} note{selectedNotes.size !== 1 ? 's' : ''} selected
+          </span>
+          <div className="flex items-center gap-2">
             <button
-              onClick={() => onNoteClick(note)}
-              className="w-full text-left"
+              onClick={toggleSelectAll}
+              className="px-3 py-1 text-sm text-text-primary hover:text-text-secondary hover:bg-bg-primary rounded transition-colors"
             >
-              <div className="flex items-start justify-between mb-1 pr-8">
-                <h3 className="font-semibold text-base text-text-primary">
-                  {note.title || 'Untitled Note'}
-                </h3>
-                <span className="text-xs text-text-secondary whitespace-nowrap ml-2">
-                  {formatDateTime(note.updatedAt)}
-                </span>
-              </div>
-              {note.contentPlain && (
-                <p className="text-sm text-text-secondary line-clamp-2">
-                  {getPreview(note.contentPlain)}
-                </p>
-              )}
-              {note.images.length > 0 && (
-                <div className="mt-1 flex gap-2">
-                  {note.images.slice(0, 3).map((img, idx) => (
-                    <img
-                      key={idx}
-                      src={img}
-                      alt={`Image ${idx + 1}`}
-                      className="w-16 h-16 object-cover rounded"
-                    />
-                  ))}
-                </div>
-              )}
+              {selectedNotes.size === notes.length ? 'Deselect All' : 'Select All'}
             </button>
-            {/* Delete button in top right */}
             <button
-              onClick={(e) => handleDeleteClick(e, note.id, note.title || 'Untitled Note')}
-              className="absolute top-1.5 right-1.5 w-6 h-6 flex items-center justify-center text-red-500 hover:text-red-400 transition-colors"
-              title="Delete note"
-              aria-label="Delete note"
+              onClick={handleBulkDelete}
+              className="px-3 py-1 text-sm bg-red-600 hover:bg-red-700 text-white rounded transition-colors"
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="18" y1="6" x2="6" y2="18"></line>
-                <line x1="6" y1="6" x2="18" y2="18"></line>
-              </svg>
+              Delete ({selectedNotes.size})
             </button>
           </div>
-        ))}
+        </div>
+      )}
+      <div className="space-y-1">
+        {notes.map((note) => {
+          const isSelected = selectedNotes.has(note.id);
+          return (
+            <div
+              key={note.id}
+              className={`relative w-full p-2 bg-bg-secondary rounded hover:bg-bg-secondary/80 transition-colors ${
+                isSelected ? 'ring-2 ring-blue-500' : ''
+              }`}
+            >
+              <div className="flex items-start gap-2">
+                {/* Checkbox */}
+                <input
+                  type="checkbox"
+                  checked={isSelected}
+                  onChange={(e) => {
+                    e.stopPropagation();
+                    toggleNoteSelection(note.id, e as any);
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                  className="mt-1 w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                />
+                <button
+                  onClick={() => {
+                    if (!isSelected) {
+                      onNoteClick(note);
+                    }
+                  }}
+                  className="flex-1 text-left"
+                >
+                  <div className="flex items-start justify-between mb-1 pr-8">
+                    <h3 className="font-semibold text-base text-text-primary">
+                      {note.title || 'Untitled Note'}
+                    </h3>
+                    <span className="text-xs text-text-secondary whitespace-nowrap ml-2">
+                      {formatDateTime(note.updatedAt)}
+                    </span>
+                  </div>
+                  {note.contentPlain && (
+                    <p className="text-sm text-text-secondary line-clamp-2">
+                      {getPreview(note.contentPlain)}
+                    </p>
+                  )}
+                  {note.images.length > 0 && (
+                    <div className="mt-1 flex gap-2">
+                      {note.images.slice(0, 3).map((img, idx) => (
+                        <img
+                          key={idx}
+                          src={img}
+                          alt={`Image ${idx + 1}`}
+                          className="w-16 h-16 object-cover rounded"
+                        />
+                      ))}
+                    </div>
+                  )}
+                </button>
+              </div>
+              {/* Delete button in top right - only show when not in selection mode */}
+              {!hasSelection && (
+                <button
+                  onClick={(e) => handleDeleteClick(e, note.id, note.title || 'Untitled Note')}
+                  className="absolute top-1.5 right-1.5 w-6 h-6 flex items-center justify-center text-red-500 hover:text-red-400 transition-colors"
+                  title="Delete note"
+                  aria-label="Delete note"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                  </svg>
+                </button>
+              )}
+            </div>
+          );
+        })}
       </div>
       <ConfirmDialog
         isOpen={!!deleteConfirm}
@@ -138,6 +230,15 @@ export default function NoteList({ notes, onNoteClick, onNoteDeleted }: NoteList
         message={`Are you sure you want to delete "${deleteConfirm?.noteTitle || 'this note'}"? This action cannot be undone.`}
         onConfirm={handleDeleteConfirm}
         onCancel={() => setDeleteConfirm(null)}
+        confirmText="Delete"
+        cancelText="Cancel"
+      />
+      <ConfirmDialog
+        isOpen={bulkDeleteConfirm}
+        title="Delete Notes"
+        message={`Are you sure you want to delete ${selectedNotes.size} note${selectedNotes.size !== 1 ? 's' : ''}? This action cannot be undone.`}
+        onConfirm={handleBulkDeleteConfirm}
+        onCancel={() => setBulkDeleteConfirm(false)}
         confirmText="Delete"
         cancelText="Cancel"
       />

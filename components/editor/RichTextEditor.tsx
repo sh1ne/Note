@@ -79,7 +79,7 @@ export default function RichTextEditor({
         multicolor: true,
       }),
       Underline,
-      Image.configure({
+      ImageResize.configure({
         inline: true,
         allowBase64: true,
       }),
@@ -504,12 +504,14 @@ export default function RichTextEditor({
         .tiptap p.is-editor-empty:first-child::before {
           color: var(--text-secondary);
         }
-        /* Image resize controls for mobile */
+        /* Image styling - default max-width for images without explicit width */
         .tiptap img {
           max-width: 100%;
           height: auto;
           cursor: pointer;
+          display: block;
         }
+        /* Images with explicit width (set via ImageResize) will override max-width via inline style */
         @media (max-width: 768px) {
           .tiptap img {
             position: relative;
