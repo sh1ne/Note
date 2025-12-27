@@ -30,8 +30,8 @@ export default function BottomNav({
   const sortedTabs = [...regularTabsToShow, ...sortedStapleTabs];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-bg-primary border-t border-bg-secondary z-50 rounded-t-3xl overflow-hidden">
-      <div className="flex items-center justify-around h-16 px-2 safe-area-inset-bottom">
+    <nav className="fixed bottom-0 left-0 right-0 bg-bg-primary border-t border-bg-secondary z-50 rounded-t-2xl overflow-hidden">
+      <div className="flex items-center justify-around h-14 px-2 safe-area-inset-bottom">
         <button
           onClick={onCreateNote}
           className="flex flex-col items-center justify-center w-12 h-12 bg-green-600 hover:bg-green-700 text-white rounded transition-colors"

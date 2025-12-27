@@ -268,8 +268,9 @@ export default function RichTextEditor({
       const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
       
       if (isMobile) {
-        // On mobile: only show when text is selected AND editor is focused
-        setShowToolbar(hasSelection && editor.isFocused);
+        // On mobile: show when editor is focused (not just when text is selected)
+        // This ensures toolbar is visible when typing
+        setShowToolbar(editor.isFocused);
       } else {
         // On desktop: show when focused
         setShowToolbar(editor.isFocused || hasSelection);
@@ -475,7 +476,7 @@ function EditorToolbar({
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
   
   return (
-    <div className={`editor-toolbar flex items-center justify-between gap-1 p-2 border-b border-bg-secondary bg-bg-secondary/80 backdrop-blur-sm ${isMobile ? 'fixed bottom-0 left-0 right-0 z-50 mb-safe' : 'md:sticky md:top-0 md:bottom-auto md:z-10'} overflow-x-auto`}>
+    <div className={`editor-toolbar flex items-center justify-between gap-1 p-2 border-b border-bg-secondary bg-bg-secondary/80 backdrop-blur-sm ${isMobile ? 'sticky top-0 left-0 right-0 z-40' : 'md:sticky md:top-0 md:bottom-auto md:z-10'} overflow-x-auto`}>
       <div className="flex items-center gap-1 flex-nowrap min-w-0 max-w-full">
       {/* Text Formatting */}
       <button
