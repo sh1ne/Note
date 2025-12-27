@@ -35,10 +35,34 @@ export function useTabNavigation({ notebookId, notebookSlug, userId }: UseTabNav
       return 'redirect';
     }
     
+    // If notebookId is empty, try to get it from cache when offline
+    let currentNotebookId = notebookId;
+    if (!currentNotebookId) {
+      const isOffline = typeof window !== 'undefined' && !navigator.onLine;
+      if (isOffline && notebookSlug && userId) {
+        try {
+          const { getNotebookBySlugLocally } = await import('@/lib/utils/localStorage');
+          const cachedNotebook = await getNotebookBySlugLocally(userId, notebookSlug);
+          if (cachedNotebook) {
+            currentNotebookId = cachedNotebook.id;
+            console.log('[navigateToTab] Loaded notebookId from cache:', currentNotebookId);
+          }
+        } catch (cacheError) {
+          console.error('[navigateToTab] Error loading notebook from cache:', cacheError);
+        }
+      }
+      
+      // If still no notebookId, we can't proceed
+      if (!currentNotebookId) {
+        console.error('[navigateToTab] No notebookId available for navigation');
+        return 'stay';
+      }
+    }
+    
     // Staple tabs (Scratch, Now, etc.) - open the note directly using slug
     if (isStapleNoteTab(tab)) {
       // Use ensureStapleNoteExists which handles both online and offline cases
-      const stapleNote = await ensureStapleNoteExists(tab.name, notebookId, userId);
+      const stapleNote = await ensureStapleNoteExists(tab.name, currentNotebookId, userId);
       if (stapleNote) {
         const slug = createSlug(stapleNote.title);
         router.push(`/${notebookSlug}/${slug}`);
@@ -57,12 +81,12 @@ export function useTabNavigation({ notebookId, notebookSlug, userId }: UseTabNav
           // Load from local cache when offline
           const allLocalNotes = await getAllNotesLocally();
           notesData = allLocalNotes.filter(
-            (n) => n.notebookId === notebookId && n.tabId === tab.id && n.userId === userId && !n.deletedAt
+            (n) => n.notebookId === currentNotebookId && n.tabId === tab.id && n.userId === userId && !n.deletedAt
           );
           // Sort by updatedAt descending (most recent first)
           notesData.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
         } else {
-          notesData = await getNotes(notebookId, tab.id, userId);
+          notesData = await getNotes(currentNotebookId, tab.id, userId);
         }
         
         if (notesData.length > 0) {

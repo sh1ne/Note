@@ -651,40 +651,181 @@ export default function NoteEditorPage() {
   };
 
   const handleCreateNote = async () => {
-    if (!notebookId || !user) return;
-    const { createNote, createTab } = await import('@/lib/firebase/firestore');
+    if (!user) {
+      console.error('handleCreateNote: No user');
+      return;
+    }
+
+    const isOffline = typeof window !== 'undefined' && !navigator.onLine;
+    console.log('handleCreateNote: Starting', { isOffline, notebookId, notebookSlug, userId: user.uid });
+    
+    // If offline and notebookId is not set, try to get it from cache
+    let currentNotebookId = notebookId;
+    if (isOffline && !currentNotebookId && user && notebookSlug) {
+      try {
+        console.log('handleCreateNote: Attempting to load notebook from cache');
+        const { getNotebookBySlugLocally } = await import('@/lib/utils/localStorage');
+        const cachedNotebook = await getNotebookBySlugLocally(user.uid, notebookSlug);
+        if (cachedNotebook) {
+          currentNotebookId = cachedNotebook.id;
+          setNotebookId(cachedNotebook.id); // Update state
+          console.log('handleCreateNote: Loaded notebook from cache', { notebookId: currentNotebookId });
+        } else {
+          console.warn('handleCreateNote: Notebook not found in cache');
+        }
+      } catch (cacheError) {
+        console.error('Error loading notebook from cache in handleCreateNote:', cacheError);
+      }
+    }
+    
+    if (!currentNotebookId) {
+      console.error('handleCreateNote: No notebookId available', { notebookId, currentNotebookId, isOffline });
+      alert('Notebook not found. Please go online to load it first.');
+      return;
+    }
+    
+    let uniqueTitle: string | null = null;
+
     try {
-      // Generate unique title
-      const uniqueTitle = await generateUniqueNoteTitle('New Note', notebookId, user.uid);
+      // Generate unique title (check local cache if offline)
+      if (isOffline) {
+        // For offline, use a simple counter-based approach
+        const { getAllNotesLocally } = await import('@/lib/utils/localStorage');
+        const allLocalNotes = await getAllNotesLocally();
+        const existingTitles = allLocalNotes
+          .filter((n) => n.notebookId === currentNotebookId && n.userId === user.uid && !n.deletedAt)
+          .map((n) => n.title.trim().toLowerCase());
+        
+        const baseTitle = 'Note';
+        let counter = 1;
+        uniqueTitle = baseTitle;
+        while (existingTitles.includes(uniqueTitle.trim().toLowerCase())) {
+          uniqueTitle = `${baseTitle}${counter}`;
+          counter++;
+        }
+      } else {
+        const { generateUniqueNoteTitle } = await import('@/lib/utils/noteHelpers');
+        uniqueTitle = await generateUniqueNoteTitle('New Note', currentNotebookId, user.uid);
+      }
+
+      if (!uniqueTitle) {
+        throw new Error('Failed to generate unique title');
+      }
+
+      // Generate temporary ID for offline notes
+      const tempNoteId = isOffline ? `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}` : undefined;
+      const tempTabId = isOffline ? `temp-tab-${Date.now()}-${Math.random().toString(36).substr(2, 9)}` : undefined;
+
+      let newTabId: string;
+      let noteId: string;
+
+      if (isOffline) {
+        // Offline: Use temporary IDs and save locally
+        newTabId = tempTabId!;
+        noteId = tempNoteId!;
+        
+        // Create note locally
+        const { saveNoteLocally, addToSyncQueue } = await import('@/lib/utils/localStorage');
+        const newNote: Note = {
+          id: noteId,
+          userId: user.uid,
+          notebookId: currentNotebookId,
+          tabId: newTabId,
+          title: uniqueTitle,
+          content: '',
+          contentPlain: '',
+          images: [],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          isArchived: false,
+          deletedAt: null,
+        };
+        
+        await saveNoteLocally(newNote);
+        console.log('Note saved locally:', { noteId, title: uniqueTitle });
+        
+        // Add to sync queue for when we come back online
+        await addToSyncQueue(noteId, {
+          title: uniqueTitle,
+          content: '',
+          contentPlain: '',
+          images: [],
+          notebookId: currentNotebookId,
+          tabId: newTabId,
+          userId: user.uid,
+        });
+        console.log('Note added to sync queue:', { noteId, title: uniqueTitle });
+      } else {
+        // Online: Create in Firestore
+        const { createNote, createTab } = await import('@/lib/firebase/firestore');
+        newTabId = await createTab({
+          notebookId: currentNotebookId,
+          name: uniqueTitle,
+          icon: '📄',
+          order: 0,
+          isLocked: false,
+          isStaple: false,
+          createdAt: new Date(),
+        });
+
+        noteId = await createNote({
+          userId: user.uid,
+          notebookId: currentNotebookId,
+          tabId: newTabId,
+          title: uniqueTitle,
+          content: '',
+          contentPlain: '',
+          images: [],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          isArchived: false,
+          deletedAt: null,
+        });
+      }
+
       const noteSlug = createSlug(uniqueTitle);
+      console.log('Navigating to note:', { notebookSlug, noteSlug, title: uniqueTitle });
       
-      const newTabId = await createTab({
-        notebookId,
-        name: uniqueTitle,
-        icon: '📄',
-        order: 0,
-        isLocked: false,
-        isStaple: false,
-        createdAt: new Date(),
-      });
-
-      const newNoteId = await createNote({
-        userId: user.uid,
-        notebookId,
-        tabId: newTabId,
-        title: uniqueTitle,
-        content: '',
-        contentPlain: '',
-        images: [],
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        isArchived: false,
-        deletedAt: null,
-      });
-
+      // Verify note exists before navigating (especially for offline)
+      if (isOffline) {
+        const { getAllNotesLocally } = await import('@/lib/utils/localStorage');
+        const allLocalNotes = await getAllNotesLocally();
+        const createdNote = allLocalNotes.find((n) => n.id === noteId);
+        if (!createdNote) {
+          throw new Error('Note was not saved locally');
+        }
+        console.log('Verified note exists locally before navigation');
+      }
+      
       router.push(`/${notebookSlug}/${noteSlug}`);
     } catch (error) {
       console.error('Error creating note:', error);
+      // Show user-friendly error with more details
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      if (isOffline && uniqueTitle && user) {
+        // Check if note was actually created locally
+        try {
+          const { getAllNotesLocally } = await import('@/lib/utils/localStorage');
+          const allLocalNotes = await getAllNotesLocally();
+          const createdNote = allLocalNotes.find(
+            (n) => n.title === uniqueTitle && n.notebookId === currentNotebookId && n.userId === user.uid
+          );
+          if (createdNote) {
+            // Note was created, just navigate to it
+            const noteSlug = createSlug(uniqueTitle);
+            console.log('Note found in cache after error, navigating:', { noteSlug, title: uniqueTitle });
+            router.push(`/${notebookSlug}/${noteSlug}`);
+            return;
+          }
+        } catch (checkError) {
+          console.error('Error checking for created note:', checkError);
+        }
+        console.error('Failed to create note offline:', errorMessage);
+        alert(`Failed to create note offline: ${errorMessage}. Please try again.`);
+      } else {
+        console.error('Failed to create note:', errorMessage);
+        alert(`Failed to create note: ${errorMessage}. Please try again.`);
+      }
     }
   };
 
