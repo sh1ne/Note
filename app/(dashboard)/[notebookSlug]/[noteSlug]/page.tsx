@@ -549,13 +549,13 @@ export default function NoteEditorPage() {
                 {isOnline ? 'Saving to cloud...' : 'Saving locally...'}
               </span>
             )}
-            {lastSaved && !isSaving && (
+            {!isSaving && (lastSaved || note) && (
               <span className="text-xs text-text-secondary">
                 {isOnline && isSavedToCloud 
-                  ? `Cloud Saved ${lastSaved.toLocaleTimeString()}`
+                  ? `Cloud Saved ${(lastSaved || note?.updatedAt)?.toLocaleTimeString()}`
                   : isOnline
-                  ? `Saved locally ${lastSaved.toLocaleTimeString()}`
-                  : `Saved offline ${lastSaved.toLocaleTimeString()}`}
+                  ? `Saved locally ${(lastSaved || note?.updatedAt)?.toLocaleTimeString()}`
+                  : `Saved offline ${(lastSaved || note?.updatedAt)?.toLocaleTimeString()}`}
               </span>
             )}
             {!isOnline && (
