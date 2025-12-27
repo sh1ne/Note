@@ -221,7 +221,8 @@ export default function NoteEditorPage() {
         saveNote(true); // Force immediate save
       }
     };
-  }, [note, editor, saveNote]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [note, editor]); // Removed saveNote from deps to prevent loop
 
   // Monitor online/offline status
   useEffect(() => {

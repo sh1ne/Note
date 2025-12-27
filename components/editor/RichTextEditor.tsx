@@ -37,7 +37,6 @@ export default function RichTextEditor({
   
   // Track if we're updating from props to prevent onUpdate trigger
   const isUpdatingFromPropsRef = useRef(false);
-  const onUpdateTimeoutRef = useRef<number | null>(null);
   
   const editor = useEditor({
     immediatelyRender: false, // Fix SSR hydration warnings
@@ -94,15 +93,11 @@ export default function RichTextEditor({
       if (isUpdatingFromPropsRef.current) {
         return;
       }
-      // Debounce to prevent rapid-fire updates
-      if (onUpdateTimeoutRef.current) {
-        cancelAnimationFrame(onUpdateTimeoutRef.current);
-      }
-      onUpdateTimeoutRef.current = requestAnimationFrame(() => {
+      // Use requestAnimationFrame to ensure we get the latest content
+      requestAnimationFrame(() => {
         const html = editor.getHTML();
         const plainText = editor.getText();
         onChange(html, plainText);
-        onUpdateTimeoutRef.current = null;
       });
     },
     editorProps: {
@@ -157,14 +152,19 @@ export default function RichTextEditor({
     
     const currentContent = editor.getHTML();
     // Only update if content prop is different AND it's not the same as last time
-    if (content !== currentContent && content !== prevContentRef.current) {
+    // AND we're not currently in the middle of an update
+    if (content !== currentContent && content !== prevContentRef.current && !isUpdatingFromPropsRef.current) {
       prevContentRef.current = content;
       isUpdatingFromPropsRef.current = true;
-      editor.commands.setContent(content, false);
-      // Reset flag after a brief delay to allow any pending updates to complete
-      setTimeout(() => {
-        isUpdatingFromPropsRef.current = false;
-      }, 0);
+      
+      // Use a small delay to ensure any pending onUpdate callbacks complete first
+      requestAnimationFrame(() => {
+        editor.commands.setContent(content, false);
+        // Reset flag after a longer delay to ensure onUpdate doesn't fire
+        setTimeout(() => {
+          isUpdatingFromPropsRef.current = false;
+        }, 50);
+      });
     }
   }, [editor, content]);
 

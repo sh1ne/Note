@@ -1201,125 +1201,125 @@ export default function MorePage() {
             >
               View Deleted Notes
                   </button>
-          </div>
+           </div>
         </div>
 
         {/* Delete All Notes & Cleanup */}
         <div className="bg-bg-secondary rounded-lg p-4">
           <h2 className="text-lg font-semibold mb-3">Cleanup & Maintenance</h2>
-          <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between">
             <div className="flex-1">
               <p className="text-xs text-text-secondary mb-1">
                 Permanently delete all notes and clean up orphaned tabs from Firestore and local storage. <span className="text-red-400 font-semibold">This cannot be undone!</span>
-              </p>
+             </p>
             </div>
-            <button
-              onClick={async () => {
-                if (!user) return;
-                
-                const confirmed = window.confirm(
+              <button
+               onClick={async () => {
+                 if (!user) return;
+                 
+                 const confirmed = window.confirm(
                   '⚠️ WARNING: This will permanently delete ALL your notes and clean up orphaned tabs.\n\n' +
-                  'This includes:\n' +
-                  '- All notes in Firestore\n' +
+                   'This includes:\n' +
+                   '- All notes in Firestore\n' +
                   '- All orphaned tabs (tabs with no notes or from deleted notebooks)\n' +
-                  '- All notes in local IndexedDB\n' +
-                  '- All items in sync queue\n\n' +
+                   '- All notes in local IndexedDB\n' +
+                   '- All items in sync queue\n\n' +
                   'Staple tabs (Scratch, Now, etc.) will be preserved.\n\n' +
-                  'This action CANNOT be undone!\n\n' +
-                  'Click OK to proceed, or Cancel to abort.'
-                );
-                
-                if (!confirmed) return;
-                
-                try {
-                  // Delete from Firestore
+                   'This action CANNOT be undone!\n\n' +
+                   'Click OK to proceed, or Cancel to abort.'
+                 );
+                 
+                 if (!confirmed) return;
+                 
+                 try {
+                   // Delete from Firestore
                   const { deleteAllNotesForUser, deleteAllTabsForUser, cleanupOrphanedTabs } = await import('@/lib/firebase/firestore');
-                  const deletedNotesCount = await deleteAllNotesForUser(user.uid);
-                  console.log(`✅ Deleted ${deletedNotesCount} notes from Firestore`);
-                  
-                  // Delete non-staple tabs (keep staple tabs like Scratch, Now, etc.)
-                  const deletedTabsCount = await deleteAllTabsForUser(user.uid, true);
-                  console.log(`✅ Deleted ${deletedTabsCount} non-staple tabs from Firestore`);
+                   const deletedNotesCount = await deleteAllNotesForUser(user.uid);
+                   console.log(`✅ Deleted ${deletedNotesCount} notes from Firestore`);
+                   
+                   // Delete non-staple tabs (keep staple tabs like Scratch, Now, etc.)
+                   const deletedTabsCount = await deleteAllTabsForUser(user.uid, true);
+                   console.log(`✅ Deleted ${deletedTabsCount} non-staple tabs from Firestore`);
                   
                   // Also clean up any orphaned tabs
                   const cleanupResult = await cleanupOrphanedTabs(user.uid);
                   console.log(`✅ Cleaned up ${cleanupResult.deleted} orphaned tabs`);
-                  
-                  // Recreate staple notes (they were deleted but tabs still exist)
-                  console.log('🔄 Recreating staple notes...');
-                  const { createNote } = await import('@/lib/firebase/firestore');
-                  const stapleNotes = [
-                    { name: 'Scratch', icon: '✏️' },
-                    { name: 'Now', icon: '⏰' },
-                    { name: 'Short-Term', icon: '📅' },
-                    { name: 'Long-term', icon: '📆' },
-                  ];
-                  
-                  for (const staple of stapleNotes) {
-                    try {
-                      await createNote({
-                        userId: user.uid,
-                        notebookId: notebookId || '',
-                        tabId: 'staple',
-                        title: staple.name,
-                        content: '',
-                        contentPlain: '',
-                        images: [],
-                        createdAt: new Date(),
-                        updatedAt: new Date(),
-                        isArchived: false,
-                        deletedAt: null,
-                      });
-                      console.log(`✅ Recreated staple note: ${staple.name}`);
-                    } catch (error) {
-                      console.error(`Error recreating staple note ${staple.name}:`, error);
-                    }
-                  }
-                  
-                  // Clear local storage
-                  const { getDB } = await import('@/lib/utils/localStorage');
-                  const database = await getDB();
-                  
-                  // Delete all local notes
-                  const localNotes = await database.getAll('notes');
-                  for (const note of localNotes) {
-                    await database.delete('notes', note.id);
-                  }
-                  console.log(`✅ Cleared ${localNotes.length} notes from local storage`);
-                  
-                  // Clear sync queue
-                  const syncQueue = await database.getAll('syncQueue');
-                  for (const item of syncQueue) {
-                    await database.delete('syncQueue', item.noteId);
-                  }
-                  console.log(`✅ Cleared ${syncQueue.length} items from sync queue`);
-                  
-                  // Clear lastSyncTime
-                  localStorage.removeItem('lastSyncTime');
-                  
-                  alert(
-                    `✅ Cleanup complete!\n\n` +
-                    `- Deleted ${deletedNotesCount} notes from Firestore\n` +
-                    `- Deleted ${deletedTabsCount} non-staple tabs from Firestore\n` +
+                   
+                   // Recreate staple notes (they were deleted but tabs still exist)
+                   console.log('🔄 Recreating staple notes...');
+                   const { createNote } = await import('@/lib/firebase/firestore');
+                   const stapleNotes = [
+                     { name: 'Scratch', icon: '✏️' },
+                     { name: 'Now', icon: '⏰' },
+                     { name: 'Short-Term', icon: '📅' },
+                     { name: 'Long-term', icon: '📆' },
+                   ];
+                   
+                   for (const staple of stapleNotes) {
+                     try {
+                       await createNote({
+                         userId: user.uid,
+                         notebookId: notebookId || '',
+                         tabId: 'staple',
+                         title: staple.name,
+                         content: '',
+                         contentPlain: '',
+                         images: [],
+                         createdAt: new Date(),
+                         updatedAt: new Date(),
+                         isArchived: false,
+                         deletedAt: null,
+                       });
+                       console.log(`✅ Recreated staple note: ${staple.name}`);
+                     } catch (error) {
+                       console.error(`Error recreating staple note ${staple.name}:`, error);
+                     }
+                   }
+                   
+                   // Clear local storage
+                   const { getDB } = await import('@/lib/utils/localStorage');
+                   const database = await getDB();
+                   
+                   // Delete all local notes
+                   const localNotes = await database.getAll('notes');
+                   for (const note of localNotes) {
+                     await database.delete('notes', note.id);
+                   }
+                   console.log(`✅ Cleared ${localNotes.length} notes from local storage`);
+                   
+                   // Clear sync queue
+                   const syncQueue = await database.getAll('syncQueue');
+                   for (const item of syncQueue) {
+                     await database.delete('syncQueue', item.noteId);
+                   }
+                   console.log(`✅ Cleared ${syncQueue.length} items from sync queue`);
+                   
+                   // Clear lastSyncTime
+                   localStorage.removeItem('lastSyncTime');
+                   
+                   alert(
+                     `✅ Cleanup complete!\n\n` +
+                     `- Deleted ${deletedNotesCount} notes from Firestore\n` +
+                     `- Deleted ${deletedTabsCount} non-staple tabs from Firestore\n` +
                     `- Cleaned up ${cleanupResult.deleted} orphaned tabs\n` +
-                    `- Cleared ${localNotes.length} notes from local storage\n` +
-                    `- Cleared ${syncQueue.length} items from sync queue\n\n` +
-                    `(Staple tabs like Scratch, Now, etc. were kept)\n\n` +
-                    `Please refresh the page.`
-                  );
-                  
-                  // Refresh the page
-                  window.location.reload();
-                } catch (error) {
-                  console.error('Error deleting all notes:', error);
-                  alert('Error deleting notes. Check console for details.');
-                }
-              }}
+                     `- Cleared ${localNotes.length} notes from local storage\n` +
+                     `- Cleared ${syncQueue.length} items from sync queue\n\n` +
+                     `(Staple tabs like Scratch, Now, etc. were kept)\n\n` +
+                     `Please refresh the page.`
+                   );
+                   
+                   // Refresh the page
+                   window.location.reload();
+                 } catch (error) {
+                   console.error('Error deleting all notes:', error);
+                   alert('Error deleting notes. Check console for details.');
+                 }
+               }}
               className="px-3 py-1 text-xs bg-red-600 hover:bg-red-700 text-white rounded transition-colors whitespace-nowrap font-bold"
               title="Delete all notes and cleanup tabs"
-            >
-              Delete All Notes
-            </button>
+             >
+               Delete All Notes
+                  </button>
           </div>
         </div>
 

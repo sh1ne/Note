@@ -27,7 +27,6 @@ export function useNote({ noteId, initialNote, onSaveComplete }: UseNoteOptions)
   // Track previous noteId to prevent unnecessary updates
   const prevNoteIdRef = useRef<string | null>(null);
   const isInitializedRef = useRef(false);
-  const isUpdatingFromCacheRef = useRef(false);
 
   // Update note ONLY when noteId changes (switching notes)
   // This prevents infinite loops from cache updates or initialNote object changes
@@ -36,7 +35,6 @@ export function useNote({ noteId, initialNote, onSaveComplete }: UseNoteOptions)
     if (prevNoteIdRef.current !== noteId) {
       prevNoteIdRef.current = noteId;
       isInitializedRef.current = false;
-      isUpdatingFromCacheRef.current = true;
       
       const effectiveNote = cachedNote || initialNote;
       if (effectiveNote && effectiveNote.id === noteId) {
@@ -48,11 +46,6 @@ export function useNote({ noteId, initialNote, onSaveComplete }: UseNoteOptions)
         setPlainText(newPlainText);
         isInitializedRef.current = true;
       }
-      
-      // Reset flag after a brief delay
-      setTimeout(() => {
-        isUpdatingFromCacheRef.current = false;
-      }, 100);
     }
   }, [noteId]); // ONLY depend on noteId - ignore initialNote and cachedNote changes
 
@@ -159,13 +152,31 @@ export function useNote({ noteId, initialNote, onSaveComplete }: UseNoteOptions)
     }
   }, [note, noteId, onSaveComplete]);
 
+  // Track if we're currently processing a content change to prevent loops
+  const isProcessingChangeRef = useRef(false);
+
   // Handle content change - delegates to saveNote for consistency
   const handleContentChange = useCallback(
     (newContent: string, newPlainText: string) => {
+      // Prevent infinite loops - if we're already processing, skip
+      if (isProcessingChangeRef.current) {
+        return;
+      }
+
+      // Check if content actually changed
+      if (content === newContent && plainText === newPlainText) {
+        return;
+      }
+
+      isProcessingChangeRef.current = true;
+      
       setContent(newContent);
       setPlainText(newPlainText);
 
-      if (!note || !editorRef.current) return;
+      if (!note || !editorRef.current) {
+        isProcessingChangeRef.current = false;
+        return;
+      }
 
       // Auto-generate title from first line if needed
       let title = note.title;
@@ -273,10 +284,14 @@ export function useNote({ noteId, initialNote, onSaveComplete }: UseNoteOptions)
           }
         } finally {
           setIsSaving(false);
+          // Reset processing flag after a delay to allow any pending updates
+          setTimeout(() => {
+            isProcessingChangeRef.current = false;
+          }, 100);
         }
       }, 2500);
     },
-    [note, noteId, onSaveComplete]
+    [note, noteId, onSaveComplete, content, plainText]
   );
 
   // Handle title change
