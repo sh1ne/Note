@@ -23,16 +23,32 @@ export function useNote({ noteId, initialNote, onSaveComplete }: UseNoteOptions)
   const [isSaving, setIsSaving] = useState(false);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const editorRef = useRef<any>(null);
+  
+  // Track previous noteId and content to prevent unnecessary updates
+  const prevNoteIdRef = useRef<string | null>(null);
+  const prevContentRef = useRef<string>('');
 
-  // Update note when initialNote or cachedNote changes (when switching notes)
+  // Update note when noteId changes (switching notes) - NOT when cachedNote changes
+  // This prevents infinite loops from cache updates triggering content prop changes
   useEffect(() => {
-    const effectiveNote = cachedNote || initialNote;
-    if (effectiveNote && effectiveNote.id === noteId) {
-      setNote(effectiveNote);
-      setContent(effectiveNote.content || '');
-      setPlainText(effectiveNote.contentPlain || '');
+    // Only update when noteId actually changes (switching notes)
+    if (prevNoteIdRef.current !== noteId) {
+      prevNoteIdRef.current = noteId;
+      const effectiveNote = cachedNote || initialNote;
+      if (effectiveNote && effectiveNote.id === noteId) {
+        const newContent = effectiveNote.content || '';
+        const newPlainText = effectiveNote.contentPlain || '';
+        
+        // Only update if content actually changed to prevent unnecessary TipTap updates
+        if (prevContentRef.current !== newContent) {
+          prevContentRef.current = newContent;
+          setNote(effectiveNote);
+          setContent(newContent);
+          setPlainText(newPlainText);
+        }
+      }
     }
-  }, [initialNote, cachedNote, noteId]);
+  }, [initialNote, noteId]); // Removed cachedNote from dependencies to break the loop
 
   // Set editor reference
   const setEditor = useCallback((editor: any) => {

@@ -134,6 +134,19 @@ export default function RichTextEditor({
     }
   }, [editor, onEditorReady]);
 
+  // Handle content prop changes without triggering onUpdate
+  // This prevents infinite loops when content is updated from props (e.g., from cache)
+  useEffect(() => {
+    if (!editor) return;
+    
+    const currentContent = editor.getHTML();
+    // Only update if content prop is different from current editor content
+    // and use emitUpdate: false to prevent triggering onUpdate callback
+    if (content !== currentContent) {
+      editor.commands.setContent(content, false, { emitUpdate: false });
+    }
+  }, [editor, content]);
+
   // Show toolbar only when text is selected (mobile) or when editor is focused (desktop)
   useEffect(() => {
     if (!editor) return;
