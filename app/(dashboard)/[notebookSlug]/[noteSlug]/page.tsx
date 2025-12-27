@@ -17,18 +17,61 @@ import { useTabNavigation } from '@/hooks/useTabNavigation';
 import { findNoteTab, getNoteBySlug, generateUniqueNoteTitle } from '@/lib/utils/noteHelpers';
 import { createSlug } from '@/lib/utils/slug';
 
+// Helper function to clear ALL highlights from the entire document
+// Root cause: TipTap's unsetHighlight() only works on current selection
+// Solution: Select entire document, remove highlights, restore selection
+function clearAllHighlights(editor: any) {
+  if (!editor) return;
+  
+  try {
+    const { state } = editor;
+    const { doc, selection } = state;
+    const docSize = doc.content.size;
+    
+    if (docSize === 0) return;
+    
+    // Save current selection
+    const savedAnchor = selection.anchor;
+    const savedHead = selection.head;
+    
+    // Select entire document and remove all highlights
+    editor.chain()
+      .setTextSelection({ from: 0, to: docSize })
+      .unsetHighlight()
+      .setTextSelection({ 
+        from: Math.min(savedAnchor, docSize), 
+        to: Math.min(savedHead, docSize) 
+      })
+      .run();
+  } catch (err) {
+    console.error('Error clearing highlights:', err);
+    // Fallback: try without selection restore
+    try {
+      const { doc } = editor.state;
+      const docSize = doc.content.size;
+      if (docSize > 0) {
+        editor.chain()
+          .setTextSelection({ from: 0, to: docSize })
+          .unsetHighlight()
+          .run();
+      }
+    } catch (fallbackErr) {
+      console.error('Fallback highlight clear failed:', fallbackErr);
+    }
+  }
+}
+
 // Helper function to highlight search results in TipTap
 function highlightSearchResults(editor: any, query: string) {
   if (!editor || !query) return;
   
   try {
-    // Clear all existing highlights
-    editor.chain().unsetHighlight().run();
+    // Clear all existing highlights first
+    clearAllHighlights(editor);
     
     // Get document and find text positions
     const { doc } = editor.state;
     const queryLower = query.toLowerCase();
-    let textOffset = 0;
     const matches: Array<{ from: number; to: number }> = [];
     
     // First pass: find all matches and their document positions
@@ -65,6 +108,13 @@ function highlightSearchResults(editor: any, query: string) {
         // Skip if highlighting fails
       }
     });
+    
+    // Restore cursor position (move to end of document or keep current)
+    const { doc: finalDoc } = editor.state;
+    const currentPos = editor.state.selection.anchor;
+    if (currentPos > finalDoc.content.size) {
+      editor.commands.setTextSelection(finalDoc.content.size);
+    }
     
     // Focus editor
     editor.commands.focus();
@@ -275,7 +325,7 @@ export default function NoteEditorPage() {
   // Clear search highlights when switching notes
   useEffect(() => {
     if (editor) {
-      editor.commands.unsetHighlight();
+      clearAllHighlights(editor);
       setShowFind(false);
       setFindQuery('');
     }
@@ -534,32 +584,53 @@ export default function NoteEditorPage() {
             </button>
             {/* Image Upload Button */}
             <button
-              onClick={(e) => {
+              onClick={async (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                if (editor && user?.uid && initialNote?.id) {
-                  const fileInput = document.createElement('input');
-                  fileInput.type = 'file';
-                  fileInput.accept = 'image/*';
-                  fileInput.onchange = async (event: any) => {
-                    const file = event.target.files?.[0];
-                    if (!file || !file.type.startsWith('image/')) {
-                      return;
-                    }
-                    try {
-                      const { uploadImage } = await import('@/lib/firebase/storage');
-                      const imageUrl = await uploadImage(file, user.uid, initialNote.id);
-                      editor.chain().focus().setImage({ src: imageUrl }).run();
-                    } catch (error) {
-                      console.error('Error uploading image:', error);
-                    }
-                  };
+                if (!editor || !user?.uid || !initialNote?.id) return;
+                
+                // Create file input element
+                const fileInput = document.createElement('input');
+                fileInput.type = 'file';
+                fileInput.accept = 'image/*';
+                fileInput.style.display = 'none';
+                
+                // Handle file selection
+                fileInput.onchange = async (event: any) => {
+                  const file = (event.target as HTMLInputElement).files?.[0];
+                  if (!file || !file.type.startsWith('image/')) {
+                    // Clean up
+                    fileInput.remove();
+                    return;
+                  }
+                  
+                  try {
+                    const { uploadImage } = await import('@/lib/firebase/storage');
+                    const imageUrl = await uploadImage(file, user.uid, initialNote.id);
+                    editor.chain().focus().setImage({ src: imageUrl }).run();
+                  } catch (error) {
+                    console.error('Error uploading image:', error);
+                  } finally {
+                    // Clean up file input
+                    fileInput.remove();
+                  }
+                };
+                
+                // Handle cancellation
+                fileInput.oncancel = () => {
+                  fileInput.remove();
+                };
+                
+                // Add to DOM, trigger click, then remove
+                document.body.appendChild(fileInput);
+                // Use setTimeout to ensure element is in DOM before clicking
+                setTimeout(() => {
                   fileInput.click();
-                }
+                }, 0);
               }}
               disabled={!editor || !user?.uid || !initialNote?.id}
               className="p-2 text-text-primary hover:text-text-secondary hover:bg-bg-secondary rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              title="Insert Image"
+              title="Insert Image (Images only)"
               aria-label="Insert Image"
             >
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -741,7 +812,7 @@ export default function NoteEditorPage() {
                 setShowFind(!showFind);
                 if (showFind && editor) {
                   // Clear highlights when closing search
-                  editor.commands.unsetHighlight();
+                  clearAllHighlights(editor);
                 }
                 if (showFind) {
                   setFindQuery('');
@@ -833,7 +904,7 @@ export default function NoteEditorPage() {
                 setFindQuery(e.target.value);
                 // Clear previous highlights
                 if (editor) {
-                  editor.commands.unsetHighlight();
+                  clearAllHighlights(editor);
                 }
                 // Highlight matches as user types
                 if (editor && e.target.value) {
@@ -846,7 +917,7 @@ export default function NoteEditorPage() {
                 }
                 if (e.key === 'Escape') {
                   if (editor) {
-                    editor.commands.unsetHighlight();
+                    clearAllHighlights(editor);
                   }
                   setShowFind(false);
                   setFindQuery('');
@@ -869,7 +940,7 @@ export default function NoteEditorPage() {
             <button
               onClick={() => {
                 if (editor) {
-                  editor.commands.unsetHighlight();
+                  clearAllHighlights(editor);
                 }
                 setShowFind(false);
                 setFindQuery('');
