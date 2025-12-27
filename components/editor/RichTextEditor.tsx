@@ -152,15 +152,13 @@ export default function RichTextEditor({
     
     const currentContent = editor.getHTML();
     // Only update if content prop is different AND it's not the same as last time
-    // AND we're not currently in the middle of an update
-    if (content !== currentContent && content !== prevContentRef.current && !isUpdatingFromPropsRef.current) {
+    if (content !== currentContent && content !== prevContentRef.current) {
       prevContentRef.current = content;
       isUpdatingFromPropsRef.current = true;
-      
-      // Use a small delay to ensure any pending onUpdate callbacks complete first
+      editor.commands.setContent(content, false);
+      // Reset flag after a longer delay to ensure onUpdate doesn't fire
+      // Use requestAnimationFrame to ensure it happens after any pending updates
       requestAnimationFrame(() => {
-        editor.commands.setContent(content, false);
-        // Reset flag after a longer delay to ensure onUpdate doesn't fire
         setTimeout(() => {
           isUpdatingFromPropsRef.current = false;
         }, 50);

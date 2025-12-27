@@ -152,31 +152,15 @@ export function useNote({ noteId, initialNote, onSaveComplete }: UseNoteOptions)
     }
   }, [note, noteId, onSaveComplete]);
 
-  // Track if we're currently processing a content change to prevent loops
-  const isProcessingChangeRef = useRef(false);
-
   // Handle content change - delegates to saveNote for consistency
   const handleContentChange = useCallback(
     (newContent: string, newPlainText: string) => {
-      // Prevent infinite loops - if we're already processing, skip
-      if (isProcessingChangeRef.current) {
-        return;
-      }
-
-      // Check if content actually changed
-      if (content === newContent && plainText === newPlainText) {
-        return;
-      }
-
-      isProcessingChangeRef.current = true;
-      
-      setContent(newContent);
+      // DON'T call setContent here - it changes the prop and triggers TipTap useEffect
+      // The content is already in the editor, we just need to update note state
+      // Only update plainText for title generation
       setPlainText(newPlainText);
 
-      if (!note || !editorRef.current) {
-        isProcessingChangeRef.current = false;
-        return;
-      }
+      if (!note || !editorRef.current) return;
 
       // Auto-generate title from first line if needed
       let title = note.title;
@@ -284,14 +268,10 @@ export function useNote({ noteId, initialNote, onSaveComplete }: UseNoteOptions)
           }
         } finally {
           setIsSaving(false);
-          // Reset processing flag after a delay to allow any pending updates
-          setTimeout(() => {
-            isProcessingChangeRef.current = false;
-          }, 100);
         }
       }, 2500);
     },
-    [note, noteId, onSaveComplete, content, plainText]
+    [note, noteId, onSaveComplete]
   );
 
   // Handle title change
