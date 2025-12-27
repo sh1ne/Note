@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import { useParams, useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { getNotes, createNote, createTab, getNotebookBySlug } from '@/lib/firebase/firestore';
 import { saveNoteLocally, getAllNotesLocally, addToSyncQueue } from '@/lib/utils/localStorage';
@@ -19,6 +19,7 @@ export default function NotebookPage() {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const pathname = usePathname();
   const { user } = useAuth();
   const notebookSlug = params.notebookSlug as string;
   
@@ -328,11 +329,26 @@ export default function NotebookPage() {
       router.push(`/${notebookSlug}/${noteSlug}`);
     } catch (error) {
       console.error('Error creating note:', error);
-      // Show user-friendly error
+      // Show user-friendly error with more details
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       if (isOffline) {
-        alert('Note created offline. It will sync when you\'re back online.');
+        // Check if note was actually created locally
+        try {
+          const { getAllNotesLocally } = await import('@/lib/utils/localStorage');
+          const allLocalNotes = await getAllNotesLocally();
+          const createdNote = allLocalNotes.find((n) => n.title === uniqueTitle && n.notebookId === notebookId);
+          if (createdNote) {
+            // Note was created, just navigate to it
+            const noteSlug = createSlug(uniqueTitle);
+            router.push(`/${notebookSlug}/${noteSlug}`);
+            return;
+          }
+        } catch (checkError) {
+          console.error('Error checking for created note:', checkError);
+        }
+        alert(`Failed to create note offline: ${errorMessage}. Please try again.`);
       } else {
-        alert('Failed to create note. Please try again.');
+        alert(`Failed to create note: ${errorMessage}. Please try again.`);
       }
     }
   };
@@ -340,6 +356,18 @@ export default function NotebookPage() {
   const handleTabClick = async (tabId: string) => {
     const tab = getTabById(tabId);
     if (!tab) return;
+
+    // Don't navigate if we're already on this tab and it's a staple tab
+    // (prevents infinite loading when clicking the same tab)
+    if (isStapleNoteTab(tab) && activeTabId === tabId) {
+      // Check if we're already on the note page for this tab
+      const expectedSlug = createSlug(tab.name);
+      const currentPath = pathname || '';
+      if (currentPath.includes(`/${notebookSlug}/${expectedSlug}`)) {
+        // Already on this note, don't navigate again
+        return;
+      }
+    }
 
     // Mark that we've handled initial load (user is now interacting)
     if (!hasHandledInitialLoad.current) {
