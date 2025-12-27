@@ -363,6 +363,8 @@ export default function RichTextEditor({
         }
         .tiptap ul[data-type="taskList"] li > div {
           flex: 1 1 auto;
+          width: 100%;
+          min-width: 0;
         }
         .tiptap ul[data-type="taskList"] input[type="checkbox"] {
           cursor: pointer;
@@ -370,22 +372,19 @@ export default function RichTextEditor({
         }
         .tiptap ul[data-type="taskList"] p {
           margin: 0;
-          display: inline;
+          display: block;
           width: 100%;
         }
         /* Ensure task list items respect text alignment */
-        .tiptap ul[data-type="taskList"] li[style*="text-align: left"] > div,
-        .tiptap ul[data-type="taskList"] li:not([style*="text-align"]) > div {
-          text-align: left;
+        /* TipTap applies text-align style to the <p> element, ensure it works */
+        .tiptap ul[data-type="taskList"] li > div > p[style*="text-align: center"] {
+          text-align: center !important;
         }
-        .tiptap ul[data-type="taskList"] li[style*="text-align: center"] > div {
-          text-align: center;
+        .tiptap ul[data-type="taskList"] li > div > p[style*="text-align: right"] {
+          text-align: right !important;
         }
-        .tiptap ul[data-type="taskList"] li[style*="text-align: right"] > div {
-          text-align: right;
-        }
-        .tiptap ul[data-type="taskList"] li[style*="text-align: justify"] > div {
-          text-align: justify;
+        .tiptap ul[data-type="taskList"] li > div > p[style*="text-align: justify"] {
+          text-align: justify !important;
         }
         /* Bullet and ordered list styling */
         .tiptap ul:not([data-type="taskList"]) {
@@ -614,7 +613,6 @@ function EditorToolbar({
         ref={fileInputRef}
         type="file"
         accept="image/*"
-        capture="environment"
         onChange={handleImageUpload}
         className="hidden"
         aria-label="Upload image"
