@@ -26,6 +26,7 @@ interface RichTextEditorProps {
   onCreateNote?: () => void;
   userId?: string;
   noteId?: string;
+  onShowToolbar?: () => void;
 }
 
 export default function RichTextEditor({
@@ -36,6 +37,7 @@ export default function RichTextEditor({
   onCreateNote,
   userId,
   noteId,
+  onShowToolbar,
 }: RichTextEditorProps) {
   const [showToolbar, setShowToolbar] = useState(false);
   
@@ -258,6 +260,55 @@ export default function RichTextEditor({
     }
   }, [editor, noteId]); // ONLY depend on editor and noteId - NOT content to prevent loops
 
+  // Long press handler for mobile
+  useEffect(() => {
+    if (!editor) return;
+    
+    const editorElement = editor.view.dom;
+    let longPressTimer: NodeJS.Timeout | null = null;
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+    
+    if (isMobile) {
+      const handleTouchStart = (e: TouchEvent) => {
+        longPressTimer = setTimeout(() => {
+          setShowToolbar(true);
+          if (onShowToolbar) {
+            onShowToolbar();
+          }
+          // Prevent default context menu
+          e.preventDefault();
+        }, 500); // 500ms long press
+      };
+      
+      const handleTouchEnd = () => {
+        if (longPressTimer) {
+          clearTimeout(longPressTimer);
+          longPressTimer = null;
+        }
+      };
+      
+      const handleTouchMove = () => {
+        if (longPressTimer) {
+          clearTimeout(longPressTimer);
+          longPressTimer = null;
+        }
+      };
+      
+      editorElement.addEventListener('touchstart', handleTouchStart);
+      editorElement.addEventListener('touchend', handleTouchEnd);
+      editorElement.addEventListener('touchmove', handleTouchMove);
+      
+      return () => {
+        editorElement.removeEventListener('touchstart', handleTouchStart);
+        editorElement.removeEventListener('touchend', handleTouchEnd);
+        editorElement.removeEventListener('touchmove', handleTouchMove);
+        if (longPressTimer) {
+          clearTimeout(longPressTimer);
+        }
+      };
+    }
+  }, [editor, onShowToolbar]);
+
   // Show toolbar only when text is selected (mobile) or when editor is focused (desktop)
   useEffect(() => {
     if (!editor) return;
@@ -323,6 +374,49 @@ export default function RichTextEditor({
       editor.off('blur', handleBlur);
     };
   }, [editor]);
+
+  // Handle drag and drop for images (desktop only)
+  useEffect(() => {
+    if (!editor || !userId || !noteId) return;
+    
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+    if (isMobile) return;
+    
+    const editorWrapper = document.querySelector('.bg-bg-primary');
+    if (!editorWrapper) return;
+    
+    const handleDragOver = (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+    };
+    
+    const handleDrop = async (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      const files = e.dataTransfer?.files;
+      if (!files || files.length === 0) return;
+      
+      const imageFile = Array.from(files).find(file => file.type.startsWith('image/'));
+      if (!imageFile) return;
+      
+      try {
+        const { uploadImage } = await import('@/lib/firebase/storage');
+        const imageUrl = await uploadImage(imageFile, userId, noteId);
+        editor.chain().focus().setImage({ src: imageUrl }).run();
+      } catch (error) {
+        console.error('Error uploading image:', error);
+      }
+    };
+    
+    editorWrapper.addEventListener('dragover', handleDragOver);
+    editorWrapper.addEventListener('drop', handleDrop);
+    
+    return () => {
+      editorWrapper.removeEventListener('dragover', handleDragOver);
+      editorWrapper.removeEventListener('drop', handleDrop);
+    };
+  }, [editor, userId, noteId]);
 
   if (!editor) {
     return null;
@@ -587,36 +681,7 @@ function EditorToolbar({
         ☑
       </button>
 
-      {/* Image Upload */}
-      <button
-        onClick={(e) => {
-          e.preventDefault();
-          fileInputRef.current?.click();
-        }}
-        disabled={isUploading || !userId || !noteId}
-        className={`px-2 py-1.5 rounded transition-all text-text-primary hover:text-text-primary shrink-0 ${
-          isUploading
-            ? 'opacity-50 cursor-not-allowed'
-            : 'border-2 border-transparent hover:bg-bg-primary/30'
-        }`}
-        title={isUploading ? 'Uploading...' : 'Insert Image'}
-      >
-        {isUploading ? (
-          '⏳'
-        ) : (
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-            <path d="M2 2h12v12H2V2zm1 1v10h10V3H3zm2 2h6v6H5V5zm1 1v4h4V6H6zm1.5-1.5a.5.5 0 1 1 0 1 .5.5 0 0 1 0-1z"/>
-          </svg>
-        )}
-      </button>
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        onChange={handleImageUpload}
-        className="hidden"
-        aria-label="Upload image"
-      />
+      {/* Image Upload - Removed from toolbar, now in title bar */}
 
       {/* Alignment */}
       <button

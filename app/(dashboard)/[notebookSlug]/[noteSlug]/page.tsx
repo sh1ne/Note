@@ -459,6 +459,42 @@ export default function NoteEditorPage() {
                 <path d="M19 12H5M12 19l-7-7 7-7"/>
               </svg>
             </button>
+            {/* Image Upload Button */}
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (editor && user?.uid && initialNote?.id) {
+                  const fileInput = document.createElement('input');
+                  fileInput.type = 'file';
+                  fileInput.accept = 'image/*';
+                  fileInput.onchange = async (event: any) => {
+                    const file = event.target.files?.[0];
+                    if (!file || !file.type.startsWith('image/')) {
+                      return;
+                    }
+                    try {
+                      const { uploadImage } = await import('@/lib/firebase/storage');
+                      const imageUrl = await uploadImage(file, user.uid, initialNote.id);
+                      editor.chain().focus().setImage({ src: imageUrl }).run();
+                    } catch (error) {
+                      console.error('Error uploading image:', error);
+                    }
+                  };
+                  fileInput.click();
+                }
+              }}
+              disabled={!editor || !user?.uid || !initialNote?.id}
+              className="p-2 text-text-primary hover:text-text-secondary hover:bg-bg-secondary rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Insert Image"
+              aria-label="Insert Image"
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                <circle cx="8.5" cy="8.5" r="1.5"/>
+                <polyline points="21 15 16 10 5 21"/>
+              </svg>
+            </button>
             <button
               onClick={() => {
                 if (editor) {
@@ -694,6 +730,10 @@ export default function NoteEditorPage() {
             <button
               onClick={() => {
                 setShowFind(!showFind);
+                if (showFind && editor) {
+                  // Clear highlights when closing search
+                  editor.commands.unsetHighlight();
+                }
                 if (showFind) {
                   setFindQuery('');
                 }
