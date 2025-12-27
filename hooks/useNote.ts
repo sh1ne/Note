@@ -27,6 +27,7 @@ export function useNote({ noteId, initialNote, onSaveComplete }: UseNoteOptions)
   // Track previous noteId to prevent unnecessary updates
   const prevNoteIdRef = useRef<string | null>(null);
   const isInitializedRef = useRef(false);
+  const isUpdatingFromCacheRef = useRef(false);
 
   // Update note ONLY when noteId changes (switching notes)
   // This prevents infinite loops from cache updates or initialNote object changes
@@ -35,6 +36,7 @@ export function useNote({ noteId, initialNote, onSaveComplete }: UseNoteOptions)
     if (prevNoteIdRef.current !== noteId) {
       prevNoteIdRef.current = noteId;
       isInitializedRef.current = false;
+      isUpdatingFromCacheRef.current = true;
       
       const effectiveNote = cachedNote || initialNote;
       if (effectiveNote && effectiveNote.id === noteId) {
@@ -46,6 +48,11 @@ export function useNote({ noteId, initialNote, onSaveComplete }: UseNoteOptions)
         setPlainText(newPlainText);
         isInitializedRef.current = true;
       }
+      
+      // Reset flag after a brief delay
+      setTimeout(() => {
+        isUpdatingFromCacheRef.current = false;
+      }, 100);
     }
   }, [noteId]); // ONLY depend on noteId - ignore initialNote and cachedNote changes
 

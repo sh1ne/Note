@@ -37,6 +37,7 @@ export default function RichTextEditor({
   
   // Track if we're updating from props to prevent onUpdate trigger
   const isUpdatingFromPropsRef = useRef(false);
+  const onUpdateTimeoutRef = useRef<number | null>(null);
   
   const editor = useEditor({
     immediatelyRender: false, // Fix SSR hydration warnings
@@ -93,11 +94,15 @@ export default function RichTextEditor({
       if (isUpdatingFromPropsRef.current) {
         return;
       }
-      // Use requestAnimationFrame to ensure we get the latest content
-      requestAnimationFrame(() => {
+      // Debounce to prevent rapid-fire updates
+      if (onUpdateTimeoutRef.current) {
+        cancelAnimationFrame(onUpdateTimeoutRef.current);
+      }
+      onUpdateTimeoutRef.current = requestAnimationFrame(() => {
         const html = editor.getHTML();
         const plainText = editor.getText();
         onChange(html, plainText);
+        onUpdateTimeoutRef.current = null;
       });
     },
     editorProps: {
