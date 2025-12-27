@@ -295,9 +295,35 @@ export default function NoteEditorPage() {
 
   useEffect(() => {
     // Don't load if we're updating the URL or already loading (prevents infinite loop)
-    if (user && noteSlug && notebookId && !isUpdatingUrlRef.current && !isLoadingNoteRef.current) {
-      loadNote();
-    }
+    const shouldLoad = async () => {
+      if (isUpdatingUrlRef.current || isLoadingNoteRef.current || !noteSlug || !notebookId) {
+        return;
+      }
+      
+      // If we have user, load immediately
+      if (user) {
+        loadNote();
+        return;
+      }
+      
+      // If offline and no user, check IndexedDB auth state
+      const isOffline = typeof window !== 'undefined' && !navigator.onLine;
+      if (isOffline) {
+        try {
+          const { getAuthState } = await import('@/lib/utils/authState');
+          const authState = await getAuthState();
+          if (authState) {
+            // IndexedDB has auth state - load note even though user is null
+            console.log('[useEffect] Offline: IndexedDB has auth state, loading note');
+            loadNote();
+          }
+        } catch (error) {
+          console.error('[useEffect] Error checking IndexedDB auth:', error);
+        }
+      }
+    };
+    
+    shouldLoad();
   }, [user, noteSlug, notebookId]);
 
   // Save note when navigating away
