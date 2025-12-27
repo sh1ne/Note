@@ -60,7 +60,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Strategy: Cache First for static assets, Network First for pages
+  // Strategy: Cache First for static assets and HTML pages, Network First for API routes
   event.respondWith(
     caches.match(request).then((cachedResponse) => {
       // For static assets (_next/static), use cache first
@@ -80,7 +80,62 @@ self.addEventListener('fetch', (event) => {
         });
       }
 
-      // For pages and API routes, use network first with cache fallback
+      // For HTML pages (app routes), use cache first with network fallback
+      // This ensures offline navigation works even if a specific route isn't cached
+      const isHtmlRequest = request.headers.get('accept')?.includes('text/html') || 
+                           url.pathname === '/' ||
+                           (!url.pathname.startsWith('/_next/') && !url.pathname.startsWith('/api/'));
+      
+      if (isHtmlRequest) {
+        // Try cache first for HTML pages
+        if (cachedResponse) {
+          // Also try to update cache in background (will fail silently if offline)
+          fetch(request).then((response) => {
+            if (response.status === 200) {
+              const responseToCache = response.clone();
+              caches.open(RUNTIME_CACHE).then((cache) => {
+                cache.put(request, responseToCache);
+              });
+            }
+          }).catch(() => {
+            // Ignore background update failures (e.g., when offline)
+          });
+          return cachedResponse;
+        }
+        
+        // Not in cache, try network
+        return fetch(request)
+          .then((response) => {
+            // Cache successful responses
+            if (response.status === 200) {
+              const responseToCache = response.clone();
+              caches.open(RUNTIME_CACHE).then((cache) => {
+                cache.put(request, responseToCache);
+              });
+            }
+            return response;
+          })
+          .catch(() => {
+            // Network failed, try to return app shell (root HTML)
+            // This allows React to load and handle client-side routing
+            return caches.match('/').then((rootResponse) => {
+              if (rootResponse) {
+                // Return the root HTML so React can load and handle routing
+                return rootResponse;
+              }
+              // Last resort: return offline message
+              return new Response('Offline', {
+                status: 503,
+                statusText: 'Service Unavailable',
+                headers: new Headers({
+                  'Content-Type': 'text/plain',
+                }),
+              });
+            });
+          });
+      }
+
+      // For API routes and other requests, use network first with cache fallback
       return fetch(request)
         .then((response) => {
           // Cache successful responses
@@ -97,7 +152,7 @@ self.addEventListener('fetch', (event) => {
           if (cachedResponse) {
             return cachedResponse;
           }
-          // If no cache, return offline page or error
+          // If no cache, return error
           return new Response('Offline', {
             status: 503,
             statusText: 'Service Unavailable',
