@@ -141,9 +141,9 @@ export default function RichTextEditor({
     
     const currentContent = editor.getHTML();
     // Only update if content prop is different from current editor content
-    // and use emitUpdate: false to prevent triggering onUpdate callback
+    // Use emitUpdate: false (second parameter) to prevent triggering onUpdate callback
     if (content !== currentContent) {
-      editor.commands.setContent(content, false, { emitUpdate: false });
+      editor.commands.setContent(content, false);
     }
   }, [editor, content]);
 
