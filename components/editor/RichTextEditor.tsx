@@ -430,7 +430,7 @@ export default function RichTextEditor({
     const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
     if (!isMobile) return;
     
-    const handleImageClick = (e: MouseEvent | TouchEvent) => {
+    const handleImageClick = (e: Event) => {
       const target = e.target as HTMLElement;
       if (target.tagName === 'IMG' && target.closest('.tiptap')) {
         e.preventDefault();
@@ -460,14 +460,14 @@ export default function RichTextEditor({
     
     const editorElement = document.querySelector('.tiptap');
     if (editorElement) {
-      editorElement.addEventListener('click', handleImageClick);
-      editorElement.addEventListener('touchend', handleImageClick);
+      editorElement.addEventListener('click', handleImageClick as EventListener);
+      editorElement.addEventListener('touchend', handleImageClick as EventListener);
     }
     
     return () => {
       if (editorElement) {
-        editorElement.removeEventListener('click', handleImageClick);
-        editorElement.removeEventListener('touchend', handleImageClick);
+        editorElement.removeEventListener('click', handleImageClick as EventListener);
+        editorElement.removeEventListener('touchend', handleImageClick as EventListener);
       }
     };
   }, [editor]);

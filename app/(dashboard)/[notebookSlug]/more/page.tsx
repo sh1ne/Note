@@ -16,25 +16,34 @@ import { useTabs } from '@/hooks/useTabs';
 import { useTabNavigation } from '@/hooks/useTabNavigation';
 import { generateUniqueNoteTitle } from '@/lib/utils/noteHelpers';
 
-function StorageUsageDisplay({ userId, notebookId }: { userId: string; notebookId: string }) {
+function StorageUsageDisplay({ userId }: { userId: string }) {
   const [usage, setUsage] = useState<{ notes: number; estimatedSize: string } | null>(null);
 
   useEffect(() => {
-    if (userId && notebookId) {
+    if (userId) {
       calculateStorage();
     }
-  }, [userId, notebookId]);
+  }, [userId]);
 
   const calculateStorage = async () => {
     try {
-      const notes = await getNotes(notebookId, undefined, userId);
-      // Exclude staple notes and deleted notes from count
-      const regularNotes = notes.filter((n) => n && n.tabId !== 'staple' && !n.deletedAt);
+      const { getNotebooks } = await import('@/lib/firebase/firestore');
+      const notebooks = await getNotebooks(userId);
+      
+      // Get notes from all notebooks
+      let totalNotes = 0;
+      for (const notebook of notebooks) {
+        const notes = await getNotes(notebook.id, undefined, userId);
+        // Exclude staple notes and deleted notes from count
+        const regularNotes = notes.filter((n) => n && n.tabId !== 'staple' && !n.deletedAt);
+        totalNotes += regularNotes.length;
+      }
+      
       // Rough estimate: each note ~1-5KB, images are stored separately
-      const estimatedBytes = regularNotes.length * 3000; // 3KB average per note
+      const estimatedBytes = totalNotes * 3000; // 3KB average per note
       const estimatedMB = (estimatedBytes / (1024 * 1024)).toFixed(2);
       setUsage({
-        notes: regularNotes.length,
+        notes: totalNotes,
         estimatedSize: estimatedMB,
       });
     } catch (error) {
@@ -365,6 +374,20 @@ export default function MorePage() {
         return a.name.localeCompare(b.name);
       });
       setNotebooks(sorted);
+      
+      // Load note counts for each notebook
+      const counts: Record<string, number> = {};
+      for (const notebook of sorted) {
+        try {
+          const notes = await getNotes(notebook.id, undefined, user.uid);
+          const regularNotes = notes.filter((n) => n && n.tabId !== 'staple' && !n.deletedAt);
+          counts[notebook.id] = regularNotes.length;
+        } catch (error) {
+          console.error(`Error loading notes for notebook ${notebook.id}:`, error);
+          counts[notebook.id] = 0;
+        }
+      }
+      setNotebookNoteCounts(counts);
     } catch (error) {
       console.error('Error loading notebooks:', error);
     }
@@ -624,7 +647,14 @@ export default function MorePage() {
                         href={`/${notebook.slug}`}
                         className="block"
                       >
-                        <h3 className="font-semibold">{notebook.name}</h3>
+                        <h3 className="font-semibold">
+                          {notebook.name}
+                          {notebookNoteCounts[notebook.id] !== undefined && (
+                            <span className="text-sm text-text-secondary font-normal ml-2">
+                              ({notebookNoteCounts[notebook.id]})
+                            </span>
+                          )}
+                        </h3>
                         {notebook.isDefault && (
                           <p className="text-xs text-text-secondary mt-1">Default</p>
                         )}
@@ -685,7 +715,7 @@ export default function MorePage() {
             Storage Usage{' '}
             <span className="text-xs text-text-secondary font-normal">(Note: This is an estimate. Images are stored separately.)</span>
           </h2>
-          {user && notebookId && <StorageUsageDisplay userId={user.uid} notebookId={notebookId} />}
+          {user && <StorageUsageDisplay userId={user.uid} />}
         </div>
 
         {/* Sync Status */}
