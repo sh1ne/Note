@@ -165,19 +165,55 @@ export function useSyncQueue() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    // Process queue when coming online
+    // HARD GUARANTEE: Only set up sync processing if we're online
+    // This prevents any sync attempts while offline
+    if (!navigator.onLine) {
+      console.log('[Sync Queue] Offline on mount - not setting up sync processing');
+      // Only set up online event listener - no interval, no immediate processing
+      const handleOnline = () => {
+        // When coming online, set up the interval and process queue
+        console.log('[Sync Queue] Coming online - setting up sync processing');
+        processSyncQueue();
+        
+        // Set up interval only when online
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+        }
+        intervalRef.current = setInterval(() => {
+          // Double-check we're still online before processing
+          if (navigator.onLine) {
+            processSyncQueue();
+          }
+        }, 30000);
+      };
+
+      window.addEventListener('online', handleOnline);
+
+      return () => {
+        window.removeEventListener('online', handleOnline);
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+          intervalRef.current = null;
+        }
+      };
+    }
+
+    // We're online - set up full sync processing
     const handleOnline = () => {
       processSyncQueue();
     };
 
     window.addEventListener('online', handleOnline);
 
-    // Process queue every 30 seconds
+    // Process queue every 30 seconds (only if online)
     intervalRef.current = setInterval(() => {
-      processSyncQueue();
+      // Double-check we're still online before processing
+      if (navigator.onLine) {
+        processSyncQueue();
+      }
     }, 30000);
 
-    // Process immediately on mount
+    // Process immediately on mount (we're online)
     processSyncQueue();
 
     // Cleanup
