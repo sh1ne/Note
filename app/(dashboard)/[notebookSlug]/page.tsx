@@ -305,7 +305,7 @@ export default function NotebookPage() {
                 </svg>
               </button>
             </div>
-            <div className="flex items-center gap-0.5">
+            <div className="flex items-center">
               <button
                 onClick={() => {
                   setShowSearch(!showSearch);
@@ -324,7 +324,7 @@ export default function NotebookPage() {
               </button>
               <button
                 onClick={handleCreateNote}
-                className="w-12 h-12 flex items-center justify-center bg-green-600 hover:bg-green-700 text-white rounded transition-colors shrink-0"
+                className="flex items-center justify-center w-12 h-12 bg-green-600 hover:bg-green-700 text-white rounded transition-colors font-semibold"
                 title="Create New Note"
                 aria-label="Create New Note"
               >
