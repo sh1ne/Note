@@ -405,7 +405,7 @@ export default function NoteEditorPage() {
       
       // If offline, try local cache as fallback
       const isOffline = typeof window !== 'undefined' && !navigator.onLine;
-      if (isOffline) {
+      if (isOffline && user) {
         try {
           const { getAllNotesLocally } = await import('@/lib/utils/localStorage');
           const allLocalNotes = await getAllNotesLocally();
