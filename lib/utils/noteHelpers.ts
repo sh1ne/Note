@@ -174,15 +174,25 @@ export async function getNoteBySlug(
     // Otherwise, search all notes in the notebook
     const allNotes = await getNotes(notebookId, undefined, userId);
     
-    // Find note by matching slug of title
-    for (const note of allNotes) {
+    // Find all notes matching the slug
+    const matchingNotes = allNotes.filter((note) => {
       const noteSlugFromTitle = createSlug(note.title);
-      if (noteSlugFromTitle === noteSlug) {
-        return note;
-      }
+      return noteSlugFromTitle === noteSlug;
+    });
+    
+    if (matchingNotes.length === 0) {
+      return null;
     }
     
-    return null;
+    // If multiple notes match, return the most recently updated one (deterministic)
+    // This ensures the same note is always returned across devices
+    matchingNotes.sort((a, b) => {
+      const aTime = a.updatedAt?.getTime() || 0;
+      const bTime = b.updatedAt?.getTime() || 0;
+      return bTime - aTime; // Most recent first
+    });
+    
+    return matchingNotes[0];
   } catch (error) {
     console.error(`Error getting note by slug ${noteSlug}:`, error);
     return null;

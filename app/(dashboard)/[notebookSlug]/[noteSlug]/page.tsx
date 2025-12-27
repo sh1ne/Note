@@ -560,7 +560,7 @@ export default function NoteEditorPage() {
             {lastSaved && !isSaving && (
               <span className="text-xs text-text-secondary">
                 {isOnline && isSavedToCloud 
-                  ? `Saved to cloud ${lastSaved.toLocaleTimeString()}`
+                  ? `Cloud Saved ${lastSaved.toLocaleTimeString()}`
                   : isOnline
                   ? `Saved locally ${lastSaved.toLocaleTimeString()}`
                   : `Saved offline ${lastSaved.toLocaleTimeString()}`}
