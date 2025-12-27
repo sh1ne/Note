@@ -507,7 +507,7 @@ export default function NoteEditorPage() {
       {/* Header Bar */}
       <div className={`sticky ${!isOnline ? 'top-8' : 'top-0'} bg-bg-primary border-b border-bg-secondary z-20`}>
         <div className="flex items-center justify-between p-4">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-1">
             <button
               onClick={handleBack}
               className="p-2 text-text-primary hover:text-text-secondary hover:bg-bg-secondary rounded-lg transition-colors"
@@ -573,15 +573,7 @@ export default function NoteEditorPage() {
               </span>
             )}
           </div>
-          <div className="flex items-center gap-4">
-            <button
-              onClick={handleCreateNote}
-              className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded transition-colors font-semibold"
-              title="Create New Note"
-              aria-label="Create New Note"
-            >
-              +
-            </button>
+          <div className="flex items-center gap-2">
             {/* Image Upload Button */}
             <button
               onClick={async (e) => {
@@ -629,7 +621,7 @@ export default function NoteEditorPage() {
                 }, 0);
               }}
               disabled={!editor || !user?.uid || !initialNote?.id}
-              className="p-2 text-text-primary hover:text-text-secondary hover:bg-bg-secondary rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="p-2 text-blue-400 hover:text-blue-300 hover:bg-bg-secondary rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               title="Insert Image (Images only)"
               aria-label="Insert Image"
             >
@@ -642,7 +634,7 @@ export default function NoteEditorPage() {
             <div className="relative" ref={shareMenuRef}>
               <button
                 onClick={() => setShowShareMenu(!showShareMenu)}
-                className="text-text-primary hover:text-text-secondary transition-colors"
+                className="p-2 text-purple-400 hover:text-purple-300 hover:bg-bg-secondary rounded-lg transition-colors"
                 title="Share Note"
                 aria-label="Share Note"
               >
@@ -818,25 +810,36 @@ export default function NoteEditorPage() {
                   setFindQuery('');
                 }
               }}
-              className="text-text-primary hover:text-text-secondary transition-colors"
+              className="p-2 text-yellow-400 hover:text-yellow-300 hover:bg-bg-secondary rounded-lg transition-colors"
               title="Find"
               aria-label="Find"
             >
-              🔍
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8"/>
+                <path d="m21 21-4.35-4.35"/>
+              </svg>
             </button>
             {note.tabId && note.tabId !== 'staple' && (
               <button
                 onClick={handleDelete}
-                className="text-red-500 hover:text-red-600 transition-colors"
+                className="p-2 text-red-500 hover:text-red-400 hover:bg-bg-secondary rounded-lg transition-colors"
                 title="Delete Note"
                 aria-label="Delete Note"
               >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="18" y1="6" x2="6" y2="18"></line>
                   <line x1="6" y1="6" x2="18" y2="18"></line>
                 </svg>
               </button>
             )}
+            <button
+              onClick={handleCreateNote}
+              className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded transition-colors font-semibold"
+              title="Create New Note"
+              aria-label="Create New Note"
+            >
+              +
+            </button>
           </div>
         </div>
       </div>
