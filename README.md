@@ -11,6 +11,8 @@ A modern, feature-rich note-taking Progressive Web App (PWA) designed for iPhone
 - **Content**: Images, links, tables, code blocks, blockquotes
 - **Colors**: Text color and highlight color
 - **Mobile-optimized toolbar** for easy editing on iPhone
+- **Long press**: Long press on mobile to show editing toolbar
+- **Search in note**: Find and highlight text within notes
 
 ### 📱 Custom Tab System
 - **6 Default Tabs**: Scratch, Now, Short-Term, Long-term, All Notes, More
@@ -39,8 +41,10 @@ A modern, feature-rich note-taking Progressive Web App (PWA) designed for iPhone
 ### 📸 Image Support
 - **Camera**: Take photos directly from the app
 - **Gallery**: Choose existing photos from your phone
+- **Desktop drag-and-drop**: Drag images directly into notes
 - **In-note display**: Images appear inline with your text
 - **Optimized**: Images are compressed to save storage
+- **Easy access**: Image button in title bar for quick access
 
 ### 🔍 Search & Organization
 - **Search all notes**: Global search across all notebooks
@@ -182,9 +186,12 @@ note/
 ## 📱 PWA Features
 
 - **Installable**: Save to iPhone home screen
-- **Offline support**: Works without internet
-- **Fast loading**: Optimized for mobile
+- **Offline support**: Full offline functionality with service worker caching
+- **Fast loading**: Optimized for mobile with cached assets
 - **App-like experience**: Full screen, no browser UI
+- **Service Worker**: Caches app shell and assets for instant loading
+- **Long press toolbar**: Long press on mobile to show editing toolbar
+- **Image support**: Camera, gallery, and drag-and-drop (desktop)
 
 ## 🤝 Contributing
 

@@ -500,10 +500,13 @@ export default function MorePage() {
         <div className="flex items-center gap-4 p-4">
           <button
             onClick={handleBack}
-            className="text-text-primary hover:text-text-secondary text-xl font-bold"
+            className="p-2 text-text-primary hover:text-text-secondary hover:bg-bg-secondary rounded-lg transition-colors"
+            title="Back"
             aria-label="Back"
           >
-            ←
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M19 12H5M12 19l-7-7 7-7"/>
+            </svg>
           </button>
           <h1 className="text-2xl font-bold">More</h1>
         </div>
