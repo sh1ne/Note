@@ -28,38 +28,56 @@ let db: IDBPDatabase<NotesDB> | null = null;
 export const getDB = async (): Promise<IDBPDatabase<NotesDB>> => {
   if (db) return db;
   
+  // Always try to open with the highest version we support (4)
+  // This prevents issues where cached old code tries to use lower versions
+  const TARGET_VERSION = 4;
+  
   try {
-    db = await openDB<NotesDB>('notes-db', 3, {
+    db = await openDB<NotesDB>('notes-db', TARGET_VERSION, {
       upgrade(db, oldVersion) {
-        if (oldVersion < 1) {
-        const notesStore = db.createObjectStore('notes', { keyPath: 'id' });
-        notesStore.createIndex('by-updatedAt', 'updatedAt');
-        db.createObjectStore('syncQueue', { keyPath: 'noteId' });
+        console.log(`[IndexedDB] Upgrading from version ${oldVersion} to ${TARGET_VERSION}`);
+        
+        // Create stores if they don't exist (handles both new DBs and upgrades)
+        if (!db.objectStoreNames.contains('notes')) {
+          const notesStore = db.createObjectStore('notes', { keyPath: 'id' });
+          notesStore.createIndex('by-updatedAt', 'updatedAt');
         }
-        if (oldVersion < 2) {
+        
+        if (!db.objectStoreNames.contains('syncQueue')) {
+          db.createObjectStore('syncQueue', { keyPath: 'noteId' });
+        }
+        
+        if (!db.objectStoreNames.contains('backups')) {
           const backupsStore = db.createObjectStore('backups', { keyPath: 'timestamp' });
           backupsStore.createIndex('by-timestamp', 'timestamp');
         }
-        if (oldVersion < 3) {
+        
+        if (!db.objectStoreNames.contains('notebooks')) {
           const notebooksStore = db.createObjectStore('notebooks', { keyPath: 'id' });
           notebooksStore.createIndex('by-userId', 'userId');
           notebooksStore.createIndex('by-slug', 'slug');
         }
       },
     });
+    console.log(`[IndexedDB] Successfully opened database at version ${TARGET_VERSION}`);
   } catch (error: any) {
-    // If version error, the database might already be at a higher version
-    // Try to open without specifying version to get the current version
+    // Handle version errors - database might be at a different version
     if (error?.name === 'VersionError' || error?.message?.includes('version')) {
-      console.warn('Database version mismatch detected, attempting to reconnect...');
-      // Reset the db reference and try to open without version (will use existing version)
+      console.warn('[IndexedDB] VersionError detected:', error.message);
+      console.warn('[IndexedDB] Attempting to resolve version conflict...');
+      
+      // Reset the db reference
       db = null;
+      
+      // Try to open with an even higher version to force upgrade
+      // This handles cases where the database is at a version higher than we expect
       try {
-        // Try to delete and recreate if version mismatch is critical
-        // But first, try opening with a higher version
-        db = await openDB<NotesDB>('notes-db', 4, {
+        const HIGHER_VERSION = TARGET_VERSION + 1;
+        db = await openDB<NotesDB>('notes-db', HIGHER_VERSION, {
           upgrade(db, oldVersion) {
-            // Only create stores if they don't exist
+            console.log(`[IndexedDB] Upgrading from version ${oldVersion} to ${HIGHER_VERSION}`);
+            
+            // Ensure all stores exist
             if (!db.objectStoreNames.contains('notes')) {
               const notesStore = db.createObjectStore('notes', { keyPath: 'id' });
               notesStore.createIndex('by-updatedAt', 'updatedAt');
@@ -78,11 +96,17 @@ export const getDB = async (): Promise<IDBPDatabase<NotesDB>> => {
             }
           },
         });
-      } catch (retryError) {
-        console.error('Failed to reconnect to database:', retryError);
-        throw retryError;
+        console.log(`[IndexedDB] Successfully opened database at version ${HIGHER_VERSION}`);
+      } catch (retryError: any) {
+        console.error('[IndexedDB] Failed to resolve version conflict:', retryError);
+        // If we still can't open, log the error but don't throw
+        // This allows the app to continue functioning (though IndexedDB features won't work)
+        console.error('[IndexedDB] IndexedDB operations will be unavailable. Error:', retryError.message);
+        throw new Error(`Failed to open IndexedDB: ${retryError.message}`);
       }
     } else {
+      // For non-version errors, throw immediately
+      console.error('[IndexedDB] Error opening database:', error);
       throw error;
     }
   }
@@ -104,8 +128,15 @@ export const getNoteLocally = async (noteId: string): Promise<Note | undefined> 
 };
 
 export const getAllNotesLocally = async (): Promise<Note[]> => {
-  const database = await getDB();
-  return await database.getAll('notes');
+  try {
+    const database = await getDB();
+    return await database.getAll('notes');
+  } catch (error: any) {
+    // If IndexedDB is unavailable (e.g., VersionError), return empty array
+    // This allows navigation to continue working even if IndexedDB fails
+    console.warn('[IndexedDB] Failed to get all notes locally, returning empty array:', error?.message);
+    return [];
+  }
 };
 
 export const deleteNoteLocally = async (noteId: string) => {
@@ -123,8 +154,15 @@ export const addToSyncQueue = async (noteId: string, data: Partial<Note>) => {
 };
 
 export const getSyncQueue = async () => {
-  const database = await getDB();
-  return await database.getAll('syncQueue');
+  try {
+    const database = await getDB();
+    return await database.getAll('syncQueue');
+  } catch (error: any) {
+    // If IndexedDB is unavailable (e.g., VersionError), return empty array
+    // This allows sync queue processing to continue without breaking
+    console.warn('[IndexedDB] Failed to get sync queue, returning empty array:', error?.message);
+    return [];
+  }
 };
 
 export const removeFromSyncQueue = async (noteId: string) => {
@@ -177,18 +215,32 @@ export const getNotebookLocally = async (notebookId: string): Promise<Notebook |
 };
 
 export const getAllNotebooksLocally = async (): Promise<Notebook[]> => {
-  const database = await getDB();
-  return await database.getAll('notebooks');
+  try {
+    const database = await getDB();
+    return await database.getAll('notebooks');
+  } catch (error: any) {
+    // If IndexedDB is unavailable (e.g., VersionError), return empty array
+    // This allows navigation to continue working even if IndexedDB fails
+    console.warn('[IndexedDB] Failed to get all notebooks locally, returning empty array:', error?.message);
+    return [];
+  }
 };
 
 export const getNotebookBySlugLocally = async (userId: string, slug: string): Promise<Notebook | null> => {
-  const database = await getDB();
-  const tx = database.transaction('notebooks', 'readonly');
-  const index = tx.store.index('by-slug');
-  const notebooks = await index.getAll(slug);
-  await tx.done;
-  
-  // Filter by userId and slug (index only filters by slug)
-  const matchingNotebook = notebooks.find((nb) => nb.userId === userId && nb.slug === slug);
-  return matchingNotebook || null;
+  try {
+    const database = await getDB();
+    const tx = database.transaction('notebooks', 'readonly');
+    const index = tx.store.index('by-slug');
+    const notebooks = await index.getAll(slug);
+    await tx.done;
+    
+    // Filter by userId and slug (index only filters by slug)
+    const matchingNotebook = notebooks.find((nb) => nb.userId === userId && nb.slug === slug);
+    return matchingNotebook || null;
+  } catch (error: any) {
+    // If IndexedDB is unavailable (e.g., VersionError), return null
+    // This allows navigation to continue working even if IndexedDB fails
+    console.warn('[IndexedDB] Failed to get notebook by slug locally, returning null:', error?.message);
+    return null;
+  }
 };
