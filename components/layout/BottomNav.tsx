@@ -22,19 +22,13 @@ export default function BottomNav({
   const activeTab = tabs.find((tab) => tab.id === activeTabId);
   const activeRegularTab = activeTab && !activeTab.isStaple ? activeTab : null;
   
-  // Combine staple tabs with the active regular tab (if it exists)
-  const tabsToShow = activeRegularTab 
-    ? [...stapleTabs, activeRegularTab]
-    : stapleTabs;
+  // Sort staple tabs by order
+  const sortedStapleTabs = [...stapleTabs].sort((a, b) => (a.order || 0) - (b.order || 0));
   
-  // Sort by order (staple tabs have order, regular tabs have order 0)
-  const sortedTabs = [...tabsToShow].sort((a, b) => {
-    // Staple tabs first (they have higher order values), then regular tabs
-    if (a.isStaple && !b.isStaple) return -1;
-    if (!a.isStaple && b.isStaple) return 1;
-    // Within same type, sort by order
-    return (a.order || 0) - (b.order || 0);
-  });
+  // Combine: active regular tab first (if it exists), then staple tabs
+  const sortedTabs = activeRegularTab 
+    ? [activeRegularTab, ...sortedStapleTabs]
+    : sortedStapleTabs;
 
   return (
     <nav className="fixed left-0 right-0 bg-bg-primary border-t border-bg-secondary z-50 overflow-hidden" style={{ borderRadius: 0, bottom: '-4px' }}>
