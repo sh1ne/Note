@@ -38,9 +38,6 @@ export default function RichTextEditor({
   // Track if we're updating from props to prevent onUpdate trigger
   const isUpdatingFromPropsRef = useRef(false);
   
-  // Track if we should use content prop (only on initial load)
-  const shouldUseContentPropRef = useRef(true);
-  
   const editor = useEditor({
     immediatelyRender: false, // Fix SSR hydration warnings
     extensions: [
@@ -90,8 +87,8 @@ export default function RichTextEditor({
         emptyEditorClass: 'is-editor-empty',
       }),
     ],
-    // Only use content prop on initial load - after that, editor is uncontrolled
-    content: shouldUseContentPropRef.current ? content : undefined,
+    // Don't use content prop - we'll set it manually to avoid controlled component issues
+    // This makes the editor uncontrolled, preventing infinite loops
     onUpdate: ({ editor }) => {
       // Skip onChange if we're updating from props to prevent infinite loop
       if (isUpdatingFromPropsRef.current) {
@@ -147,27 +144,36 @@ export default function RichTextEditor({
   }, [editor, onEditorReady]);
 
   // Track the last content we set from props to detect note switches
-  const lastPropContentRef = useRef<string>(content);
+  const lastPropContentRef = useRef<string>('');
+  const isInitializedRef = useRef(false);
 
-  // Handle content prop changes ONLY when switching notes (content prop changes significantly)
-  // After initial load, we make the editor uncontrolled to prevent loops
+  // Set initial content and handle content prop changes (note switches)
+  // Editor is uncontrolled - we only update it manually when content prop changes
   useEffect(() => {
     if (!editor) return;
     
-    // Mark that we've initialized, so content prop is no longer used in useEditor
-    if (shouldUseContentPropRef.current) {
-      shouldUseContentPropRef.current = false;
-    }
-    
     const currentContent = editor.getHTML();
     
-    // Only update if content prop changed significantly (likely a note switch)
-    // Compare with last prop content, not current editor content, to avoid loops
+    // On first load, set initial content
+    if (!isInitializedRef.current && content) {
+      isInitializedRef.current = true;
+      lastPropContentRef.current = content;
+      isUpdatingFromPropsRef.current = true;
+      editor.commands.setContent(content, false);
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          isUpdatingFromPropsRef.current = false;
+        });
+      });
+      return;
+    }
+    
+    // After initialization, only update if content prop changed (note switch)
+    // Don't update if content matches what we last set (prevents loops)
     if (content !== lastPropContentRef.current && content !== currentContent) {
       lastPropContentRef.current = content;
       isUpdatingFromPropsRef.current = true;
       editor.commands.setContent(content, false);
-      // Reset flag after editor has processed the update
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           isUpdatingFromPropsRef.current = false;
