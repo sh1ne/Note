@@ -1,7 +1,7 @@
 'use client';
 
 import { useEditor, EditorContent } from '@tiptap/react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import StarterKit from '@tiptap/starter-kit';
 import TextAlign from '@tiptap/extension-text-align';
 import TextStyle from '@tiptap/extension-text-style';
@@ -34,6 +34,10 @@ export default function RichTextEditor({
   onCreateNote,
 }: RichTextEditorProps) {
   const [showToolbar, setShowToolbar] = useState(false);
+  
+  // Track if we're updating from props to prevent onUpdate trigger
+  const isUpdatingFromPropsRef = useRef(false);
+  
   const editor = useEditor({
     immediatelyRender: false, // Fix SSR hydration warnings
     extensions: [
@@ -85,6 +89,10 @@ export default function RichTextEditor({
     ],
     content,
     onUpdate: ({ editor }) => {
+      // Skip onChange if we're updating from props to prevent infinite loop
+      if (isUpdatingFromPropsRef.current) {
+        return;
+      }
       // Use requestAnimationFrame to ensure we get the latest content
       requestAnimationFrame(() => {
         const html = editor.getHTML();
@@ -134,16 +142,25 @@ export default function RichTextEditor({
     }
   }, [editor, onEditorReady]);
 
-  // Handle content prop changes without triggering onUpdate
-  // This prevents infinite loops when content is updated from props (e.g., from cache)
+  // Track if we're updating from props to prevent onUpdate trigger
+  const isUpdatingFromPropsRef = useRef(false);
+  const prevContentRef = useRef<string>('');
+
+  // Handle content prop changes ONLY when it's actually different
+  // Use emitUpdate: false to prevent triggering onUpdate callback
   useEffect(() => {
     if (!editor) return;
     
     const currentContent = editor.getHTML();
-    // Only update if content prop is different from current editor content
-    // Use emitUpdate: false (second parameter) to prevent triggering onUpdate callback
-    if (content !== currentContent) {
+    // Only update if content prop is different AND it's not the same as last time
+    if (content !== currentContent && content !== prevContentRef.current) {
+      prevContentRef.current = content;
+      isUpdatingFromPropsRef.current = true;
       editor.commands.setContent(content, false);
+      // Reset flag after a brief delay to allow any pending updates to complete
+      setTimeout(() => {
+        isUpdatingFromPropsRef.current = false;
+      }, 0);
     }
   }, [editor, content]);
 

@@ -24,31 +24,30 @@ export function useNote({ noteId, initialNote, onSaveComplete }: UseNoteOptions)
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const editorRef = useRef<any>(null);
   
-  // Track previous noteId and content to prevent unnecessary updates
+  // Track previous noteId to prevent unnecessary updates
   const prevNoteIdRef = useRef<string | null>(null);
-  const prevContentRef = useRef<string>('');
+  const isInitializedRef = useRef(false);
 
-  // Update note when noteId changes (switching notes) - NOT when cachedNote changes
-  // This prevents infinite loops from cache updates triggering content prop changes
+  // Update note ONLY when noteId changes (switching notes)
+  // This prevents infinite loops from cache updates or initialNote object changes
   useEffect(() => {
     // Only update when noteId actually changes (switching notes)
     if (prevNoteIdRef.current !== noteId) {
       prevNoteIdRef.current = noteId;
+      isInitializedRef.current = false;
+      
       const effectiveNote = cachedNote || initialNote;
       if (effectiveNote && effectiveNote.id === noteId) {
         const newContent = effectiveNote.content || '';
         const newPlainText = effectiveNote.contentPlain || '';
         
-        // Only update if content actually changed to prevent unnecessary TipTap updates
-        if (prevContentRef.current !== newContent) {
-          prevContentRef.current = newContent;
-          setNote(effectiveNote);
-          setContent(newContent);
-          setPlainText(newPlainText);
-        }
+        setNote(effectiveNote);
+        setContent(newContent);
+        setPlainText(newPlainText);
+        isInitializedRef.current = true;
       }
     }
-  }, [initialNote, noteId]); // Removed cachedNote from dependencies to break the loop
+  }, [noteId]); // ONLY depend on noteId - ignore initialNote and cachedNote changes
 
   // Set editor reference
   const setEditor = useCallback((editor: any) => {
