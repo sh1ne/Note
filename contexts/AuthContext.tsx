@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User as FirebaseUser, onAuthStateChanged } from 'firebase/auth';
 import { auth } from '@/lib/firebase/config';
+import { getAuthState, saveAuthState, clearAuthState } from '@/lib/utils/authState';
 
 interface AuthContextType {
   user: FirebaseUser | null;
@@ -19,21 +20,7 @@ export const useAuth = () => useContext(AuthContext);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  // Initialize with cached user info if available and offline
-  const getInitialUser = (): FirebaseUser | null => {
-    if (typeof window === 'undefined') return null;
-    const isOffline = !navigator.onLine;
-    const cachedUserId = localStorage.getItem('cached_user_id');
-    // If offline and have cached user, try to restore from auth state
-    // (Firebase should have it in persistence, but we'll check)
-    if (isOffline && cachedUserId) {
-      // Return current auth user if available, otherwise null (layout will check cache)
-      return auth.currentUser;
-    }
-    return null;
-  };
-
-  const [user, setUser] = useState<FirebaseUser | null>(getInitialUser());
+  const [user, setUser] = useState<FirebaseUser | null>(null);
   const [loading, setLoading] = useState(true);
   const lastKnownUserRef = React.useRef<FirebaseUser | null>(null);
   const isInitialMountRef = React.useRef(true);
@@ -41,94 +28,155 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   useEffect(() => {
     if (typeof window === 'undefined') return;
     
-    // On initial mount, ALWAYS check Firebase persistence directly
-    // This ensures we have the user immediately, even before onAuthStateChanged fires
-    if (isInitialMountRef.current) {
-      isInitialMountRef.current = false;
-      // Always check auth.currentUser on mount - Firebase persistence should have it
-      // This is critical for offline scenarios where onAuthStateChanged might be delayed
-      if (auth.currentUser) {
-        lastKnownUserRef.current = auth.currentUser;
-        setUser(auth.currentUser);
-        localStorage.setItem('cached_user_id', auth.currentUser.uid);
-        localStorage.setItem('cached_user_email', auth.currentUser.email || '');
-        console.log('[Auth] Initial mount - found user in Firebase persistence:', auth.currentUser.uid);
-        setLoading(false); // Set loading to false immediately if we have a user
-      } else {
-        // No user in persistence - check cache as fallback
-        const cachedUserId = localStorage.getItem('cached_user_id');
-        if (cachedUserId && !navigator.onLine) {
-          console.log('[Auth] Initial mount offline - have cached user ID but no Firebase user');
-          // Don't set user, but layout will check cache
+    // STEP 1: Check IndexedDB FIRST (source of truth, works offline)
+    const initializeFromIndexedDB = async () => {
+      if (isInitialMountRef.current) {
+        isInitialMountRef.current = false;
+        
+        try {
+          const authState = await getAuthState();
+          
+          if (authState) {
+            // We have auth state in IndexedDB - check if Firebase also has the user
+            // This handles both online and offline scenarios
+            if (auth.currentUser && auth.currentUser.uid === authState.userId) {
+              // Firebase has the user and it matches IndexedDB - use it
+              console.log('[Auth] Initial mount - found user in both IndexedDB and Firebase:', authState.userId);
+              lastKnownUserRef.current = auth.currentUser;
+              setUser(auth.currentUser);
+              setLoading(false);
+            } else if (!navigator.onLine) {
+              // Offline and IndexedDB has state - create a minimal user object or use Firebase if available
+              // For now, if Firebase has any user, use it (even if UID doesn't match, IndexedDB might be stale)
+              if (auth.currentUser) {
+                console.log('[Auth] Initial mount offline - using Firebase user (IndexedDB may be stale)');
+                lastKnownUserRef.current = auth.currentUser;
+                setUser(auth.currentUser);
+                // Update IndexedDB with current Firebase user
+                await saveAuthState(auth.currentUser.uid, auth.currentUser.email || '');
+              } else {
+                // Offline, IndexedDB has state, but no Firebase user
+                // We'll allow the app to work with IndexedDB state (layout will check it)
+                console.log('[Auth] Initial mount offline - IndexedDB has auth state, Firebase user not available');
+                // Don't set user object, but set loading to false so layout can check IndexedDB
+                setLoading(false);
+              }
+            } else {
+              // Online but Firebase doesn't have user - IndexedDB state might be stale
+              // Clear it and wait for Firebase to verify
+              console.log('[Auth] Initial mount - IndexedDB has state but Firebase user not found, clearing stale state');
+              await clearAuthState();
+            }
+          } else {
+            // No auth state in IndexedDB - check for migration from localStorage
+            const cachedUserId = typeof window !== 'undefined' ? localStorage.getItem('cached_user_id') : null;
+            const cachedUserEmail = typeof window !== 'undefined' ? localStorage.getItem('cached_user_email') : null;
+            
+            if (cachedUserId && cachedUserEmail) {
+              // Migrate from localStorage to IndexedDB
+              console.log('[Auth] Migrating auth state from localStorage to IndexedDB:', cachedUserId);
+              await saveAuthState(cachedUserId, cachedUserEmail);
+            }
+            
+            // Check Firebase as fallback
+            if (auth.currentUser) {
+              console.log('[Auth] Initial mount - no IndexedDB state, but Firebase has user, saving to IndexedDB');
+              lastKnownUserRef.current = auth.currentUser;
+              setUser(auth.currentUser);
+              await saveAuthState(auth.currentUser.uid, auth.currentUser.email || '');
+              setLoading(false);
+            } else if (cachedUserId) {
+              // Have cached user ID but no Firebase user - might be offline
+              // IndexedDB now has the migrated state, layout will check it
+              console.log('[Auth] Initial mount - migrated localStorage to IndexedDB, Firebase user not available');
+              setLoading(false);
+            } else {
+              // No auth state anywhere
+              console.log('[Auth] Initial mount - no auth state found');
+              setLoading(false);
+            }
+          }
+        } catch (error) {
+          console.error('[Auth] Error initializing from IndexedDB:', error);
+          // Fallback to Firebase if IndexedDB fails
+          if (auth.currentUser) {
+            lastKnownUserRef.current = auth.currentUser;
+            setUser(auth.currentUser);
+            await saveAuthState(auth.currentUser.uid, auth.currentUser.email || '');
+          }
+          setLoading(false);
         }
       }
-    }
+    };
     
-    // Listen for offline events to immediately preserve user state
-    const handleOffline = () => {
+    initializeFromIndexedDB();
+    
+    // STEP 2: Listen to Firebase Auth for verification (when online)
+    // This updates IndexedDB when Firebase auth state changes
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      const isOffline = !navigator.onLine;
+      
+      if (firebaseUser) {
+        // Firebase says user is authenticated
+        // Update IndexedDB and state
+        console.log('[Auth] Firebase auth state changed - user authenticated:', firebaseUser.uid);
+        lastKnownUserRef.current = firebaseUser;
+        setUser(firebaseUser);
+        await saveAuthState(firebaseUser.uid, firebaseUser.email || '');
+        setLoading(false);
+      } else {
+        // Firebase says user is null
+        if (isOffline) {
+          // OFFLINE: Ignore Firebase callback, trust IndexedDB
+          // Check if IndexedDB has auth state
+          const authState = await getAuthState();
+          if (authState) {
+            // IndexedDB says we're authenticated - trust it, ignore Firebase
+            console.log('[Auth] Offline: Firebase says null but IndexedDB has auth state - trusting IndexedDB');
+            // Keep last known user if we have it, or check auth.currentUser
+            if (lastKnownUserRef.current) {
+              setUser(lastKnownUserRef.current);
+            } else if (auth.currentUser) {
+              // Firebase persistence still has user even though callback says null
+              console.log('[Auth] Offline: Using auth.currentUser despite callback saying null');
+              lastKnownUserRef.current = auth.currentUser;
+              setUser(auth.currentUser);
+              await saveAuthState(auth.currentUser.uid, auth.currentUser.email || '');
+            }
+            // Don't clear state - IndexedDB is source of truth when offline
+            setLoading(false);
+            return;
+          }
+          // Offline, no IndexedDB state, no Firebase user - truly logged out
+          console.log('[Auth] Offline: No auth state anywhere - user is logged out');
+          setUser(null);
+          setLoading(false);
+        } else {
+          // ONLINE: Firebase says user is logged out - clear IndexedDB and state
+          console.log('[Auth] Online: Firebase says user logged out - clearing IndexedDB');
+          await clearAuthState();
+          lastKnownUserRef.current = null;
+          setUser(null);
+          setLoading(false);
+        }
+      }
+    });
+
+    // STEP 3: Listen for offline events to preserve state
+    const handleOffline = async () => {
       if (auth.currentUser) {
-        console.log('[Auth] Going offline - preserving current user state');
+        console.log('[Auth] Going offline - preserving current user state to IndexedDB');
         lastKnownUserRef.current = auth.currentUser;
         setUser(auth.currentUser);
-        localStorage.setItem('cached_user_id', auth.currentUser.uid);
-        localStorage.setItem('cached_user_email', auth.currentUser.email || '');
+        await saveAuthState(auth.currentUser.uid, auth.currentUser.email || '');
       } else if (lastKnownUserRef.current) {
         console.log('[Auth] Going offline - preserving last known user');
         setUser(lastKnownUserRef.current);
+        await saveAuthState(lastKnownUserRef.current.uid, lastKnownUserRef.current.email || '');
       }
     };
     
     window.addEventListener('offline', handleOffline);
-    
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-      const isOffline = !navigator.onLine;
-      
-      if (firebaseUser) {
-        // User is authenticated - cache their info and update state
-        localStorage.setItem('cached_user_id', firebaseUser.uid);
-        localStorage.setItem('cached_user_email', firebaseUser.email || '');
-        lastKnownUserRef.current = firebaseUser;
-        setUser(firebaseUser);
-      } else {
-        // onAuthStateChanged fired with null
-        // CRITICAL: When offline, always check auth.currentUser directly
-        // Firebase persistence may still have the user even if callback says null
-        if (isOffline) {
-          const cachedUserId = localStorage.getItem('cached_user_id');
-          
-          // Always check auth.currentUser when offline - it's the source of truth
-          if (auth.currentUser) {
-            // Firebase persistence still has the user - use it!
-            console.log('[Auth] Offline: onAuthStateChanged(null) but auth.currentUser exists - using persisted user');
-            lastKnownUserRef.current = auth.currentUser;
-            setUser(auth.currentUser);
-            // Update cache
-            localStorage.setItem('cached_user_id', auth.currentUser.uid);
-            localStorage.setItem('cached_user_email', auth.currentUser.email || '');
-          } else if (lastKnownUserRef.current && cachedUserId) {
-            // No currentUser but we have last known user - keep it
-            console.log('[Auth] Offline: Using last known user from ref');
-            setUser(lastKnownUserRef.current);
-          } else if (cachedUserId) {
-            // Have cached ID but no user object - don't clear, layout will handle
-            console.log('[Auth] Offline: Have cached user ID, preserving state');
-            // Don't set to null - keep previous state
-          } else {
-            // Offline, no cache, no user - truly logged out
-            console.log('[Auth] Offline: No user, no cache - user is logged out');
-            setUser(null);
-          }
-        } else {
-          // Online and callback says null - user is truly logged out
-          console.log('[Auth] Online: User logged out');
-          localStorage.removeItem('cached_user_id');
-          localStorage.removeItem('cached_user_email');
-          lastKnownUserRef.current = null;
-          setUser(null);
-        }
-      }
-      setLoading(false);
-    });
 
     return () => {
       unsubscribe();

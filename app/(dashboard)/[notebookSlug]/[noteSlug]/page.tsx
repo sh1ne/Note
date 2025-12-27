@@ -344,7 +344,7 @@ export default function NoteEditorPage() {
       if (customEvent.detail?.noteId) {
         // If event has a noteId, only update if it matches current note
         if (note?.id && customEvent.detail.noteId === note.id) {
-          setIsSavedToCloud(true);
+      setIsSavedToCloud(true);
         }
       } else {
         // If no noteId in event, update for any sync (backward compatibility)
@@ -601,7 +601,7 @@ export default function NoteEditorPage() {
           setError('Unable to load note. Please check your connection.');
         }
       } else {
-        setError(errorMessage);
+      setError(errorMessage);
       }
     } finally {
       setLoading(false);
@@ -635,7 +635,7 @@ export default function NoteEditorPage() {
       // Force editor to update its content
       const html = editor.getHTML();
       // Trigger a save with current content (including any images)
-      await saveNote(true);
+    await saveNote(true);
       // Wait longer to ensure save completes and Firestore processes it
       // This is critical for images which need to be extracted and saved
       await new Promise(resolve => setTimeout(resolve, 500));
@@ -760,27 +760,27 @@ export default function NoteEditorPage() {
         const { createNote, createTab } = await import('@/lib/firebase/firestore');
         newTabId = await createTab({
           notebookId: currentNotebookId,
-          name: uniqueTitle,
-          icon: '📄',
-          order: 0,
-          isLocked: false,
-          isStaple: false,
-          createdAt: new Date(),
-        });
+        name: uniqueTitle,
+        icon: '📄',
+        order: 0,
+        isLocked: false,
+        isStaple: false,
+        createdAt: new Date(),
+      });
 
         noteId = await createNote({
-          userId: user.uid,
+        userId: user.uid,
           notebookId: currentNotebookId,
-          tabId: newTabId,
-          title: uniqueTitle,
-          content: '',
-          contentPlain: '',
-          images: [],
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          isArchived: false,
-          deletedAt: null,
-        });
+        tabId: newTabId,
+        title: uniqueTitle,
+        content: '',
+        contentPlain: '',
+        images: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        isArchived: false,
+        deletedAt: null,
+      });
       }
 
       const noteSlug = createSlug(uniqueTitle);
@@ -796,7 +796,7 @@ export default function NoteEditorPage() {
         }
         console.log('Verified note exists locally before navigation');
       }
-      
+
       router.push(`/${notebookSlug}/${noteSlug}`);
     } catch (error) {
       console.error('Error creating note:', error);
@@ -1131,9 +1131,9 @@ export default function NoteEditorPage() {
                       ✕
                     </button>
                   </div>
-                  <button
-                    onClick={async () => {
-                      if (!note) return;
+            <button
+              onClick={async () => {
+                if (!note) return;
                       const textToShare = `${note.title || 'Untitled Note'}\n\n${plainText || ''}`;
                       try {
                         await navigator.clipboard.writeText(textToShare);
@@ -1155,8 +1155,8 @@ export default function NoteEditorPage() {
                       e.stopPropagation();
                       if (!note) return;
                       setShowShareMenu(false);
-                      
-                      const textToShare = `${note.title || 'Untitled Note'}\n\n${plainText || ''}`;
+                
+                const textToShare = `${note.title || 'Untitled Note'}\n\n${plainText || ''}`;
                       const mailtoLink = `mailto:?subject=${encodeURIComponent(note.title || 'Untitled Note')}&body=${encodeURIComponent(textToShare)}`;
                       
                       // Check if we're on mobile (mailto usually works on mobile)
@@ -1217,21 +1217,21 @@ export default function NoteEditorPage() {
                             return;
                           }
                           
-                          await navigator.share({
-                            title: note.title || 'Untitled Note',
-                            text: plainText || '',
-                          });
+                    await navigator.share({
+                      title: note.title || 'Untitled Note',
+                      text: plainText || '',
+                    });
                           setToast({ message: 'Shared successfully!', type: 'success' });
                           setTimeout(() => setToast(null), 2000);
-                        } catch (err: any) {
-                          if (err.name === 'AbortError') {
+                  } catch (err: any) {
+                    if (err.name === 'AbortError') {
                             // User cancelled native share dialog - no action needed, menu already closed
                             // The native dialog has its own close/cancel button
                           } else if (err.name === 'NotAllowedError' || err.name === 'TypeError') {
                             // Share not supported or failed, fallback to clipboard
                             const textToShare = `${note.title || 'Untitled Note'}\n\n${plainText || ''}`;
-                            try {
-                              await navigator.clipboard.writeText(textToShare);
+                try {
+                  await navigator.clipboard.writeText(textToShare);
                               setToast({ message: 'Share not available. Copied to clipboard instead!', type: 'info' });
                               setTimeout(() => setToast(null), 3000);
                             } catch (clipErr) {
@@ -1242,12 +1242,12 @@ export default function NoteEditorPage() {
                             setToast({ message: 'Failed to share. Please try again.', type: 'error' });
                             setTimeout(() => setToast(null), 3000);
                           }
-                        }
-                      }}
+                }
+              }}
                       className="w-full text-left px-4 py-2 text-sm text-text-primary hover:bg-bg-primary transition-colors"
                     >
                       📤 Share via App
-                    </button>
+            </button>
                   )}
                   <button
                     onClick={async () => {
@@ -1292,14 +1292,14 @@ export default function NoteEditorPage() {
                 <line x1="21" y1="21" x2="16.65" y2="16.65"/>
               </svg>
             </button>
-            <button
+              <button
               onClick={handleCreateNote}
               className="flex items-center justify-center w-12 h-12 bg-green-600 hover:bg-green-700 text-white rounded transition-colors font-semibold"
               title="Create New Note"
               aria-label="Create New Note"
-            >
+              >
               <span className="text-3xl leading-none">+</span>
-            </button>
+              </button>
           </div>
         </div>
       </div>
@@ -1341,18 +1341,18 @@ export default function NoteEditorPage() {
             />
           ) : (
             <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <h1 
-                  className="text-2xl font-bold cursor-pointer hover:text-text-secondary"
-                  onClick={() => setIsEditingTitle(true)}
-                  title="Click to edit title"
-                >
-                  {note.title || 'Untitled Note'}
-                </h1>
-                <span className="text-sm text-text-secondary">
+            <div className="flex items-center gap-3">
+              <h1 
+                className="text-2xl font-bold cursor-pointer hover:text-text-secondary"
+                onClick={() => setIsEditingTitle(true)}
+                title="Click to edit title"
+              >
+                {note.title || 'Untitled Note'}
+              </h1>
+              <span className="text-sm text-text-secondary">
                   {` • Last saved: ${formatDate(note.updatedAt)} (${getSaveLocation()})`}
-                </span>
-              </div>
+              </span>
+            </div>
               {note.tabId && note.tabId !== 'staple' && (
                 <button
                   onClick={handleDelete}

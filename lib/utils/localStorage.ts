@@ -1,6 +1,14 @@
 import { openDB, DBSchema, IDBPDatabase } from 'idb';
 import { Note, Notebook } from '../types';
 
+export interface AuthState {
+  id: 'current'; // Always "current" - single auth state record
+  userId: string;
+  email: string;
+  lastVerified: Date;
+  token?: string; // Optional Firebase ID token
+}
+
 interface NotesDB extends DBSchema {
   notes: {
     key: string;
@@ -21,6 +29,10 @@ interface NotesDB extends DBSchema {
     value: Notebook;
     indexes: { 'by-userId': string; 'by-slug': string };
   };
+  auth: {
+    key: 'current';
+    value: AuthState;
+  };
 }
 
 let db: IDBPDatabase<NotesDB> | null = null;
@@ -28,9 +40,9 @@ let db: IDBPDatabase<NotesDB> | null = null;
 export const getDB = async (): Promise<IDBPDatabase<NotesDB>> => {
   if (db) return db;
   
-  // Always try to open with the highest version we support (4)
+  // Always try to open with the highest version we support (5)
   // This prevents issues where cached old code tries to use lower versions
-  const TARGET_VERSION = 4;
+  const TARGET_VERSION = 5;
   
   try {
     db = await openDB<NotesDB>('notes-db', TARGET_VERSION, {
@@ -56,6 +68,11 @@ export const getDB = async (): Promise<IDBPDatabase<NotesDB>> => {
           const notebooksStore = db.createObjectStore('notebooks', { keyPath: 'id' });
           notebooksStore.createIndex('by-userId', 'userId');
           notebooksStore.createIndex('by-slug', 'slug');
+        }
+        
+        // Create auth store if it doesn't exist (version 5+)
+        if (!db.objectStoreNames.contains('auth')) {
+          db.createObjectStore('auth', { keyPath: 'id' });
         }
       },
     });
@@ -93,6 +110,11 @@ export const getDB = async (): Promise<IDBPDatabase<NotesDB>> => {
               const notebooksStore = db.createObjectStore('notebooks', { keyPath: 'id' });
               notebooksStore.createIndex('by-userId', 'userId');
               notebooksStore.createIndex('by-slug', 'slug');
+            }
+            
+            // Create auth store if it doesn't exist (version 5+)
+            if (!db.objectStoreNames.contains('auth')) {
+              db.createObjectStore('auth', { keyPath: 'id' });
             }
           },
         });

@@ -44,8 +44,8 @@ export function useNote({ noteId, initialNote, onSaveComplete }: UseNoteOptions)
       prevNoteIdRef.current = noteId;
       isInitializedRef.current = false;
       
-        const effectiveNote = cachedNote || initialNote;
-        if (effectiveNote && effectiveNote.id === noteId) {
+    const effectiveNote = cachedNote || initialNote;
+    if (effectiveNote && effectiveNote.id === noteId) {
           const newContent = effectiveNote.content || '';
           const newPlainText = effectiveNote.contentPlain || '';
           
@@ -89,7 +89,7 @@ export function useNote({ noteId, initialNote, onSaveComplete }: UseNoteOptions)
 
     const currentContent = editorRef.current.getHTML();
     const currentPlainText = editorRef.current.getText();
-    
+
     // Extract image URLs from HTML content
     const imageUrls = extractImageUrls(currentContent);
 
@@ -300,7 +300,7 @@ export function useNote({ noteId, initialNote, onSaveComplete }: UseNoteOptions)
               finalTitle = 'New Note';
             }
           }
-
+          
           // Always include notebookId in update to ensure it's correct
           // This fixes notes that might have wrong notebookId from old data
           await updateNote(noteId, {

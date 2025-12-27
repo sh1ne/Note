@@ -34,8 +34,8 @@ function StorageUsageDisplay({ userId }: { userId: string }) {
       let totalNotes = 0;
       for (const notebook of notebooks) {
         const notes = await getNotes(notebook.id, undefined, userId);
-        // Exclude staple notes and deleted notes from count
-        const regularNotes = notes.filter((n) => n && n.tabId !== 'staple' && !n.deletedAt);
+      // Exclude staple notes and deleted notes from count
+      const regularNotes = notes.filter((n) => n && n.tabId !== 'staple' && !n.deletedAt);
         totalNotes += regularNotes.length;
       }
       

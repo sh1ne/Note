@@ -115,14 +115,14 @@ export const getNotebooks = async (userId: string): Promise<Notebook[]> => {
   
   // Online: query Firestore
   return retryFirestoreOperation(async () => {
-    const q = query(
-      collection(db, 'notebooks'),
-      where('userId', '==', userId)
-    );
-    const snapshot = await getDocs(q);
-    const notebooks: Notebook[] = [];
-    const batch = writeBatch(db);
-    let needsUpdate = false;
+  const q = query(
+    collection(db, 'notebooks'),
+    where('userId', '==', userId)
+  );
+  const snapshot = await getDocs(q);
+  const notebooks: Notebook[] = [];
+  const batch = writeBatch(db);
+  let needsUpdate = false;
   
   for (const docSnapshot of snapshot.docs) {
     const data = docSnapshot.data();
@@ -165,10 +165,10 @@ export const getNotebooks = async (userId: string): Promise<Notebook[]> => {
     } catch (cacheError) {
       console.error('Error caching notebooks:', cacheError);
       // Don't fail the operation if caching fails
-    }
+  }
   
-    // Sort by createdAt client-side to avoid needing an index
-    return notebooks.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  // Sort by createdAt client-side to avoid needing an index
+  return notebooks.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
   });
 };
 
@@ -250,12 +250,12 @@ export const getNotebookBySlug = async (userId: string, slug: string): Promise<N
   
   // Online: query Firestore
   try {
-    const q = query(
-      collection(db, 'notebooks'),
-      where('userId', '==', userId),
-      where('slug', '==', slug)
-    );
-    const snapshot = await getDocs(q);
+  const q = query(
+    collection(db, 'notebooks'),
+    where('userId', '==', userId),
+    where('slug', '==', slug)
+  );
+  const snapshot = await getDocs(q);
     if (snapshot.empty) {
       // Not found in Firestore, try cache as fallback
       try {
@@ -266,14 +266,14 @@ export const getNotebookBySlug = async (userId: string, slug: string): Promise<N
       }
       return null;
     }
-    
-    const doc = snapshot.docs[0];
+  
+  const doc = snapshot.docs[0];
     const notebook = {
-      id: doc.id,
-      ...doc.data(),
-      createdAt: doc.data().createdAt.toDate(),
-      updatedAt: doc.data().updatedAt.toDate(),
-    } as Notebook;
+    id: doc.id,
+    ...doc.data(),
+    createdAt: doc.data().createdAt.toDate(),
+    updatedAt: doc.data().updatedAt.toDate(),
+  } as Notebook;
     
     // Cache the notebook for offline access
     try {
@@ -447,7 +447,7 @@ export const getNotes = async (
       }
     }
     return {
-      id: doc.id,
+    id: doc.id,
       ...data,
       images: images, // Ensure images array is always present
       createdAt: data.createdAt.toDate(),
