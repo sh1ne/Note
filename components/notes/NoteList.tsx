@@ -127,6 +127,16 @@ export default function NoteList({ notes, onNoteClick, onNoteDeleted }: NoteList
 
   return (
     <>
+      {/* Select All button - always visible, small */}
+      <div className="mb-2 flex items-center justify-end">
+        <button
+          onClick={toggleSelectAll}
+          className="px-2 py-1 text-xs text-text-secondary hover:text-text-primary hover:bg-bg-secondary rounded transition-colors"
+          title={selectedNotes.size === notes.length ? 'Deselect All' : 'Select All'}
+        >
+          {selectedNotes.size === notes.length ? 'Deselect All' : 'Select All'}
+        </button>
+      </div>
       {/* Bulk actions bar */}
       {hasSelection && (
         <div className="sticky top-0 bg-bg-secondary border-b border-bg-primary p-3 z-10 flex items-center justify-between mb-2">
@@ -134,12 +144,6 @@ export default function NoteList({ notes, onNoteClick, onNoteDeleted }: NoteList
             {selectedNotes.size} note{selectedNotes.size !== 1 ? 's' : ''} selected
           </span>
           <div className="flex items-center gap-2">
-            <button
-              onClick={toggleSelectAll}
-              className="px-3 py-1 text-sm text-text-primary hover:text-text-secondary hover:bg-bg-primary rounded transition-colors"
-          >
-              {selectedNotes.size === notes.length ? 'Deselect All' : 'Select All'}
-            </button>
             <button
               onClick={handleBulkDelete}
               className="px-3 py-1 text-sm bg-red-600 hover:bg-red-700 text-white rounded transition-colors"
