@@ -11,44 +11,96 @@ export async function ensureStapleNoteExists(
   userId: string
 ): Promise<Note | null> {
   try {
-    const allNotes = await getNotes(notebookId, undefined, userId);
+    const isOffline = typeof window !== 'undefined' && !navigator.onLine;
+    
+    let allNotes: Note[];
+    if (isOffline) {
+      // Load from local cache when offline
+      const { getAllNotesLocally } = await import('@/lib/utils/localStorage');
+      const allLocalNotes = await getAllNotesLocally();
+      allNotes = allLocalNotes.filter((n) => n.notebookId === notebookId && n.userId === userId);
+    } else {
+      allNotes = await getNotes(notebookId, undefined, userId);
+    }
+    
     let stapleNote = allNotes.find((n) => n.title === stapleName && n.tabId === 'staple');
     
     if (!stapleNote) {
-      const noteId = await createNote({
-        userId,
-        notebookId,
-        tabId: 'staple',
-        title: stapleName,
-        content: '',
-        contentPlain: '',
-        images: [],
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        isArchived: false,
-        deletedAt: null,
-      });
-      
-      stapleNote = {
-        id: noteId,
-        userId,
-        notebookId,
-        tabId: 'staple',
-        title: stapleName,
-        content: '',
-        contentPlain: '',
-        images: [],
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        isArchived: false,
-        deletedAt: null,
-      } as Note;
+      if (isOffline) {
+        // Create locally when offline
+        const { saveNoteLocally, addToSyncQueue } = await import('@/lib/utils/localStorage');
+        const tempNoteId = `temp-staple-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        
+        stapleNote = {
+          id: tempNoteId,
+          userId,
+          notebookId,
+          tabId: 'staple',
+          title: stapleName,
+          content: '',
+          contentPlain: '',
+          images: [],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          isArchived: false,
+          deletedAt: null,
+        } as Note;
+        
+        await saveNoteLocally(stapleNote);
+        await addToSyncQueue(tempNoteId, {
+          title: stapleName,
+          content: '',
+          contentPlain: '',
+          images: [],
+          notebookId,
+          tabId: 'staple',
+        });
+      } else {
+        const noteId = await createNote({
+          userId,
+          notebookId,
+          tabId: 'staple',
+          title: stapleName,
+          content: '',
+          contentPlain: '',
+          images: [],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          isArchived: false,
+          deletedAt: null,
+        });
+        
+        stapleNote = {
+          id: noteId,
+          userId,
+          notebookId,
+          tabId: 'staple',
+          title: stapleName,
+          content: '',
+          contentPlain: '',
+          images: [],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          isArchived: false,
+          deletedAt: null,
+        } as Note;
+      }
     }
     
     return stapleNote;
   } catch (error) {
     console.error(`Error ensuring staple note ${stapleName} exists:`, error);
-    return null;
+    // Try to load from local cache as fallback
+    try {
+      const { getAllNotesLocally } = await import('@/lib/utils/localStorage');
+      const allLocalNotes = await getAllNotesLocally();
+      const stapleNote = allLocalNotes.find(
+        (n) => n.title === stapleName && n.tabId === 'staple' && n.notebookId === notebookId && n.userId === userId
+      );
+      return stapleNote || null;
+    } catch (cacheError) {
+      return null;
+    }
   }
 }
 
@@ -134,7 +186,18 @@ export async function generateUniqueNoteTitle(
   excludeNoteId?: string
 ): Promise<string> {
   try {
-    const allNotes = await getNotes(notebookId, undefined, userId);
+    const isOffline = typeof window !== 'undefined' && !navigator.onLine;
+    
+    let allNotes: Note[];
+    if (isOffline) {
+      // Load from local cache when offline
+      const { getAllNotesLocally } = await import('@/lib/utils/localStorage');
+      const allLocalNotes = await getAllNotesLocally();
+      allNotes = allLocalNotes.filter((n) => n.notebookId === notebookId && n.userId === userId);
+    } else {
+      allNotes = await getNotes(notebookId, undefined, userId);
+    }
+    
     const existingTitles = allNotes
       .filter((n) => !n.deletedAt && (!excludeNoteId || n.id !== excludeNoteId))
       .map((n) => n.title.trim().toLowerCase());
@@ -159,7 +222,33 @@ export async function generateUniqueNoteTitle(
     return uniqueTitle;
   } catch (error) {
     console.error('Error generating unique note title:', error);
-    return baseTitle === 'New Note' ? 'Note' : baseTitle; // Fallback to base title if error
+    // Try local cache as fallback
+    try {
+      const { getAllNotesLocally } = await import('@/lib/utils/localStorage');
+      const allLocalNotes = await getAllNotesLocally();
+      const allNotes = allLocalNotes.filter((n) => n.notebookId === notebookId && n.userId === userId);
+      const existingTitles = allNotes
+        .filter((n) => !n.deletedAt)
+        .map((n) => n.title.trim().toLowerCase());
+      
+      const effectiveBaseTitle = baseTitle === 'New Note' ? 'Note' : baseTitle;
+      let uniqueTitle = effectiveBaseTitle;
+      let counter = 1;
+      
+      if (existingTitles.includes(uniqueTitle.trim().toLowerCase())) {
+        uniqueTitle = `${effectiveBaseTitle}${counter}`;
+        counter++;
+      }
+      
+      while (existingTitles.includes(uniqueTitle.trim().toLowerCase())) {
+        uniqueTitle = `${effectiveBaseTitle}${counter}`;
+        counter++;
+      }
+      
+      return uniqueTitle;
+    } catch (cacheError) {
+      return baseTitle === 'New Note' ? 'Note' : baseTitle; // Fallback to base title if error
+    }
   }
 }
 
@@ -172,13 +261,23 @@ export async function getNoteBySlug(
   userId: string
 ): Promise<Note | null> {
   try {
+    const isOffline = typeof window !== 'undefined' && !navigator.onLine;
+    
     // First check if it's a staple note slug
     if (isStapleNoteSlug(noteSlug)) {
       return await getStapleNoteBySlug(noteSlug, notebookId, userId);
     }
     
     // Otherwise, search all notes in the notebook
-    const allNotes = await getNotes(notebookId, undefined, userId);
+    let allNotes: Note[];
+    if (isOffline) {
+      // Load from local cache when offline
+      const { getAllNotesLocally } = await import('@/lib/utils/localStorage');
+      const allLocalNotes = await getAllNotesLocally();
+      allNotes = allLocalNotes.filter((n) => n.notebookId === notebookId && n.userId === userId);
+    } else {
+      allNotes = await getNotes(notebookId, undefined, userId);
+    }
     
     // Find all notes matching the slug
     const matchingNotes = allNotes.filter((note) => {
@@ -201,6 +300,42 @@ export async function getNoteBySlug(
     return matchingNotes[0];
   } catch (error) {
     console.error(`Error getting note by slug ${noteSlug}:`, error);
+    // Try local cache as fallback
+    try {
+      const { getAllNotesLocally } = await import('@/lib/utils/localStorage');
+      const allLocalNotes = await getAllNotesLocally();
+      const allNotes = allLocalNotes.filter((n) => n.notebookId === notebookId && n.userId === userId);
+      
+      if (isStapleNoteSlug(noteSlug)) {
+        const stapleSlugMap: Record<string, string> = {
+          'scratch': 'Scratch',
+          'now': 'Now',
+          'short-term': 'Short-Term',
+          'long-term': 'Long-term',
+        };
+        const title = stapleSlugMap[noteSlug];
+        if (title) {
+          const stapleNote = allNotes.find((n) => n.title === title && n.tabId === 'staple');
+          if (stapleNote) return stapleNote;
+        }
+      }
+      
+      const matchingNotes = allNotes.filter((note) => {
+        const noteSlugFromTitle = createSlug(note.title);
+        return noteSlugFromTitle === noteSlug;
+      });
+      
+      if (matchingNotes.length > 0) {
+        matchingNotes.sort((a, b) => {
+          const aTime = a.updatedAt?.getTime() || 0;
+          const bTime = b.updatedAt?.getTime() || 0;
+          return bTime - aTime;
+        });
+        return matchingNotes[0];
+      }
+    } catch (cacheError) {
+      console.error('Error loading from cache:', cacheError);
+    }
     return null;
   }
 }

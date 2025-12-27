@@ -317,6 +317,14 @@ export default function NotebookPage() {
       }
 
       const noteSlug = createSlug(uniqueTitle);
+      
+      // Update pending count if offline (note was added to sync queue)
+      if (isOffline && typeof window !== 'undefined') {
+        const { getSyncQueue } = await import('@/lib/utils/localStorage');
+        const queue = await getSyncQueue();
+        window.dispatchEvent(new CustomEvent('sync-queue-updated', { detail: { count: queue.length } }));
+      }
+      
       router.push(`/${notebookSlug}/${noteSlug}`);
     } catch (error) {
       console.error('Error creating note:', error);
