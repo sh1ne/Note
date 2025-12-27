@@ -39,6 +39,30 @@ export function useTabs({ notebookId, defaultTabName = 'Scratch' }: UseTabsOptio
           notebookId,
         })) as Tab[];
         
+        // Add "All Notes" and "More" tabs for offline
+        tabsData.push(
+          {
+            id: `staple-all-notes`,
+            notebookId,
+            name: 'All Notes',
+            icon: '📋',
+            order: 5,
+            isStaple: true,
+            isLocked: true,
+            createdAt: new Date(),
+          },
+          {
+            id: `staple-more`,
+            notebookId,
+            name: 'More',
+            icon: '⋯',
+            order: 6,
+            isStaple: true,
+            isLocked: true,
+            createdAt: new Date(),
+          }
+        );
+        
         console.log('[useTabs] Offline: Using staple tabs fallback', tabsData.length);
       } else {
         // Online: load from Firestore
@@ -63,6 +87,31 @@ export function useTabs({ notebookId, defaultTabName = 'Scratch' }: UseTabsOptio
           id: `staple-${stapleTab.name.toLowerCase().replace(/\s+/g, '-')}`,
           notebookId,
         })) as Tab[];
+        
+        // Add "All Notes" and "More" tabs for offline fallback
+        fallbackTabs.push(
+          {
+            id: `staple-all-notes`,
+            notebookId,
+            name: 'All Notes',
+            icon: '📋',
+            order: 5,
+            isStaple: true,
+            isLocked: true,
+            createdAt: new Date(),
+          },
+          {
+            id: `staple-more`,
+            notebookId,
+            name: 'More',
+            icon: '⋯',
+            order: 6,
+            isStaple: true,
+            isLocked: true,
+            createdAt: new Date(),
+          }
+        );
+        
         setTabs(fallbackTabs);
         
         if (fallbackTabs.length > 0 && !hasSetDefault.current) {
