@@ -18,15 +18,22 @@ export function useNote({ noteId, initialNote, onSaveComplete }: UseNoteOptions)
   const effectiveInitialNote = cachedNote || initialNote;
   
   const [note, setNote] = useState<Note | null>(effectiveInitialNote);
-  const [content, setContent] = useState(effectiveInitialNote?.content || '');
-  const [plainText, setPlainText] = useState(effectiveInitialNote?.contentPlain || '');
+  // CRITICAL: Store initial content separately and NEVER update it from note changes
+  // This prevents the content prop from changing when note updates, which causes loops
+  const initialContentRef = useRef<string>(effectiveInitialNote?.content || '');
+  const content = initialContentRef.current;
+  // plainText is computed from note when needed, not stored as state to prevent re-render loops
+  const plainText = note?.contentPlain || '';
   const [isSaving, setIsSaving] = useState(false);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const editorRef = useRef<any>(null);
+  const noteRef = useRef<Note | null>(effectiveInitialNote);
   
   // Track previous noteId to prevent unnecessary updates
   const prevNoteIdRef = useRef<string | null>(null);
   const isInitializedRef = useRef(false);
+  const lastProcessedContentRef = useRef<string>('');
+  const isProcessingRef = useRef(false);
 
   // Update note ONLY when noteId changes (switching notes)
   // This prevents infinite loops from cache updates or initialNote object changes
@@ -36,16 +43,31 @@ export function useNote({ noteId, initialNote, onSaveComplete }: UseNoteOptions)
       prevNoteIdRef.current = noteId;
       isInitializedRef.current = false;
       
-      const effectiveNote = cachedNote || initialNote;
-      if (effectiveNote && effectiveNote.id === noteId) {
-        const newContent = effectiveNote.content || '';
-        const newPlainText = effectiveNote.contentPlain || '';
-        
-        setNote(effectiveNote);
-        setContent(newContent);
-        setPlainText(newPlainText);
-        isInitializedRef.current = true;
-      }
+        const effectiveNote = cachedNote || initialNote;
+        if (effectiveNote && effectiveNote.id === noteId) {
+          const newContent = effectiveNote.content || '';
+          const newPlainText = effectiveNote.contentPlain || '';
+          
+          // CRITICAL: Update initial content ref ONLY when switching notes
+          // This ensures content prop is stable and doesn't change during saves
+          initialContentRef.current = newContent;
+          
+          // CRITICAL: Use functional update to prevent unnecessary re-renders
+          // Only update if note actually changed
+          setNote(prevNote => {
+            if (prevNote?.id === effectiveNote.id && 
+                prevNote?.content === effectiveNote.content &&
+                prevNote?.title === effectiveNote.title) {
+              return prevNote; // Return same reference to prevent re-render
+            }
+            return effectiveNote;
+          });
+          noteRef.current = effectiveNote;
+          // Don't call setContent - it causes re-renders that trigger loops
+          // Content is managed by the editor itself
+          lastProcessedContentRef.current = newContent;
+          isInitializedRef.current = true;
+        }
     }
   }, [noteId]); // ONLY depend on noteId - ignore initialNote and cachedNote changes
 
@@ -67,9 +89,8 @@ export function useNote({ noteId, initialNote, onSaveComplete }: UseNoteOptions)
     const currentContent = editorRef.current.getHTML();
     const currentPlainText = editorRef.current.getText();
 
-    // Update local state
-    setContent(currentContent);
-    setPlainText(currentPlainText);
+    // Don't call setContent - it causes re-renders that trigger loops
+    // Content is managed by the editor itself
 
     const updatedNote: Note = {
       ...note,
@@ -77,7 +98,9 @@ export function useNote({ noteId, initialNote, onSaveComplete }: UseNoteOptions)
       contentPlain: currentPlainText,
       updatedAt: new Date(),
     };
-    setNote(updatedNote);
+    // CRITICAL: Don't call setNote here - it causes content prop to change, triggering editor re-render
+    // Only update noteRef for internal use - setNote will be called only if title changes
+    noteRef.current = updatedNote;
 
     // Save locally immediately
     saveNoteLocally(updatedNote);
@@ -100,7 +123,14 @@ export function useNote({ noteId, initialNote, onSaveComplete }: UseNoteOptions)
               ...updatedNote,
               title: finalTitle,
             };
-            setNote(updatedNoteWithTitle);
+            // CRITICAL: Only call setNote if title actually changed to prevent re-renders
+            setNote(prevNote => {
+              if (prevNote && prevNote.title === finalTitle) {
+                return prevNote; // Return same reference to prevent re-render
+              }
+              return updatedNoteWithTitle;
+            });
+            noteRef.current = updatedNoteWithTitle;
             saveNoteLocally(updatedNoteWithTitle);
           } else {
             finalTitle = 'New Note';
@@ -155,17 +185,46 @@ export function useNote({ noteId, initialNote, onSaveComplete }: UseNoteOptions)
   // Handle content change - delegates to saveNote for consistency
   const handleContentChange = useCallback(
     (newContent: string, newPlainText: string) => {
-      // DON'T call setContent here - it changes the prop and triggers TipTap useEffect
+      // CRITICAL: Don't process if noteId is empty or note is not initialized
+      // This prevents loops during initialization
+      if (!noteId || !note || !editorRef.current) {
+        return;
+      }
+      
+      // Prevent processing if already processing or content hasn't changed
+      if (isProcessingRef.current) {
+        return;
+      }
+      
+      // Skip if content is the same as last processed (prevent loops)
+      if (newContent === lastProcessedContentRef.current) {
+        return;
+      }
+      
+      // Don't process if note hasn't been initialized yet
+      if (!isInitializedRef.current) {
+        return;
+      }
+      
+      isProcessingRef.current = true;
+      lastProcessedContentRef.current = newContent;
+      
+      // DON'T call setContent or setPlainText here - they cause re-renders that trigger loops
       // The content is already in the editor, we just need to update note state
-      // Only update plainText for title generation
-      setPlainText(newPlainText);
+      // We'll compute plainText from newPlainText when needed
 
-      if (!note || !editorRef.current) return;
+      if (!note || !editorRef.current) {
+        isProcessingRef.current = false;
+        return;
+      }
+      
+      // Use noteRef to get latest note without causing re-renders
+      const currentNote = noteRef.current || note;
 
       // Auto-generate title from first line if needed
-      let title = note.title;
+      let title = currentNote.title;
       const firstLine = newPlainText.split('\n')[0].trim();
-      const shouldUpdateTitle = !note.title || note.title === firstLine.substring(0, 50);
+      const shouldUpdateTitle = !currentNote.title || currentNote.title === firstLine.substring(0, 50);
       
       if (shouldUpdateTitle && firstLine.length > 0) {
         title = firstLine.substring(0, 50);
@@ -175,14 +234,19 @@ export function useNote({ noteId, initialNote, onSaveComplete }: UseNoteOptions)
       }
 
       // Update note state with new title
+      // Use noteRef to avoid triggering re-renders during typing
       const updatedNote: Note = {
-        ...note,
+        ...currentNote,
         title,
         content: newContent,
         contentPlain: newPlainText,
         updatedAt: new Date(),
       };
-      setNote(updatedNote);
+      
+      // DON'T call setNote here - it causes re-renders that trigger the loop
+      // Only update noteRef for internal use during typing
+      // setNote will be called after successful cloud save
+      noteRef.current = updatedNote;
 
       // Save locally immediately
       saveNoteLocally(updatedNote);
@@ -198,6 +262,14 @@ export function useNote({ noteId, initialNote, onSaveComplete }: UseNoteOptions)
 
       // Debounce cloud sync using saveNote logic
       saveTimeoutRef.current = setTimeout(async () => {
+        // Check if content changed while we were waiting (skip if stale)
+        const currentEditorContent = editorRef.current?.getHTML() || '';
+        if (currentEditorContent !== newContent) {
+          // Content changed during debounce, skip this save (new one will be queued)
+          isProcessingRef.current = false;
+          return;
+        }
+        
         setIsSaving(true);
         // Dispatch sync start event
         if (typeof window !== 'undefined') {
@@ -208,43 +280,56 @@ export function useNote({ noteId, initialNote, onSaveComplete }: UseNoteOptions)
         try {
           // Ensure title is unique if empty or default
           if (!finalTitle || finalTitle.trim() === '' || finalTitle === 'Untitled Note') {
-            if (note.notebookId && note.userId) {
-              finalTitle = await generateUniqueNoteTitle('New Note', note.notebookId, note.userId, noteId);
-              // Update note state with unique title
+            if (currentNote.notebookId && currentNote.userId) {
+              finalTitle = await generateUniqueNoteTitle('New Note', currentNote.notebookId, currentNote.userId, noteId);
+              // Update noteRef with unique title (don't call setNote to prevent re-render)
               const updatedNoteWithTitle: Note = {
                 ...updatedNote,
                 title: finalTitle,
               };
-              setNote(updatedNoteWithTitle);
+              noteRef.current = updatedNoteWithTitle;
               saveNoteLocally(updatedNoteWithTitle);
             } else {
               finalTitle = 'New Note';
             }
           }
 
-          console.log('[useNote] Calling updateNote for:', {
-            noteId,
-            title: finalTitle,
-            contentLength: newContent.length,
-            timestamp: new Date().toISOString(),
-          });
-          
           // Always include notebookId in update to ensure it's correct
           // This fixes notes that might have wrong notebookId from old data
           await updateNote(noteId, {
             content: newContent,
             contentPlain: newPlainText,
             title: finalTitle,
-            notebookId: note.notebookId, // Ensure notebookId is correct
+            notebookId: currentNote.notebookId, // Ensure notebookId is correct
           });
           
-          console.log('[useNote] ✅ updateNote completed successfully');
-          
-          // Update cache after successful cloud save (not before to prevent loop)
-          updateCache({
+          // Update note state AFTER successful cloud save (not during typing)
+          const savedNote: Note = {
             ...updatedNote,
             title: finalTitle,
-          });
+          };
+          noteRef.current = savedNote;
+          
+          // CRITICAL: Only call setNote if title changed - prevents re-render loops
+          // If title didn't change, just update noteRef to avoid triggering re-renders
+          // Use functional update to ensure we have the latest state
+          if (finalTitle !== currentNote.title) {
+            setNote(prevNote => {
+              // Only update if title actually changed to prevent unnecessary re-renders
+              if (prevNote && prevNote.title === finalTitle) {
+                return prevNote; // Return same reference to prevent re-render
+              }
+              return savedNote;
+            });
+          } else {
+            // Even if title didn't change, update noteRef with latest content
+            noteRef.current = savedNote;
+          }
+          
+          // TEMPORARILY DISABLED: Update cache after successful cloud save
+          // This was causing re-renders that triggered the loop
+          // TODO: Re-enable with proper guards
+          // updateCache(savedNote);
           
           // Trigger sync event for UI update - successfully synced to cloud
           if (typeof window !== 'undefined') {
@@ -268,8 +353,9 @@ export function useNote({ noteId, initialNote, onSaveComplete }: UseNoteOptions)
           }
         } finally {
           setIsSaving(false);
+          isProcessingRef.current = false;
         }
-      }, 2500);
+      }, 3000); // Increased debounce to 3 seconds to prevent loops
     },
     [note, noteId, onSaveComplete]
   );
@@ -385,8 +471,6 @@ export function useNote({ noteId, initialNote, onSaveComplete }: UseNoteOptions)
     plainText,
     isSaving,
     setNote,
-    setContent,
-    setPlainText,
     setEditor,
     saveNote,
     handleContentChange,

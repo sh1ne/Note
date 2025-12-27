@@ -221,7 +221,8 @@ export default function NoteEditorPage() {
         saveNote(true); // Force immediate save
       }
     };
-  }, [note, editor, saveNote]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run on unmount, not when note/editor changes
 
   // Monitor online/offline status
   useEffect(() => {
@@ -261,14 +262,15 @@ export default function NoteEditorPage() {
     };
   }, []);
 
+  // Only update active tab when noteId changes (switching notes), not when note object changes
   useEffect(() => {
-    if (note && tabs.length > 0) {
-      const noteTab = findNoteTab(note, tabs);
+    if (initialNote && tabs.length > 0) {
+      const noteTab = findNoteTab(initialNote, tabs);
       if (noteTab) {
         setActiveTabId(noteTab.id);
       }
     }
-  }, [note, tabs, setActiveTabId]);
+  }, [initialNote?.id, tabs, setActiveTabId]);
 
   const loadNote = async () => {
     try {

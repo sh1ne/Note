@@ -43,6 +43,11 @@ export default function RichTextEditor({
   const isUpdatingFromPropsRef = useRef(false);
   const onChangeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastContentRef = useRef<string>('');
+  // Track the last time content was set programmatically - ignore updates for a short period
+  const lastProgrammaticUpdateRef = useRef<number>(0);
+  const PROGRAMMATIC_UPDATE_IGNORE_WINDOW = 2000; // Ignore updates for 2 seconds after programmatic update
+  // Track if onChange should be enabled - disable during initialization
+  const onChangeEnabledRef = useRef(false);
   
   const editor = useEditor({
     immediatelyRender: false, // Fix SSR hydration warnings
@@ -96,8 +101,19 @@ export default function RichTextEditor({
     // Don't use content prop - we'll set it manually to avoid controlled component issues
     // This makes the editor uncontrolled, preventing infinite loops
     onUpdate: ({ editor }) => {
-      // Skip onChange if we're updating from props to prevent infinite loop
+      // CRITICAL: Skip onChange if we're updating from props to prevent infinite loop
       if (isUpdatingFromPropsRef.current) {
+        return;
+      }
+      
+      // CRITICAL: Don't process onChange if it's not enabled (during initialization)
+      if (!onChangeEnabledRef.current) {
+        return;
+      }
+      
+      // CRITICAL: Ignore updates that happen shortly after a programmatic update
+      const now = Date.now();
+      if (now - lastProgrammaticUpdateRef.current < PROGRAMMATIC_UPDATE_IGNORE_WINDOW) {
         return;
       }
       
@@ -105,22 +121,41 @@ export default function RichTextEditor({
       const html = editor.getHTML();
       const plainText = editor.getText();
       
+      // Only process if content actually changed
+      if (html === lastContentRef.current) {
+        return;
+      }
+      
+      lastContentRef.current = html;
+      
       // Debounce onChange to prevent rapid-fire calls
       // Clear any pending onChange call
       if (onChangeTimeoutRef.current) {
         clearTimeout(onChangeTimeoutRef.current);
+        onChangeTimeoutRef.current = null;
       }
       
-      // Only call onChange if content actually changed
-      if (html !== lastContentRef.current) {
-        lastContentRef.current = html;
-        
-        // Debounce the onChange call by 300ms to batch rapid updates and prevent loops
-        onChangeTimeoutRef.current = setTimeout(() => {
-          onChange(html, plainText);
+      // Debounce the onChange call - only call if content actually changed
+      onChangeTimeoutRef.current = setTimeout(() => {
+        // Triple-check: flag, timing, enabled state, and content
+        if (isUpdatingFromPropsRef.current || !onChangeEnabledRef.current) {
           onChangeTimeoutRef.current = null;
-        }, 300);
-      }
+          return;
+        }
+        
+        const checkTime = Date.now();
+        if (checkTime - lastProgrammaticUpdateRef.current < PROGRAMMATIC_UPDATE_IGNORE_WINDOW) {
+          onChangeTimeoutRef.current = null;
+          return;
+        }
+        
+        const currentHtml = editor.getHTML();
+        if (currentHtml === html && currentHtml !== lastContentRef.current) {
+          lastContentRef.current = currentHtml;
+          onChange(html, plainText);
+        }
+        onChangeTimeoutRef.current = null;
+      }, 500);
     },
     editorProps: {
       attributes: {
@@ -166,23 +201,62 @@ export default function RichTextEditor({
 
   // Track if editor has been initialized - only set content ONCE on mount
   const isInitializedRef = useRef(false);
+  const initialContentRef = useRef<string | null>(null);
+  const noteIdRef = useRef<string | undefined>(noteId);
 
-  // Set initial content ONLY once when editor is first created
+  // Update noteId ref when it changes (switching notes)
+  useEffect(() => {
+    if (noteId !== noteIdRef.current) {
+      noteIdRef.current = noteId;
+      // Reset initialization when switching notes
+      isInitializedRef.current = false;
+      initialContentRef.current = null;
+    }
+  }, [noteId]);
+
+  // Set initial content ONLY once when editor is first created or when noteId changes
   // After this, we NEVER update editor from content prop to prevent infinite loops
-  // For note switches, the parent component will remount this component with new content
   useEffect(() => {
     if (!editor || isInitializedRef.current) return;
     
-    if (content) {
+    // Only set content once when editor is first ready or when noteId changes
+    // Check if noteId changed to determine if we should update content
+    if (content && (initialContentRef.current === null || noteId !== noteIdRef.current)) {
+      initialContentRef.current = content;
       isInitializedRef.current = true;
       isUpdatingFromPropsRef.current = true;
+      onChangeEnabledRef.current = false; // Disable onChange during initialization
+      lastProgrammaticUpdateRef.current = Date.now();
+      
+      // Use a transaction to set content without triggering update
       editor.commands.setContent(content, false);
-      // Reset flag after editor processes the update
-      setTimeout(() => {
-        isUpdatingFromPropsRef.current = false;
-      }, 300);
+      
+      // Reset flag and enable onChange after editor processes the update - use multiple RAFs and a longer delay
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            setTimeout(() => {
+              // Double-check editor content matches what we set
+              const currentContent = editor.getHTML();
+              if (currentContent === content) {
+                isUpdatingFromPropsRef.current = false;
+                // Enable onChange only after content is set and stable
+                setTimeout(() => {
+                  onChangeEnabledRef.current = true;
+                }, 500); // Additional delay before enabling onChange
+              } else {
+                // Content doesn't match, keep flag set longer
+                setTimeout(() => {
+                  isUpdatingFromPropsRef.current = false;
+                  onChangeEnabledRef.current = true;
+                }, 500);
+              }
+            }, 300); // Longer delay to ensure all updates are processed
+          });
+        });
+      });
     }
-  }, [editor]); // ONLY depend on editor - completely ignore content prop after init
+  }, [editor, noteId]); // ONLY depend on editor and noteId - NOT content to prevent loops
 
   // Show toolbar only when text is selected (mobile) or when editor is focused (desktop)
   useEffect(() => {
