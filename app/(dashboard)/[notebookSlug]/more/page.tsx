@@ -113,6 +113,7 @@ export default function MorePage() {
   const notebookSlug = params.notebookSlug as string;
   const [notebookId, setNotebookId] = useState<string | null>(null);
   const [notebooks, setNotebooks] = useState<Notebook[]>([]);
+  const [notebookNoteCounts, setNotebookNoteCounts] = useState<Record<string, number>>({});
   const [showDefaultConfirm, setShowDefaultConfirm] = useState<{ notebookId: string; notebookName: string } | null>(null);
   const [showDeleteNotebookConfirm, setShowDeleteNotebookConfirm] = useState<{ notebookId: string; notebookName: string } | null>(null);
   const [showDeletedNotes, setShowDeletedNotes] = useState(false);
