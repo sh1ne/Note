@@ -28,24 +28,64 @@ let db: IDBPDatabase<NotesDB> | null = null;
 export const getDB = async (): Promise<IDBPDatabase<NotesDB>> => {
   if (db) return db;
   
-  db = await openDB<NotesDB>('notes-db', 3, {
-    upgrade(db, oldVersion) {
-      if (oldVersion < 1) {
-      const notesStore = db.createObjectStore('notes', { keyPath: 'id' });
-      notesStore.createIndex('by-updatedAt', 'updatedAt');
-      db.createObjectStore('syncQueue', { keyPath: 'noteId' });
+  try {
+    db = await openDB<NotesDB>('notes-db', 3, {
+      upgrade(db, oldVersion) {
+        if (oldVersion < 1) {
+        const notesStore = db.createObjectStore('notes', { keyPath: 'id' });
+        notesStore.createIndex('by-updatedAt', 'updatedAt');
+        db.createObjectStore('syncQueue', { keyPath: 'noteId' });
+        }
+        if (oldVersion < 2) {
+          const backupsStore = db.createObjectStore('backups', { keyPath: 'timestamp' });
+          backupsStore.createIndex('by-timestamp', 'timestamp');
+        }
+        if (oldVersion < 3) {
+          const notebooksStore = db.createObjectStore('notebooks', { keyPath: 'id' });
+          notebooksStore.createIndex('by-userId', 'userId');
+          notebooksStore.createIndex('by-slug', 'slug');
+        }
+      },
+    });
+  } catch (error: any) {
+    // If version error, the database might already be at a higher version
+    // Try to open without specifying version to get the current version
+    if (error?.name === 'VersionError' || error?.message?.includes('version')) {
+      console.warn('Database version mismatch detected, attempting to reconnect...');
+      // Reset the db reference and try to open without version (will use existing version)
+      db = null;
+      try {
+        // Try to delete and recreate if version mismatch is critical
+        // But first, try opening with a higher version
+        db = await openDB<NotesDB>('notes-db', 4, {
+          upgrade(db, oldVersion) {
+            // Only create stores if they don't exist
+            if (!db.objectStoreNames.contains('notes')) {
+              const notesStore = db.createObjectStore('notes', { keyPath: 'id' });
+              notesStore.createIndex('by-updatedAt', 'updatedAt');
+            }
+            if (!db.objectStoreNames.contains('syncQueue')) {
+              db.createObjectStore('syncQueue', { keyPath: 'noteId' });
+            }
+            if (!db.objectStoreNames.contains('backups')) {
+              const backupsStore = db.createObjectStore('backups', { keyPath: 'timestamp' });
+              backupsStore.createIndex('by-timestamp', 'timestamp');
+            }
+            if (!db.objectStoreNames.contains('notebooks')) {
+              const notebooksStore = db.createObjectStore('notebooks', { keyPath: 'id' });
+              notebooksStore.createIndex('by-userId', 'userId');
+              notebooksStore.createIndex('by-slug', 'slug');
+            }
+          },
+        });
+      } catch (retryError) {
+        console.error('Failed to reconnect to database:', retryError);
+        throw retryError;
       }
-      if (oldVersion < 2) {
-        const backupsStore = db.createObjectStore('backups', { keyPath: 'timestamp' });
-        backupsStore.createIndex('by-timestamp', 'timestamp');
-      }
-      if (oldVersion < 3) {
-        const notebooksStore = db.createObjectStore('notebooks', { keyPath: 'id' });
-        notebooksStore.createIndex('by-userId', 'userId');
-        notebooksStore.createIndex('by-slug', 'slug');
-      }
-    },
-  });
+    } else {
+      throw error;
+    }
+  }
   
   return db;
 };
