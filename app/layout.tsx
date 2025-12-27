@@ -28,6 +28,12 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className="antialiased" suppressHydrationWarning>
         <Providers>{children}</Providers>
+        {/* Build timestamp for cache busting - helps identify if deployment updated */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `window.__BUILD_TIMESTAMP__ = "${process.env.VERCEL_GIT_COMMIT_SHA || Date.now()}";`,
+          }}
+        />
       </body>
     </html>
   );
