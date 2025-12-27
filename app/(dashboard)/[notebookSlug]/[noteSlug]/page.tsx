@@ -409,19 +409,43 @@ export default function NoteEditorPage() {
       setError(null);
       setLoading(true);
       
-      if (!user) {
+      // Get userId - check IndexedDB if user is null and offline
+      let currentUserId: string | null = null;
+      const isOffline = typeof window !== 'undefined' && !navigator.onLine;
+      
+      if (user?.uid) {
+        currentUserId = user.uid;
+      } else if (isOffline) {
+        // When offline and user is null, check IndexedDB auth state
+        const { getAuthState } = await import('@/lib/utils/authState');
+        const authState = await getAuthState();
+        if (authState) {
+          currentUserId = authState.userId;
+          console.log('[loadNote] Offline: Using IndexedDB auth state, userId:', currentUserId);
+        } else {
+          // No auth state anywhere
+          console.log('[loadNote] No user and no IndexedDB auth state');
+          isLoadingNoteRef.current = false;
+          return;
+        }
+      } else {
+        // Online and no user - can't proceed
+        console.log('[loadNote] Online and no user');
         isLoadingNoteRef.current = false;
         return;
       }
       
-      const isOffline = typeof window !== 'undefined' && !navigator.onLine;
+      if (!currentUserId) {
+        isLoadingNoteRef.current = false;
+        return;
+      }
       
       // If offline and notebookId is not set, try to get it from cache
       let currentNotebookId = notebookId;
-      if (isOffline && !currentNotebookId && user && notebookSlug) {
+      if (isOffline && !currentNotebookId && currentUserId && notebookSlug) {
         try {
           const { getNotebookBySlugLocally } = await import('@/lib/utils/localStorage');
-          const cachedNotebook = await getNotebookBySlugLocally(user.uid, notebookSlug);
+          const cachedNotebook = await getNotebookBySlugLocally(currentUserId, notebookSlug);
           if (cachedNotebook) {
             currentNotebookId = cachedNotebook.id;
             setNotebookId(cachedNotebook.id); // Update state so it's available for future calls
@@ -443,12 +467,12 @@ export default function NoteEditorPage() {
       
       let noteData: Note | null = null;
       
-      if (isOffline && user) {
+      if (isOffline && currentUserId) {
         // Try local cache first when offline
         try {
           const { getAllNotesLocally } = await import('@/lib/utils/localStorage');
           const allLocalNotes = await getAllNotesLocally();
-          const allNotes = allLocalNotes.filter((n) => n.notebookId === currentNotebookId && n.userId === user.uid);
+          const allNotes = allLocalNotes.filter((n) => n.notebookId === currentNotebookId && n.userId === currentUserId);
           
           // Check if it's a staple note slug
           const stapleSlugMap: Record<string, string> = {
@@ -483,8 +507,8 @@ export default function NoteEditorPage() {
       }
       
       // If not found in cache and online, try Firestore
-      if (!noteData && !isOffline && currentNotebookId) {
-        noteData = await getNoteBySlug(noteSlug, currentNotebookId, user.uid);
+      if (!noteData && !isOffline && currentNotebookId && currentUserId) {
+        noteData = await getNoteBySlug(noteSlug, currentNotebookId, currentUserId);
       }
       
       if (noteData) {
@@ -508,7 +532,7 @@ export default function NoteEditorPage() {
       } else {
         // Offline and note not found in cache - try to create if it's a staple note
         const { isStapleNoteSlug } = await import('@/lib/utils/noteHelpers');
-        if (isStapleNoteSlug(noteSlug) && user && currentNotebookId) {
+        if (isStapleNoteSlug(noteSlug) && currentUserId && currentNotebookId) {
           // Try to ensure staple note exists (will create locally if offline)
           const { ensureStapleNoteExists } = await import('@/lib/utils/noteHelpers');
           const stapleSlugMap: Record<string, string> = {
@@ -519,7 +543,7 @@ export default function NoteEditorPage() {
           };
           const stapleName = stapleSlugMap[noteSlug];
           if (stapleName) {
-            const createdStapleNote = await ensureStapleNoteExists(stapleName, currentNotebookId, user.uid);
+            const createdStapleNote = await ensureStapleNoteExists(stapleName, currentNotebookId, currentUserId);
             if (createdStapleNote) {
               setInitialNote(createdStapleNote);
               setTitleValue(createdStapleNote.title || '');
@@ -537,13 +561,30 @@ export default function NoteEditorPage() {
       
       // If offline, try local cache as fallback
       const isOffline = typeof window !== 'undefined' && !navigator.onLine;
-      if (isOffline && user) {
+      if (isOffline) {
+        // Get userId from IndexedDB if user is null
+        let fallbackUserId = user?.uid;
+        if (!fallbackUserId) {
+          try {
+            const { getAuthState } = await import('@/lib/utils/authState');
+            const authState = await getAuthState();
+            fallbackUserId = authState?.userId || null;
+          } catch (error) {
+            console.error('[loadNote] Error getting auth state in catch block:', error);
+          }
+        }
+        
+        if (!fallbackUserId) {
+          setError('Not authenticated');
+          return;
+        }
+        
         // Try to get notebookId from cache if not set
         let fallbackNotebookId = notebookId;
         if (!fallbackNotebookId && notebookSlug) {
           try {
             const { getNotebookBySlugLocally } = await import('@/lib/utils/localStorage');
-            const cachedNotebook = await getNotebookBySlugLocally(user.uid, notebookSlug);
+            const cachedNotebook = await getNotebookBySlugLocally(fallbackUserId, notebookSlug);
             if (cachedNotebook) {
               fallbackNotebookId = cachedNotebook.id;
             }
@@ -560,7 +601,7 @@ export default function NoteEditorPage() {
         try {
           const { getAllNotesLocally } = await import('@/lib/utils/localStorage');
           const allLocalNotes = await getAllNotesLocally();
-          const allNotes = allLocalNotes.filter((n) => n.notebookId === fallbackNotebookId && n.userId === user.uid);
+          const allNotes = allLocalNotes.filter((n) => n.notebookId === fallbackNotebookId && n.userId === fallbackUserId);
           
           const stapleSlugMap: Record<string, string> = {
             'scratch': 'Scratch',
