@@ -507,7 +507,7 @@ export default function NoteEditorPage() {
       {/* Header Bar */}
       <div className={`sticky ${!isOnline ? 'top-8' : 'top-0'} bg-bg-primary border-b border-bg-secondary z-20`}>
         <div className="flex items-center justify-between p-4">
-          <div className="flex items-center">
+          <div className="flex items-center gap-1">
             <button
               onClick={handleBack}
               className="p-1 text-text-primary hover:text-text-secondary hover:bg-bg-secondary rounded-lg transition-colors"
@@ -550,6 +550,8 @@ export default function NoteEditorPage() {
                 <path d="M3 17a9 9 0 019-9 9 9 0 016 2.3L21 13"/>
               </svg>
             </button>
+          </div>
+          <div className="flex-1 flex items-center justify-center">
             {isSaving && (
               <span className="text-xs text-text-secondary">
                 {isOnline ? 'Saving to cloud...' : 'Saving locally...'}
@@ -596,10 +598,54 @@ export default function NoteEditorPage() {
                     return;
                   }
                   
+                  // Show resize dialog before uploading
+                  const selectedSize = await new Promise<string | null>((resolve) => {
+                    const dialog = document.createElement('div');
+                    dialog.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm';
+                    dialog.innerHTML = `
+                      <div class="bg-bg-secondary border border-bg-primary rounded-lg p-6 max-w-sm w-full mx-4">
+                        <h3 class="text-lg font-semibold text-text-primary mb-4">Choose Image Size</h3>
+                        <div class="flex flex-col gap-2 mb-4">
+                          <button class="px-4 py-2 bg-bg-primary text-text-primary rounded hover:bg-bg-secondary border border-bg-secondary text-left" data-size="150px">Small (150px)</button>
+                          <button class="px-4 py-2 bg-bg-primary text-text-primary rounded hover:bg-bg-secondary border border-bg-secondary text-left" data-size="300px">Medium (300px)</button>
+                          <button class="px-4 py-2 bg-bg-primary text-text-primary rounded hover:bg-bg-secondary border border-bg-secondary text-left" data-size="500px">Large (500px)</button>
+                          <button class="px-4 py-2 bg-bg-primary text-text-primary rounded hover:bg-bg-secondary border border-bg-secondary text-left" data-size="100%">Full Width</button>
+                          <button class="px-4 py-2 bg-bg-primary text-text-primary rounded hover:bg-bg-secondary border border-bg-secondary text-left" data-size="auto">Original Size</button>
+                        </div>
+                        <button class="w-full px-4 py-2 bg-bg-primary text-text-primary rounded hover:bg-bg-secondary border border-bg-secondary" data-cancel>Cancel</button>
+                      </div>
+                    `;
+                    document.body.appendChild(dialog);
+                    
+                    dialog.querySelectorAll('button[data-size]').forEach((btn) => {
+                      btn.addEventListener('click', () => {
+                        const size = (btn as HTMLElement).dataset.size;
+                        document.body.removeChild(dialog);
+                        resolve(size || null);
+                      });
+                    });
+                    
+                    dialog.querySelector('button[data-cancel]')?.addEventListener('click', () => {
+                      document.body.removeChild(dialog);
+                      resolve(null);
+                    });
+                  });
+                  
+                  if (!selectedSize) {
+                    fileInput.remove();
+                    return;
+                  }
+                  
                   try {
                     const { uploadImage } = await import('@/lib/firebase/storage');
                     const imageUrl = await uploadImage(file, user.uid, initialNote.id);
-                    editor.chain().focus().setImage({ src: imageUrl }).run();
+                    
+                    // Insert image with selected size
+                    if (selectedSize === 'auto') {
+                      editor.chain().focus().setImage({ src: imageUrl }).run();
+                    } else {
+                      editor.chain().focus().setImage({ src: imageUrl, width: selectedSize }).run();
+                    }
                   } catch (error) {
                     console.error('Error uploading image:', error);
                   } finally {

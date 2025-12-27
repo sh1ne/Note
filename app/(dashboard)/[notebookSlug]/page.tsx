@@ -265,10 +265,10 @@ export default function NotebookPage() {
       {isAllNotesTab && (
         <div className="sticky top-0 bg-bg-primary border-b border-bg-secondary z-20">
           <div className="flex items-center justify-between p-4">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-1">
               <button
                 onClick={() => router.back()}
-                className="p-2 text-text-primary hover:text-text-secondary hover:bg-bg-secondary rounded-lg transition-colors"
+                className="p-1 text-text-primary hover:text-text-secondary hover:bg-bg-secondary rounded-lg transition-colors"
                 title="Back"
                 aria-label="Back"
               >
@@ -281,7 +281,7 @@ export default function NotebookPage() {
                   // Undo/redo not applicable for note list
                 }}
                 disabled
-                className="p-2 text-text-primary hover:text-text-secondary hover:bg-bg-secondary rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="p-1 text-text-primary hover:text-text-secondary hover:bg-bg-secondary rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 title="Undo"
                 aria-label="Undo"
               >
@@ -295,7 +295,7 @@ export default function NotebookPage() {
                   // Undo/redo not applicable for note list
                 }}
                 disabled
-                className="p-2 text-text-primary hover:text-text-secondary hover:bg-bg-secondary rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="p-1 text-text-primary hover:text-text-secondary hover:bg-bg-secondary rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 title="Redo"
                 aria-label="Redo"
               >
@@ -305,14 +305,14 @@ export default function NotebookPage() {
                 </svg>
               </button>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center">
               <button
                 onClick={handleCreateNote}
-                className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded transition-colors font-semibold"
+                className="flex items-center justify-center w-12 h-12 bg-green-600 hover:bg-green-700 text-white rounded transition-colors font-semibold"
                 title="Create New Note"
                 aria-label="Create New Note"
               >
-                +
+                <span className="text-3xl leading-none">+</span>
               </button>
               <button
                 onClick={() => {
@@ -321,11 +321,14 @@ export default function NotebookPage() {
                     setSearchQuery('');
                   }
                 }}
-                className="text-text-primary hover:text-text-secondary transition-colors"
+                className="p-2 text-cyan-400 hover:text-cyan-300 hover:bg-bg-secondary rounded-lg transition-colors ml-1"
                 title="Search"
                 aria-label="Search"
               >
-                🔍
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="11" cy="11" r="8"/>
+                  <path d="m21 21-4.35-4.35"/>
+                </svg>
               </button>
             </div>
           </div>
