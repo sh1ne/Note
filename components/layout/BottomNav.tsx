@@ -30,11 +30,11 @@ export default function BottomNav({
   const sortedTabs = [...regularTabsToShow, ...sortedStapleTabs];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-bg-primary border-t border-bg-secondary z-50 rounded-t-2xl overflow-hidden">
-      <div className="flex items-center justify-around h-12 px-2 safe-area-inset-bottom">
+    <nav className="fixed bottom-0 left-0 right-0 bg-bg-primary border-t border-bg-secondary z-50 overflow-hidden" style={{ borderRadius: 0 }}>
+      <div className="flex items-center justify-around h-14 px-2" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
         <button
           onClick={onCreateNote}
-          className="flex flex-col items-center justify-center w-10 h-10 bg-green-600 hover:bg-green-700 text-white rounded transition-colors"
+          className="flex flex-col items-center justify-center w-12 h-12 bg-green-600 hover:bg-green-700 text-white rounded transition-colors"
           title="Create note"
           aria-label="Create new note"
         >
@@ -44,7 +44,7 @@ export default function BottomNav({
           <button
             key={tab.id}
             onClick={() => onTabClick(tab.id)}
-            className={`flex flex-col items-center justify-center flex-1 h-10 text-text-primary hover:bg-bg-secondary rounded min-w-0 ${
+            className={`flex flex-col items-center justify-center flex-1 h-12 text-text-primary hover:bg-bg-secondary rounded min-w-0 ${
               activeTabId === tab.id ? 'bg-bg-secondary' : ''
             }`}
           >
