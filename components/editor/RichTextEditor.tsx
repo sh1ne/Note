@@ -8,6 +8,7 @@ import TextStyle from '@tiptap/extension-text-style';
 import Color from '@tiptap/extension-color';
 import Highlight from '@tiptap/extension-highlight';
 import Image from '@tiptap/extension-image';
+import { ImageResize } from './ImageResize';
 import Link from '@tiptap/extension-link';
 import Table from '@tiptap/extension-table';
 import TableRow from '@tiptap/extension-table-row';
@@ -420,6 +421,88 @@ export default function RichTextEditor({
     };
   }, [editor, userId, noteId]);
 
+  // Handle image resize on mobile
+  const [selectedImage, setSelectedImage] = useState<{ element: HTMLImageElement; pos: number } | null>(null);
+  
+  useEffect(() => {
+    if (!editor) return;
+    
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+    if (!isMobile) return;
+    
+    const handleImageClick = (e: MouseEvent | TouchEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'IMG' && target.closest('.tiptap')) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // Find image position in editor
+        const view = editor.view;
+        let pos = view.posAtDOM(target, 0);
+        
+        // Adjust position to point to the image node itself, not text before it
+        const { state } = editor;
+        const $pos = state.doc.resolve(pos);
+        let nodePos = pos;
+        
+        // Walk backwards to find the image node
+        for (let i = $pos.depth; i >= 0; i--) {
+          const node = $pos.node(i);
+          if (node.type.name === 'image') {
+            nodePos = $pos.start(i) - 1;
+            break;
+          }
+        }
+        
+        setSelectedImage({ element: target as HTMLImageElement, pos: nodePos });
+      }
+    };
+    
+    const editorElement = document.querySelector('.tiptap');
+    if (editorElement) {
+      editorElement.addEventListener('click', handleImageClick);
+      editorElement.addEventListener('touchend', handleImageClick);
+    }
+    
+    return () => {
+      if (editorElement) {
+        editorElement.removeEventListener('click', handleImageClick);
+        editorElement.removeEventListener('touchend', handleImageClick);
+      }
+    };
+  }, [editor]);
+
+  const handleImageResize = (width: number | string) => {
+    if (!selectedImage || !editor) return;
+    
+    const { pos } = selectedImage;
+    const { state } = editor;
+    const $pos = state.doc.resolve(pos);
+    const node = $pos.nodeAfter || $pos.nodeBefore;
+    
+    if (node && node.type.name === 'image') {
+      const attrs: any = { ...node.attrs };
+      
+      if (width === 'auto') {
+        delete attrs.width;
+        delete attrs.style;
+      } else if (typeof width === 'number') {
+        attrs.width = `${width}px`;
+        attrs.style = `width: ${width}px; height: auto;`;
+      } else {
+        attrs.width = width;
+        attrs.style = `width: ${width}; height: auto;`;
+      }
+      
+      editor.chain()
+        .setTextSelection({ from: pos, to: pos + node.nodeSize })
+        .updateAttributes('image', attrs)
+        .run();
+    }
+    
+    setSelectedImage(null);
+  };
+
   if (!editor) {
     return null;
   }
@@ -431,6 +514,59 @@ export default function RichTextEditor({
       <div className="p-4">
         <EditorContent editor={editor} />
       </div>
+      
+      {/* Image Resize Menu for Mobile */}
+      {selectedImage && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+          onClick={() => setSelectedImage(null)}
+        >
+          <div 
+            className="bg-bg-secondary border border-bg-secondary rounded-lg p-4 max-w-sm w-full"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-bold mb-4 text-text-primary">Resize Image</h3>
+            <div className="flex flex-col gap-2 mb-4">
+              <button
+                onClick={() => handleImageResize(150)}
+                className="px-4 py-2 bg-bg-primary text-text-primary rounded hover:bg-bg-secondary border border-bg-secondary text-left"
+              >
+                Small (150px)
+              </button>
+              <button
+                onClick={() => handleImageResize(300)}
+                className="px-4 py-2 bg-bg-primary text-text-primary rounded hover:bg-bg-secondary border border-bg-secondary text-left"
+              >
+                Medium (300px)
+              </button>
+              <button
+                onClick={() => handleImageResize(500)}
+                className="px-4 py-2 bg-bg-primary text-text-primary rounded hover:bg-bg-secondary border border-bg-secondary text-left"
+              >
+                Large (500px)
+              </button>
+              <button
+                onClick={() => handleImageResize('100%')}
+                className="px-4 py-2 bg-bg-primary text-text-primary rounded hover:bg-bg-secondary border border-bg-secondary text-left"
+              >
+                Full Width
+              </button>
+              <button
+                onClick={() => handleImageResize('auto')}
+                className="px-4 py-2 bg-bg-primary text-text-primary rounded hover:bg-bg-secondary border border-bg-secondary text-left"
+              >
+                Original Size
+              </button>
+            </div>
+            <button
+              onClick={() => setSelectedImage(null)}
+              className="w-full px-4 py-2 bg-bg-primary text-text-primary rounded hover:bg-bg-secondary border border-bg-secondary"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
       <style jsx global>{`
         .tiptap {
           color: var(--text-primary);
@@ -501,6 +637,17 @@ export default function RichTextEditor({
         }
         .tiptap p.is-editor-empty:first-child::before {
           color: var(--text-secondary);
+        }
+        /* Image resize controls for mobile */
+        .tiptap img {
+          max-width: 100%;
+          height: auto;
+          cursor: pointer;
+        }
+        @media (max-width: 768px) {
+          .tiptap img {
+            position: relative;
+          }
         }
       `}</style>
     </div>
