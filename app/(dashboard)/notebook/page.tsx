@@ -35,7 +35,6 @@ export default function NotebookPage() {
 
     try {
       setError(null);
-      setLoading(true);
       
       // Add a small delay to ensure Firestore is ready
       await new Promise(resolve => setTimeout(resolve, 500));
@@ -76,7 +75,6 @@ export default function NotebookPage() {
       } else {
         setError(errorMessage);
       }
-      setLoading(false);
     }
   }, [user, router]);
 
