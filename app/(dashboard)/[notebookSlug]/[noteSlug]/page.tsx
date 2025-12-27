@@ -383,13 +383,14 @@ export default function NoteEditorPage() {
   const handleTabClick = async (tabId: string) => {
     // Save current note before switching - ensure images are saved
     // Give it a moment to ensure editor content is fully updated
-    if (editor) {
+    if (editor && note) {
       // Force editor to update its content
       const html = editor.getHTML();
-      // Trigger a save with current content
+      // Trigger a save with current content (including any images)
       await saveNote(true);
-      // Small delay to ensure save completes
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Wait longer to ensure save completes and Firestore processes it
+      // This is critical for images which need to be extracted and saved
+      await new Promise(resolve => setTimeout(resolve, 500));
     }
 
     const tab = getTabById(tabId);
