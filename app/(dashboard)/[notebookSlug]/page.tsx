@@ -230,10 +230,10 @@ export default function NotebookPage() {
     if (!user || !notebookId) return;
 
     const isOffline = typeof window !== 'undefined' && !navigator.onLine;
+    let uniqueTitle: string | null = null;
 
     try {
       // Generate unique title (check local cache if offline)
-      let uniqueTitle: string;
       if (isOffline) {
         // For offline, use a simple counter-based approach
         const allLocalNotes = await getAllNotesLocally();
@@ -250,6 +250,10 @@ export default function NotebookPage() {
         }
       } else {
         uniqueTitle = await generateUniqueNoteTitle('New Note', notebookId, user.uid);
+      }
+
+      if (!uniqueTitle) {
+        throw new Error('Failed to generate unique title');
       }
 
       // Generate temporary ID for offline notes
@@ -331,7 +335,7 @@ export default function NotebookPage() {
       console.error('Error creating note:', error);
       // Show user-friendly error with more details
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      if (isOffline) {
+      if (isOffline && uniqueTitle) {
         // Check if note was actually created locally
         try {
           const { getAllNotesLocally } = await import('@/lib/utils/localStorage');
