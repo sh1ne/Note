@@ -73,10 +73,47 @@ export const createNotebook = async (notebook: Omit<Notebook, 'id' | 'slug'> & {
     updatedAt: Timestamp.now(),
   };
   await setDoc(notebookRef, notebookData);
+  
+  // Cache the new notebook
+  const newNotebook: Notebook = {
+    id: notebookRef.id,
+    ...notebook,
+    slug: uniqueSlug,
+    createdAt: notebookData.createdAt.toDate(),
+    updatedAt: notebookData.updatedAt.toDate(),
+  } as Notebook;
+  
+  try {
+    const { saveNotebookLocally } = await import('../utils/localStorage');
+    await saveNotebookLocally(newNotebook);
+  } catch (cacheError) {
+    console.error('Error caching new notebook:', cacheError);
+    // Don't fail the operation if caching fails
+  }
+  
   return notebookRef.id;
 };
 
 export const getNotebooks = async (userId: string): Promise<Notebook[]> => {
+  const isOffline = typeof window !== 'undefined' && !navigator.onLine;
+  
+  // If offline, try local cache first
+  if (isOffline) {
+    try {
+      const { getAllNotebooksLocally } = await import('../utils/localStorage');
+      const cachedNotebooks = await getAllNotebooksLocally();
+      const userNotebooks = cachedNotebooks.filter((nb) => nb.userId === userId);
+      if (userNotebooks.length > 0) {
+        return userNotebooks.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+      }
+    } catch (cacheError) {
+      console.error('Error loading notebooks from cache:', cacheError);
+    }
+    // If not found in cache and offline, return empty array
+    return [];
+  }
+  
+  // Online: query Firestore
   return retryFirestoreOperation(async () => {
     const q = query(
       collection(db, 'notebooks'),
@@ -119,6 +156,17 @@ export const getNotebooks = async (userId: string): Promise<Notebook[]> => {
     });
   }
   
+    // Cache all notebooks for offline access
+    try {
+      const { saveNotebookLocally } = await import('../utils/localStorage');
+      for (const notebook of notebooks) {
+        await saveNotebookLocally(notebook);
+      }
+    } catch (cacheError) {
+      console.error('Error caching notebooks:', cacheError);
+      // Don't fail the operation if caching fails
+    }
+  
     // Sort by createdAt client-side to avoid needing an index
     return notebooks.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
   });
@@ -149,25 +197,105 @@ export const updateNotebook = async (
     ...updates,
     updatedAt: Timestamp.now(),
   });
+  
+  // Update cache
+  try {
+    const { getNotebookLocally, saveNotebookLocally } = await import('../utils/localStorage');
+    const cachedNotebook = await getNotebookLocally(notebookId);
+    if (cachedNotebook) {
+      const updatedNotebook: Notebook = {
+        ...cachedNotebook,
+        ...updates,
+        updatedAt: new Date(),
+      };
+      await saveNotebookLocally(updatedNotebook);
+    } else {
+      // If not in cache, try to get from Firestore and cache it
+      const notebookDoc = await getDoc(notebookRef);
+      if (notebookDoc.exists()) {
+        const data = notebookDoc.data();
+        const notebook: Notebook = {
+          id: notebookDoc.id,
+          ...data,
+          createdAt: data.createdAt.toDate(),
+          updatedAt: data.updatedAt.toDate(),
+        } as Notebook;
+        await saveNotebookLocally(notebook);
+      }
+    }
+  } catch (cacheError) {
+    console.error('Error updating notebook cache:', cacheError);
+    // Don't fail the operation if caching fails
+  }
 };
 
 // Get notebook by slug
 export const getNotebookBySlug = async (userId: string, slug: string): Promise<Notebook | null> => {
-  const q = query(
-    collection(db, 'notebooks'),
-    where('userId', '==', userId),
-    where('slug', '==', slug)
-  );
-  const snapshot = await getDocs(q);
-  if (snapshot.empty) return null;
+  const isOffline = typeof window !== 'undefined' && !navigator.onLine;
   
-  const doc = snapshot.docs[0];
-  return {
-    id: doc.id,
-    ...doc.data(),
-    createdAt: doc.data().createdAt.toDate(),
-    updatedAt: doc.data().updatedAt.toDate(),
-  } as Notebook;
+  // If offline, try local cache first
+  if (isOffline) {
+    try {
+      const { getNotebookBySlugLocally } = await import('../utils/localStorage');
+      const cachedNotebook = await getNotebookBySlugLocally(userId, slug);
+      if (cachedNotebook) {
+        return cachedNotebook;
+      }
+    } catch (cacheError) {
+      console.error('Error loading notebook from cache:', cacheError);
+    }
+    // If not found in cache and offline, return null
+    return null;
+  }
+  
+  // Online: query Firestore
+  try {
+    const q = query(
+      collection(db, 'notebooks'),
+      where('userId', '==', userId),
+      where('slug', '==', slug)
+    );
+    const snapshot = await getDocs(q);
+    if (snapshot.empty) {
+      // Not found in Firestore, try cache as fallback
+      try {
+        const { getNotebookBySlugLocally } = await import('../utils/localStorage');
+        return await getNotebookBySlugLocally(userId, slug);
+      } catch (cacheError) {
+        console.error('Error loading notebook from cache fallback:', cacheError);
+      }
+      return null;
+    }
+    
+    const doc = snapshot.docs[0];
+    const notebook = {
+      id: doc.id,
+      ...doc.data(),
+      createdAt: doc.data().createdAt.toDate(),
+      updatedAt: doc.data().updatedAt.toDate(),
+    } as Notebook;
+    
+    // Cache the notebook for offline access
+    try {
+      const { saveNotebookLocally } = await import('../utils/localStorage');
+      await saveNotebookLocally(notebook);
+    } catch (cacheError) {
+      console.error('Error caching notebook:', cacheError);
+      // Don't fail the operation if caching fails
+    }
+    
+    return notebook;
+  } catch (error) {
+    console.error('Error loading notebook from Firestore:', error);
+    // If Firestore fails, try cache as fallback
+    try {
+      const { getNotebookBySlugLocally } = await import('../utils/localStorage');
+      return await getNotebookBySlugLocally(userId, slug);
+    } catch (cacheError) {
+      console.error('Error loading notebook from cache fallback:', cacheError);
+    }
+    return null;
+  }
 };
 
 /**

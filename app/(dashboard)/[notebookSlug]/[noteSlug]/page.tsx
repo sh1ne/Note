@@ -207,13 +207,46 @@ export default function NoteEditorPage() {
       try {
         const notebook = await getNotebookBySlug(user.uid, notebookSlug);
         if (!notebook) {
+          // If offline, try cache directly as fallback
+          const isOffline = typeof window !== 'undefined' && !navigator.onLine;
+          if (isOffline) {
+            try {
+              const { getNotebookBySlugLocally } = await import('@/lib/utils/localStorage');
+              const cachedNotebook = await getNotebookBySlugLocally(user.uid, notebookSlug);
+              if (cachedNotebook) {
+                setNotebookId(cachedNotebook.id);
+                setError(null);
+                return;
+              }
+            } catch (cacheError) {
+              console.error('Error loading notebook from cache:', cacheError);
+            }
+          }
           setError('Notebook not found');
           return;
         }
         setNotebookId(notebook.id);
+        setError(null);
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Failed to load notebook';
         console.error('Error loading notebook:', err);
+        
+        // If offline, try cache as fallback
+        const isOffline = typeof window !== 'undefined' && !navigator.onLine;
+        if (isOffline) {
+          try {
+            const { getNotebookBySlugLocally } = await import('@/lib/utils/localStorage');
+            const cachedNotebook = await getNotebookBySlugLocally(user.uid, notebookSlug);
+            if (cachedNotebook) {
+              setNotebookId(cachedNotebook.id);
+              setError(null);
+              return;
+            }
+          } catch (cacheError) {
+            console.error('Error loading notebook from cache fallback:', cacheError);
+          }
+        }
+        
         setError(errorMessage);
       }
     };

@@ -1,5 +1,5 @@
 import { openDB, DBSchema, IDBPDatabase } from 'idb';
-import { Note } from '../types';
+import { Note, Notebook } from '../types';
 
 interface NotesDB extends DBSchema {
   notes: {
@@ -16,6 +16,11 @@ interface NotesDB extends DBSchema {
     value: { timestamp: number; data: any };
     indexes: { 'by-timestamp': number };
   };
+  notebooks: {
+    key: string;
+    value: Notebook;
+    indexes: { 'by-userId': string; 'by-slug': string };
+  };
 }
 
 let db: IDBPDatabase<NotesDB> | null = null;
@@ -23,7 +28,7 @@ let db: IDBPDatabase<NotesDB> | null = null;
 export const getDB = async (): Promise<IDBPDatabase<NotesDB>> => {
   if (db) return db;
   
-  db = await openDB<NotesDB>('notes-db', 2, {
+  db = await openDB<NotesDB>('notes-db', 3, {
     upgrade(db, oldVersion) {
       if (oldVersion < 1) {
       const notesStore = db.createObjectStore('notes', { keyPath: 'id' });
@@ -33,6 +38,11 @@ export const getDB = async (): Promise<IDBPDatabase<NotesDB>> => {
       if (oldVersion < 2) {
         const backupsStore = db.createObjectStore('backups', { keyPath: 'timestamp' });
         backupsStore.createIndex('by-timestamp', 'timestamp');
+      }
+      if (oldVersion < 3) {
+        const notebooksStore = db.createObjectStore('notebooks', { keyPath: 'id' });
+        notebooksStore.createIndex('by-userId', 'userId');
+        notebooksStore.createIndex('by-slug', 'slug');
       }
     },
   });
@@ -110,4 +120,35 @@ export const getLatestBackup = async () => {
 export const getAllBackups = async () => {
   const database = await getDB();
   return await database.getAll('backups');
+};
+
+// Notebook storage functions
+export const saveNotebookLocally = async (notebook: Notebook) => {
+  const database = await getDB();
+  await database.put('notebooks', {
+    ...notebook,
+    updatedAt: new Date(),
+  });
+};
+
+export const getNotebookLocally = async (notebookId: string): Promise<Notebook | undefined> => {
+  const database = await getDB();
+  return await database.get('notebooks', notebookId);
+};
+
+export const getAllNotebooksLocally = async (): Promise<Notebook[]> => {
+  const database = await getDB();
+  return await database.getAll('notebooks');
+};
+
+export const getNotebookBySlugLocally = async (userId: string, slug: string): Promise<Notebook | null> => {
+  const database = await getDB();
+  const tx = database.transaction('notebooks', 'readonly');
+  const index = tx.store.index('by-slug');
+  const notebooks = await index.getAll(slug);
+  await tx.done;
+  
+  // Filter by userId and slug (index only filters by slug)
+  const matchingNotebook = notebooks.find((nb) => nb.userId === userId && nb.slug === slug);
+  return matchingNotebook || null;
 };
