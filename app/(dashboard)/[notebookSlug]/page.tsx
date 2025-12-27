@@ -238,7 +238,7 @@ export default function NotebookPage() {
         // For offline, use a simple counter-based approach
         const allLocalNotes = await getAllNotesLocally();
         const existingTitles = allLocalNotes
-          .filter((n) => n.notebookId === notebookId && !n.deletedAt)
+          .filter((n) => n.notebookId === notebookId && n.userId === user.uid && !n.deletedAt)
           .map((n) => n.title.trim().toLowerCase());
         
         const baseTitle = 'Note';
@@ -285,6 +285,7 @@ export default function NotebookPage() {
         };
         
         await saveNoteLocally(newNote);
+        console.log('Note saved locally:', { noteId, title: uniqueTitle });
         
         // Add to sync queue for when we come back online
         await addToSyncQueue(noteId, {
@@ -293,7 +294,10 @@ export default function NotebookPage() {
           contentPlain: '',
           images: [],
           notebookId,
+          tabId: newTabId,
+          userId: user.uid,
         });
+        console.log('Note added to sync queue:', { noteId, title: uniqueTitle });
       } else {
         // Online: Create in Firestore
         newTabId = await createTab({
@@ -322,12 +326,25 @@ export default function NotebookPage() {
       }
 
       const noteSlug = createSlug(uniqueTitle);
+      console.log('Navigating to note:', { notebookSlug, noteSlug, title: uniqueTitle });
       
       // Update pending count if offline (note was added to sync queue)
       if (isOffline && typeof window !== 'undefined') {
         const { getSyncQueue } = await import('@/lib/utils/localStorage');
         const queue = await getSyncQueue();
         window.dispatchEvent(new CustomEvent('sync-queue-updated', { detail: { count: queue.length } }));
+        console.log('Sync queue updated, count:', queue.length);
+      }
+      
+      // Verify note exists before navigating (especially for offline)
+      if (isOffline) {
+        const { getAllNotesLocally } = await import('@/lib/utils/localStorage');
+        const allLocalNotes = await getAllNotesLocally();
+        const createdNote = allLocalNotes.find((n) => n.id === noteId);
+        if (!createdNote) {
+          throw new Error('Note was not saved locally');
+        }
+        console.log('Verified note exists locally before navigation');
       }
       
       router.push(`/${notebookSlug}/${noteSlug}`);

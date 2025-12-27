@@ -382,8 +382,8 @@ export default function NoteEditorPage() {
         }
       }
       
-      // If not found in cache (or online), try Firestore
-      if (!noteData) {
+      // If not found in cache and online, try Firestore
+      if (!noteData && !isOffline) {
         noteData = await getNoteBySlug(noteSlug, notebookId, user.uid);
       }
       
@@ -396,8 +396,12 @@ export default function NoteEditorPage() {
         if (expectedSlug !== noteSlug) {
           router.replace(`/${notebookSlug}/${expectedSlug}`);
         }
-      } else {
+      } else if (!isOffline) {
+        // Only set error if online and note not found
         setError('Note not found');
+      } else {
+        // Offline and note not found in cache
+        setError('Note not found in local cache');
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load note';
