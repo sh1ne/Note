@@ -62,10 +62,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
                 setLoading(false);
               }
             } else {
-              // Online but Firebase doesn't have user - IndexedDB state might be stale
-              // Clear it and wait for Firebase to verify
-              console.log('[Auth] Initial mount - IndexedDB has state but Firebase user not found, clearing stale state');
-              await clearAuthState();
+              // Online but Firebase doesn't have user yet - might be loading
+              // DON'T clear IndexedDB - wait for Firebase to verify via onAuthStateChanged
+              // If Firebase truly doesn't have user, onAuthStateChanged will fire and we'll clear then
+              console.log('[Auth] Initial mount - IndexedDB has state but Firebase user not found yet, waiting for Firebase to verify');
+              // Keep IndexedDB state, set loading to false so layout can check it
+              setLoading(false);
             }
           } else {
             // No auth state in IndexedDB - check for migration from localStorage

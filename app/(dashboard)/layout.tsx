@@ -17,19 +17,24 @@ export default function DashboardLayout({
   const hasRedirectedRef = useRef(false);
   const [hasIndexedDBAuth, setHasIndexedDBAuth] = useState<boolean | null>(null);
 
-  // Check IndexedDB auth state (source of truth)
+  // Check IndexedDB auth state (source of truth) - but only after AuthContext finishes loading
   useEffect(() => {
-    const checkIndexedDBAuth = async () => {
-      try {
-        const authenticated = await isAuthenticated();
-        setHasIndexedDBAuth(authenticated);
-      } catch (error) {
-        console.error('[DashboardLayout] Error checking IndexedDB auth:', error);
-        setHasIndexedDBAuth(false);
-      }
-    };
-    checkIndexedDBAuth();
-  }, []);
+    if (!loading) {
+      // Wait for AuthContext to finish loading before checking IndexedDB
+      // This prevents race conditions where we check before migration completes
+      const checkIndexedDBAuth = async () => {
+        try {
+          const authenticated = await isAuthenticated();
+          setHasIndexedDBAuth(authenticated);
+          console.log('[DashboardLayout] Checked IndexedDB auth state:', authenticated);
+        } catch (error) {
+          console.error('[DashboardLayout] Error checking IndexedDB auth:', error);
+          setHasIndexedDBAuth(false);
+        }
+      };
+      checkIndexedDBAuth();
+    }
+  }, [loading]);
 
   useEffect(() => {
     if (!loading && hasIndexedDBAuth !== null && !hasRedirectedRef.current) {
