@@ -24,6 +24,8 @@ interface RichTextEditorProps {
   placeholder?: string;
   onEditorReady?: (editor: any) => void;
   onCreateNote?: () => void;
+  userId?: string;
+  noteId?: string;
 }
 
 export default function RichTextEditor({
@@ -32,6 +34,8 @@ export default function RichTextEditor({
   placeholder = 'Start typing...',
   onEditorReady,
   onCreateNote,
+  userId,
+  noteId,
 }: RichTextEditorProps) {
   const [showToolbar, setShowToolbar] = useState(false);
   
@@ -252,7 +256,7 @@ export default function RichTextEditor({
 
   return (
     <div className="bg-bg-primary text-text-primary min-h-[calc(100vh-200px)]">
-      {showToolbar && <EditorToolbar editor={editor} onCreateNote={onCreateNote} />}
+      {showToolbar && <EditorToolbar editor={editor} onCreateNote={onCreateNote} userId={userId} noteId={noteId} />}
       <div className="p-4">
         <EditorContent editor={editor} />
       </div>
@@ -333,10 +337,54 @@ export default function RichTextEditor({
   );
 }
 
-function EditorToolbar({ editor, onCreateNote }: { editor: any; onCreateNote?: () => void }) {
+function EditorToolbar({ 
+  editor, 
+  onCreateNote, 
+  userId, 
+  noteId 
+}: { 
+  editor: any; 
+  onCreateNote?: () => void;
+  userId?: string;
+  noteId?: string;
+}) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploading, setIsUploading] = useState(false);
+
   if (!editor) {
     return null;
   }
+
+  // Handle image upload
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !file.type.startsWith('image/')) {
+      return;
+    }
+
+    if (!userId || !noteId) {
+      console.error('Cannot upload image: userId or noteId missing');
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      const { uploadImage } = await import('@/lib/firebase/storage');
+      const imageUrl = await uploadImage(file, userId, noteId);
+      
+      // Insert image into editor at current cursor position
+      editor.chain().focus().setImage({ src: imageUrl }).run();
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      // Could show a toast here
+    } finally {
+      setIsUploading(false);
+      // Reset file input so same file can be selected again
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
 
   // Check alignment states
   const isCenterActive = editor.isActive({ textAlign: 'center' });
@@ -464,6 +512,38 @@ function EditorToolbar({ editor, onCreateNote }: { editor: any; onCreateNote?: (
       >
         ☑
       </button>
+
+      {/* Image Upload */}
+      <button
+        onClick={(e) => {
+          e.preventDefault();
+          fileInputRef.current?.click();
+        }}
+        disabled={isUploading || !userId || !noteId}
+        className={`px-2 py-1.5 rounded transition-all text-text-primary hover:text-text-primary shrink-0 ${
+          isUploading
+            ? 'opacity-50 cursor-not-allowed'
+            : 'border-2 border-transparent hover:bg-bg-primary/30'
+        }`}
+        title={isUploading ? 'Uploading...' : 'Insert Image'}
+      >
+        {isUploading ? (
+          '⏳'
+        ) : (
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+            <path d="M2 2h12v12H2V2zm1 1v10h10V3H3zm2 2h6v6H5V5zm1 1v4h4V6H6zm1.5-1.5a.5.5 0 1 1 0 1 .5.5 0 0 1 0-1z"/>
+          </svg>
+        )}
+      </button>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        onChange={handleImageUpload}
+        className="hidden"
+        aria-label="Upload image"
+      />
 
       {/* Alignment */}
       <button

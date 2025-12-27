@@ -834,6 +834,8 @@ export default function NoteEditorPage() {
       {/* Editor */}
       <div className="max-w-4xl mx-auto">
         <RichTextEditor
+          userId={user?.uid}
+          noteId={initialNote?.id}
           content={content}
           onChange={handleContentChange}
           placeholder="Start writing..."
