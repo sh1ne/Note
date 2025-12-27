@@ -223,6 +223,12 @@ export function useNote({ noteId, initialNote, onSaveComplete }: UseNoteOptions)
           
           console.log('[useNote] ✅ updateNote completed successfully');
           
+          // Update cache after successful cloud save (not before to prevent loop)
+          updateCache({
+            ...updatedNote,
+            title: finalTitle,
+          });
+          
           // Trigger sync event for UI update - successfully synced to cloud
           if (typeof window !== 'undefined') {
             const now = Date.now();
