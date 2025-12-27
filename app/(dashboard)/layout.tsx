@@ -17,23 +17,28 @@ export default function DashboardLayout({
 
   useEffect(() => {
     if (!loading && !hasRedirectedRef.current) {
-      // Check if we have a user OR if we're offline with cached user info
       const isOffline = typeof window !== 'undefined' && !navigator.onLine;
       const cachedUserId = typeof window !== 'undefined' ? localStorage.getItem('cached_user_id') : null;
-      const isOnDashboardRoute = pathname && pathname !== '/login' && pathname !== '/signup';
+      const isOnDashboardRoute = pathname && pathname !== '/login' && pathname !== '/signup' && pathname !== '/';
       
-      // If we're on a dashboard route and offline with cached user, never redirect
-      if (isOnDashboardRoute && isOffline && cachedUserId) {
-        console.log('[DashboardLayout] Offline on dashboard route with cached user - preventing redirect');
-        return;
+      // CRITICAL: If we're on a dashboard route and offline, NEVER redirect
+      // This prevents redirects when going offline on any note/page
+      if (isOnDashboardRoute && isOffline) {
+        if (cachedUserId) {
+          console.log('[DashboardLayout] Offline on dashboard route with cached user - preventing redirect');
+        } else {
+          console.log('[DashboardLayout] Offline on dashboard route - preventing redirect (no cache but staying on page)');
+        }
+        return; // Never redirect when offline on dashboard route
       }
       
+      // Only redirect if online and no user, or offline with no cache and not on dashboard route
       if (!user && !isOffline) {
         // Online and no user - redirect to login
         hasRedirectedRef.current = true;
         router.push('/login');
-      } else if (!user && isOffline && !cachedUserId) {
-        // Offline and no user and no cache - redirect to login
+      } else if (!user && isOffline && !cachedUserId && !isOnDashboardRoute) {
+        // Offline, no user, no cache, and not on dashboard route - redirect to login
         hasRedirectedRef.current = true;
         router.push('/login');
       } else if (!user && isOffline && cachedUserId) {

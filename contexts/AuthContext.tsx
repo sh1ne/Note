@@ -41,20 +41,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   useEffect(() => {
     if (typeof window === 'undefined') return;
     
-    // On initial mount, if we're offline and have cached user, preserve current user
+    // On initial mount, check Firebase persistence directly
     if (isInitialMountRef.current) {
       isInitialMountRef.current = false;
-      const isOffline = !navigator.onLine;
-      const cachedUserId = localStorage.getItem('cached_user_id');
-      if (isOffline && cachedUserId && auth.currentUser) {
+      // Always check auth.currentUser on mount - Firebase persistence should have it
+      if (auth.currentUser) {
         lastKnownUserRef.current = auth.currentUser;
         setUser(auth.currentUser);
-        setLoading(false);
-        console.log('[Auth] Initial mount offline - preserving current user from Firebase persistence');
+        localStorage.setItem('cached_user_id', auth.currentUser.uid);
+        localStorage.setItem('cached_user_email', auth.currentUser.email || '');
+        console.log('[Auth] Initial mount - found user in Firebase persistence');
       }
     }
     
+    // Listen for offline events to immediately preserve user state
+    const handleOffline = () => {
+      if (auth.currentUser) {
+        console.log('[Auth] Going offline - preserving current user state');
+        lastKnownUserRef.current = auth.currentUser;
+        setUser(auth.currentUser);
+        localStorage.setItem('cached_user_id', auth.currentUser.uid);
+        localStorage.setItem('cached_user_email', auth.currentUser.email || '');
+      } else if (lastKnownUserRef.current) {
+        console.log('[Auth] Going offline - preserving last known user');
+        setUser(lastKnownUserRef.current);
+      }
+    };
+    
+    window.addEventListener('offline', handleOffline);
+    
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      const isOffline = !navigator.onLine;
+      
       if (firebaseUser) {
         // User is authenticated - cache their info and update state
         localStorage.setItem('cached_user_id', firebaseUser.uid);
@@ -62,29 +80,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         lastKnownUserRef.current = firebaseUser;
         setUser(firebaseUser);
       } else {
-        // Firebase says user is null
-        const isOffline = !navigator.onLine;
-        const cachedUserId = localStorage.getItem('cached_user_id');
-        
-        if (isOffline && cachedUserId) {
-          // Offline and we have cached user info
-          if (lastKnownUserRef.current) {
-            // Keep using last known user
-            console.log('[Auth] Offline mode - preserving user session from cache');
-            setUser(lastKnownUserRef.current);
-          } else if (auth.currentUser) {
-            // Firebase still has user in persistence, use it
-            console.log('[Auth] Offline mode - using Firebase persisted user');
+        // onAuthStateChanged fired with null
+        // CRITICAL: When offline, always check auth.currentUser directly
+        // Firebase persistence may still have the user even if callback says null
+        if (isOffline) {
+          const cachedUserId = localStorage.getItem('cached_user_id');
+          
+          // Always check auth.currentUser when offline - it's the source of truth
+          if (auth.currentUser) {
+            // Firebase persistence still has the user - use it!
+            console.log('[Auth] Offline: onAuthStateChanged(null) but auth.currentUser exists - using persisted user');
             lastKnownUserRef.current = auth.currentUser;
             setUser(auth.currentUser);
+            // Update cache
+            localStorage.setItem('cached_user_id', auth.currentUser.uid);
+            localStorage.setItem('cached_user_email', auth.currentUser.email || '');
+          } else if (lastKnownUserRef.current && cachedUserId) {
+            // No currentUser but we have last known user - keep it
+            console.log('[Auth] Offline: Using last known user from ref');
+            setUser(lastKnownUserRef.current);
+          } else if (cachedUserId) {
+            // Have cached ID but no user object - don't clear, layout will handle
+            console.log('[Auth] Offline: Have cached user ID, preserving state');
+            // Don't set to null - keep previous state
           } else {
-            // No user object but have cached ID - don't set to null
-            // Layout will check for cachedUserId
-            console.log('[Auth] Offline mode - have cached user ID, keeping state');
-            // Don't call setUser(null) - leave it as is
+            // Offline, no cache, no user - truly logged out
+            console.log('[Auth] Offline: No user, no cache - user is logged out');
+            setUser(null);
           }
         } else {
-          // Online and no user - clear cache and set user to null
+          // Online and callback says null - user is truly logged out
+          console.log('[Auth] Online: User logged out');
           localStorage.removeItem('cached_user_id');
           localStorage.removeItem('cached_user_email');
           lastKnownUserRef.current = null;
@@ -94,7 +120,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       setLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribe();
+      window.removeEventListener('offline', handleOffline);
+    };
   }, []);
 
   return (
