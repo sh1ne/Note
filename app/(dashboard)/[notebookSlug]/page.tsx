@@ -260,19 +260,27 @@ export default function NotebookPage() {
   };
 
   const handleCreateNote = async () => {
-    if (!user) return;
+    if (!user) {
+      console.error('handleCreateNote: No user');
+      return;
+    }
 
     const isOffline = typeof window !== 'undefined' && !navigator.onLine;
+    console.log('handleCreateNote: Starting', { isOffline, notebookId, notebookSlug, userId: user.uid });
     
     // If offline and notebookId is not set, try to get it from cache
     let currentNotebookId = notebookId;
     if (isOffline && !currentNotebookId && user && notebookSlug) {
       try {
+        console.log('handleCreateNote: Attempting to load notebook from cache');
         const { getNotebookBySlugLocally } = await import('@/lib/utils/localStorage');
         const cachedNotebook = await getNotebookBySlugLocally(user.uid, notebookSlug);
         if (cachedNotebook) {
           currentNotebookId = cachedNotebook.id;
           setNotebookId(cachedNotebook.id); // Update state
+          console.log('handleCreateNote: Loaded notebook from cache', { notebookId: currentNotebookId });
+        } else {
+          console.warn('handleCreateNote: Notebook not found in cache');
         }
       } catch (cacheError) {
         console.error('Error loading notebook from cache in handleCreateNote:', cacheError);
@@ -280,6 +288,7 @@ export default function NotebookPage() {
     }
     
     if (!currentNotebookId) {
+      console.error('handleCreateNote: No notebookId available', { notebookId, currentNotebookId, isOffline });
       alert('Notebook not found. Please go online to load it first.');
       return;
     }

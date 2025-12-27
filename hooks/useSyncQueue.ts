@@ -13,6 +13,12 @@ export function useSyncQueue() {
   const processSyncQueue = async () => {
     // Prevent concurrent processing
     if (isProcessingRef.current) return;
+    
+    // Only process if online
+    if (typeof window !== 'undefined' && !navigator.onLine) {
+      return;
+    }
+    
     isProcessingRef.current = true;
 
     try {
