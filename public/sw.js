@@ -81,14 +81,18 @@ self.addEventListener('fetch', (event) => {
   const isProdStaticAsset = url.pathname.startsWith('/_next/static/');
   
   if (isDevStaticAsset) {
-    // For dev mode static assets, check cache first
+    // For dev mode static assets, only intercept if cached
+    // If not cached, don't intercept at all (let Next.js dev server handle it)
+    // Since we can't conditionally call event.respondWith(), we check cache and only intercept if cached
     event.respondWith(
       caches.match(request).then((cachedResponse) => {
         if (cachedResponse) {
+          // Cached - return it
           return cachedResponse;
         }
-        // Not in cache - let request go through normally (don't intercept)
-        // This allows Next.js dev server to handle it
+        // Not in cache - fetch it (will fail offline, but that's expected in dev mode)
+        // Don't catch the error - let it fail naturally so Next.js can handle it
+        // This prevents the Service Worker from breaking the page with 404/503 responses
         return fetch(request);
       })
     );
