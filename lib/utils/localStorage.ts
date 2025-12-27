@@ -12,7 +12,7 @@ interface NotesDB extends DBSchema {
     value: { noteId: string; data: Partial<Note>; timestamp: number };
   };
   backups: {
-    key: string;
+    key: number; // keyPath is 'timestamp', which is a number
     value: { timestamp: number; data: any };
     indexes: { 'by-timestamp': number };
   };
@@ -94,6 +94,7 @@ export const saveBackup = async (data: any) => {
     const sorted = allBackups.sort((a, b) => b.timestamp - a.timestamp);
     const toDelete = sorted.slice(10);
     for (const backup of toDelete) {
+      // timestamp is the keyPath, so we need to pass it as the key
       await database.delete('backups', backup.timestamp);
     }
   }
