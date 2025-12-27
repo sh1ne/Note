@@ -38,6 +38,9 @@ export default function RichTextEditor({
   // Track if we're updating from props to prevent onUpdate trigger
   const isUpdatingFromPropsRef = useRef(false);
   
+  // Track if we should use content prop (only on initial load)
+  const shouldUseContentPropRef = useRef(true);
+  
   const editor = useEditor({
     immediatelyRender: false, // Fix SSR hydration warnings
     extensions: [
@@ -87,7 +90,8 @@ export default function RichTextEditor({
         emptyEditorClass: 'is-editor-empty',
       }),
     ],
-    content,
+    // Only use content prop on initial load - after that, editor is uncontrolled
+    content: shouldUseContentPropRef.current ? content : undefined,
     onUpdate: ({ editor }) => {
       // Skip onChange if we're updating from props to prevent infinite loop
       if (isUpdatingFromPropsRef.current) {
@@ -142,27 +146,25 @@ export default function RichTextEditor({
     }
   }, [editor, onEditorReady]);
 
-  // Track if editor has been initialized and the last content we set from props
-  const isInitializedRef = useRef(false);
-  const lastPropContentRef = useRef<string>('');
+  // Track the last content we set from props to detect note switches
+  const lastPropContentRef = useRef<string>(content);
 
-  // Handle content prop changes ONLY on initial load or when explicitly different
-  // This prevents the loop: we only update editor from props when switching notes, not on every user input
+  // Handle content prop changes ONLY when switching notes (content prop changes significantly)
+  // After initial load, we make the editor uncontrolled to prevent loops
   useEffect(() => {
     if (!editor) return;
     
+    // Mark that we've initialized, so content prop is no longer used in useEditor
+    if (shouldUseContentPropRef.current) {
+      shouldUseContentPropRef.current = false;
+    }
+    
     const currentContent = editor.getHTML();
     
-    // Only update if:
-    // 1. Not yet initialized (first load)
-    // 2. Content prop changed AND it's different from what we last set (switching notes)
-    // 3. Content prop is different from current editor content
-    const shouldUpdate = !isInitializedRef.current || 
-                         (content !== lastPropContentRef.current && content !== currentContent);
-    
-    if (shouldUpdate) {
+    // Only update if content prop changed significantly (likely a note switch)
+    // Compare with last prop content, not current editor content, to avoid loops
+    if (content !== lastPropContentRef.current && content !== currentContent) {
       lastPropContentRef.current = content;
-      isInitializedRef.current = true;
       isUpdatingFromPropsRef.current = true;
       editor.commands.setContent(content, false);
       // Reset flag after editor has processed the update
