@@ -43,13 +43,26 @@ export function useSyncQueue() {
             errorCode: error?.code,
             dataKeys: Object.keys(item.data || {}),
           });
+          
+          // If note doesn't exist in Firestore, remove it from queue (it's stale)
+          if (error?.message?.includes('does not exist in Firestore') || 
+              error?.message?.includes('Note') && error?.message?.includes('does not exist')) {
+            console.warn('[Sync Queue] ⚠️ Note does not exist, removing from queue:', item.noteId);
+            await removeFromSyncQueue(item.noteId);
+            // Trigger sync event to update UI (pending count will decrease)
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new Event('note-synced'));
+            }
+            continue; // Skip to next item
+          }
+          
           // Dispatch error event for UI
           if (typeof window !== 'undefined') {
             window.dispatchEvent(new CustomEvent('note-sync-error', { 
               detail: { noteId: item.noteId, error } 
             }));
           }
-          // Keep in queue for retry
+          // Keep in queue for retry (only for other errors)
         }
       }
     } catch (error) {
