@@ -147,6 +147,7 @@ export default function NoteEditorPage() {
   const [showShareMenu, setShowShareMenu] = useState(false);
   const [pendingSyncCount, setPendingSyncCount] = useState(0);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const shareMenuRef = useRef<HTMLDivElement>(null);
 
   // Check sync queue periodically to show pending count (especially useful when offline)
@@ -453,38 +454,56 @@ export default function NoteEditorPage() {
   const handleDeleteConfirm = async () => {
     if (!note) return;
     try {
+      setIsDeleting(true);
       await deleteNote(note.id);
       setShowDeleteConfirm(false);
       router.back();
     } catch (error) {
       console.error('Error deleting note:', error);
       setShowDeleteConfirm(false);
+      setIsDeleting(false);
     }
   };
 
-  if (!notebookId || loading) {
-    return <LoadingSpinner message="Loading note..." />;
+  // Show loading spinner during initial load, notebook loading, or deletion
+  if (!notebookId || loading || isDeleting) {
+    return <LoadingSpinner message={isDeleting ? "Deleting note..." : "Loading note..."} />;
   }
 
-  if (error || !note) {
+  // Only show error if we have an actual error (not just missing note during load)
+  if (error) {
     return (
       <ErrorMessage
-        message={error || 'Note not found'}
-        onRetry={error ? loadNote : undefined}
+        message={error}
+        onRetry={loadNote}
       />
     );
   }
 
+  // Only show "Note not found" if we've finished loading and note is still null
+  if (!note && !loading) {
+    return (
+      <ErrorMessage
+        message="Note not found"
+        onRetry={loadNote}
+      />
+    );
+  }
+
+  // If note is null but we might still be loading, show loading spinner
+  if (!note) {
+    return <LoadingSpinner message="Loading note..." />;
+  }
+
   const formatDate = (date: Date) => {
-    // Always show full timestamp (date and time) for clarity
-    const now = new Date();
-    return new Intl.DateTimeFormat('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined,
-      hour: 'numeric',
-      minute: '2-digit',
-    }).format(date);
+    // Format: MM/DD/YY HH:MM:SS
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const year = String(date.getFullYear()).slice(-2);
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const seconds = String(date.getSeconds()).padStart(2, '0');
+    return `${month}/${day}/${year} ${hours}:${minutes}:${seconds}`;
   };
 
   const getSaveLocation = () => {
