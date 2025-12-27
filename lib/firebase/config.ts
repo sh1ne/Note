@@ -28,15 +28,21 @@ if (typeof window !== 'undefined') {
   db = getFirestore(app);
   storage = getStorage(app);
   
-  // Set auth persistence to keep users logged in
-  setPersistence(auth, browserLocalPersistence).catch((error) => {
-    console.warn('Auth persistence warning:', error);
-  });
+  // Set auth persistence to keep users logged in (only once)
+  if (!(auth as any)._persistenceSet) {
+    setPersistence(auth, browserLocalPersistence).catch((error) => {
+      console.warn('Auth persistence warning:', error);
+    });
+    (auth as any)._persistenceSet = true;
+  }
   
-  // Ensure Firestore network is enabled
-  enableNetwork(db).catch((error) => {
-    console.warn('Firestore network enable warning:', error);
-  });
+  // Ensure Firestore network is enabled (only once)
+  if (!(db as any)._networkEnabled) {
+    enableNetwork(db).catch((error) => {
+      console.warn('Firestore network enable warning:', error);
+    });
+    (db as any)._networkEnabled = true;
+  }
 }
 
 export { app, auth, db, storage };
