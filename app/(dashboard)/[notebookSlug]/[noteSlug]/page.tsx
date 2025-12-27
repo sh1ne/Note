@@ -927,7 +927,8 @@ export default function NoteEditorPage() {
                   {note.title || 'Untitled Note'}
                 </h1>
                 <span className="text-sm text-text-secondary">
-                  • {formatDate(note.updatedAt)}
+                  {getSaveStatus() && ` • ${getSaveStatus()}`}
+                  {` • ${formatDate(note.updatedAt)}`}
                 </span>
               </div>
               {note.tabId && note.tabId !== 'staple' && (
