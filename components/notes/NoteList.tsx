@@ -137,7 +137,7 @@ export default function NoteList({ notes, onNoteClick, onNoteDeleted }: NoteList
             <button
               onClick={toggleSelectAll}
               className="px-3 py-1 text-sm text-text-primary hover:text-text-secondary hover:bg-bg-primary rounded transition-colors"
-            >
+          >
               {selectedNotes.size === notes.length ? 'Deselect All' : 'Select All'}
             </button>
             <button
@@ -186,49 +186,49 @@ export default function NoteList({ notes, onNoteClick, onNoteDeleted }: NoteList
                     }
                   }}
                   className="flex-1 text-left"
-                >
+            >
                   <div className="flex items-start justify-between mb-1 pr-8">
                     <h3 className="font-semibold text-base text-text-primary">
-                      {note.title || 'Untitled Note'}
-                    </h3>
-                    <span className="text-xs text-text-secondary whitespace-nowrap ml-2">
-                      {formatDateTime(note.updatedAt)}
-                    </span>
-                  </div>
-                  {note.contentPlain && (
-                    <p className="text-sm text-text-secondary line-clamp-2">
-                      {getPreview(note.contentPlain)}
-                    </p>
-                  )}
-                  {note.images.length > 0 && (
+                  {note.title || 'Untitled Note'}
+                </h3>
+                <span className="text-xs text-text-secondary whitespace-nowrap ml-2">
+                  {formatDateTime(note.updatedAt)}
+                </span>
+              </div>
+              {note.contentPlain && (
+                <p className="text-sm text-text-secondary line-clamp-2">
+                  {getPreview(note.contentPlain)}
+                </p>
+              )}
+              {note.images.length > 0 && (
                     <div className="mt-1 flex gap-2">
-                      {note.images.slice(0, 3).map((img, idx) => (
-                        <img
-                          key={idx}
-                          src={img}
-                          alt={`Image ${idx + 1}`}
-                          className="w-16 h-16 object-cover rounded"
-                        />
-                      ))}
-                    </div>
-                  )}
-                </button>
+                  {note.images.slice(0, 3).map((img, idx) => (
+                    <img
+                      key={idx}
+                      src={img}
+                      alt={`Image ${idx + 1}`}
+                      className="w-16 h-16 object-cover rounded"
+                    />
+                  ))}
+                </div>
+              )}
+            </button>
               </div>
               {/* Delete button in top right - only show when not in selection mode */}
               {!hasSelection && (
-                <button
-                  onClick={(e) => handleDeleteClick(e, note.id, note.title || 'Untitled Note')}
+            <button
+              onClick={(e) => handleDeleteClick(e, note.id, note.title || 'Untitled Note')}
                   className="absolute top-1.5 right-1.5 w-6 h-6 flex items-center justify-center text-red-500 hover:text-red-400 transition-colors"
-                  title="Delete note"
-                  aria-label="Delete note"
-                >
+              title="Delete note"
+              aria-label="Delete note"
+            >
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="18" y1="6" x2="6" y2="18"></line>
-                    <line x1="6" y1="6" x2="18" y2="18"></line>
-                  </svg>
-                </button>
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
               )}
-            </div>
+          </div>
           );
         })}
       </div>

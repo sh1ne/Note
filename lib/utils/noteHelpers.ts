@@ -54,36 +54,37 @@ export async function ensureStapleNoteExists(
           images: [],
           notebookId,
           tabId: 'staple',
+          userId,
         });
       } else {
-        const noteId = await createNote({
-          userId,
-          notebookId,
-          tabId: 'staple',
-          title: stapleName,
-          content: '',
-          contentPlain: '',
-          images: [],
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          isArchived: false,
-          deletedAt: null,
-        });
-        
-        stapleNote = {
-          id: noteId,
-          userId,
-          notebookId,
-          tabId: 'staple',
-          title: stapleName,
-          content: '',
-          contentPlain: '',
-          images: [],
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          isArchived: false,
-          deletedAt: null,
-        } as Note;
+      const noteId = await createNote({
+        userId,
+        notebookId,
+        tabId: 'staple',
+        title: stapleName,
+        content: '',
+        contentPlain: '',
+        images: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        isArchived: false,
+        deletedAt: null,
+      });
+      
+      stapleNote = {
+        id: noteId,
+        userId,
+        notebookId,
+        tabId: 'staple',
+        title: stapleName,
+        content: '',
+        contentPlain: '',
+        images: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        isArchived: false,
+        deletedAt: null,
+      } as Note;
       }
     }
     
@@ -99,7 +100,7 @@ export async function ensureStapleNoteExists(
       );
       return stapleNote || null;
     } catch (cacheError) {
-      return null;
+    return null;
     }
   }
 }

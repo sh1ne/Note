@@ -155,7 +155,7 @@ export default function RichTextEditor({
         const currentHtml = editor.getHTML();
         if (currentHtml === html && currentHtml !== lastContentRef.current) {
           lastContentRef.current = currentHtml;
-          onChange(html, plainText);
+      onChange(html, plainText);
         }
         onChangeTimeoutRef.current = null;
       }, 500);
@@ -264,7 +264,7 @@ export default function RichTextEditor({
   // Long press handler for mobile
   useEffect(() => {
     if (!editor) return;
-    
+
     const editorElement = editor.view.dom;
     let longPressTimer: NodeJS.Timeout | null = null;
     const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
@@ -353,11 +353,11 @@ export default function RichTextEditor({
         }, 200);
       } else {
         // On desktop: hide when blur
-        setTimeout(() => {
-          if (!editor.isFocused) {
-            setShowToolbar(false);
-          }
-        }, 200);
+      setTimeout(() => {
+        if (!editor.isFocused) {
+          setShowToolbar(false);
+        }
+      }, 200);
       }
     };
 
@@ -584,7 +584,7 @@ function EditorToolbar({
                        editor.getHTML().includes('style="text-align:left"');
 
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
-  
+
   return (
     <div className={`editor-toolbar flex items-center justify-between gap-1 p-2 border-b border-bg-secondary bg-bg-secondary/80 backdrop-blur-sm ${isMobile ? 'sticky top-0 left-0 right-0 z-40' : 'md:sticky md:top-0 md:bottom-auto md:z-10'} overflow-x-auto`}>
       <div className="flex items-center gap-1 flex-nowrap min-w-0 max-w-full">

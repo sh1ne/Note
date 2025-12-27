@@ -177,7 +177,7 @@ export default function NotebookPage() {
           setError('Unable to load notes. Please check your connection.');
         }
       } else {
-        setError(errorMessage);
+      setError(errorMessage);
       }
     }
   };
@@ -221,7 +221,7 @@ export default function NotebookPage() {
           setError('Unable to load notes. Please check your connection.');
         }
       } else {
-        setError(errorMessage);
+      setError(errorMessage);
       }
     }
   };
@@ -301,28 +301,28 @@ export default function NotebookPage() {
       } else {
         // Online: Create in Firestore
         newTabId = await createTab({
-          notebookId,
-          name: uniqueTitle,
-          icon: '📄',
-          order: 0,
-          isLocked: false,
-          isStaple: false,
-          createdAt: new Date(),
-        });
+        notebookId,
+        name: uniqueTitle,
+        icon: '📄',
+        order: 0,
+        isLocked: false,
+        isStaple: false,
+        createdAt: new Date(),
+      });
 
         noteId = await createNote({
-          userId: user.uid,
-          notebookId,
-          tabId: newTabId,
-          title: uniqueTitle,
-          content: '',
-          contentPlain: '',
-          images: [],
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          isArchived: false,
-          deletedAt: null,
-        });
+        userId: user.uid,
+        notebookId,
+        tabId: newTabId,
+        title: uniqueTitle,
+        content: '',
+        contentPlain: '',
+        images: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        isArchived: false,
+        deletedAt: null,
+      });
       }
 
       const noteSlug = createSlug(uniqueTitle);
@@ -352,23 +352,28 @@ export default function NotebookPage() {
       console.error('Error creating note:', error);
       // Show user-friendly error with more details
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      if (isOffline && uniqueTitle) {
+      if (isOffline && uniqueTitle && user) {
         // Check if note was actually created locally
         try {
           const { getAllNotesLocally } = await import('@/lib/utils/localStorage');
           const allLocalNotes = await getAllNotesLocally();
-          const createdNote = allLocalNotes.find((n) => n.title === uniqueTitle && n.notebookId === notebookId);
+          const createdNote = allLocalNotes.find(
+            (n) => n.title === uniqueTitle && n.notebookId === notebookId && n.userId === user.uid
+          );
           if (createdNote) {
             // Note was created, just navigate to it
             const noteSlug = createSlug(uniqueTitle);
+            console.log('Note found in cache after error, navigating:', { noteSlug, title: uniqueTitle });
             router.push(`/${notebookSlug}/${noteSlug}`);
             return;
           }
         } catch (checkError) {
           console.error('Error checking for created note:', checkError);
         }
+        console.error('Failed to create note offline:', errorMessage);
         alert(`Failed to create note offline: ${errorMessage}. Please try again.`);
       } else {
+        console.error('Failed to create note:', errorMessage);
         alert(`Failed to create note: ${errorMessage}. Please try again.`);
       }
     }

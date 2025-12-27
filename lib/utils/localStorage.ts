@@ -26,9 +26,9 @@ export const getDB = async (): Promise<IDBPDatabase<NotesDB>> => {
   db = await openDB<NotesDB>('notes-db', 2, {
     upgrade(db, oldVersion) {
       if (oldVersion < 1) {
-        const notesStore = db.createObjectStore('notes', { keyPath: 'id' });
-        notesStore.createIndex('by-updatedAt', 'updatedAt');
-        db.createObjectStore('syncQueue', { keyPath: 'noteId' });
+      const notesStore = db.createObjectStore('notes', { keyPath: 'id' });
+      notesStore.createIndex('by-updatedAt', 'updatedAt');
+      db.createObjectStore('syncQueue', { keyPath: 'noteId' });
       }
       if (oldVersion < 2) {
         const backupsStore = db.createObjectStore('backups', { keyPath: 'timestamp' });

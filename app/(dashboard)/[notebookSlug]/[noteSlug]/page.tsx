@@ -400,7 +400,29 @@ export default function NoteEditorPage() {
         // Only set error if online and note not found
         setError('Note not found');
       } else {
-        // Offline and note not found in cache
+        // Offline and note not found in cache - try to create if it's a staple note
+        const { isStapleNoteSlug } = await import('@/lib/utils/noteHelpers');
+        if (isStapleNoteSlug(noteSlug) && user) {
+          // Try to ensure staple note exists (will create locally if offline)
+          const { ensureStapleNoteExists } = await import('@/lib/utils/noteHelpers');
+          const stapleSlugMap: Record<string, string> = {
+            'scratch': 'Scratch',
+            'now': 'Now',
+            'short-term': 'Short-Term',
+            'long-term': 'Long-term',
+          };
+          const stapleName = stapleSlugMap[noteSlug];
+          if (stapleName) {
+            const createdStapleNote = await ensureStapleNoteExists(stapleName, notebookId, user.uid);
+            if (createdStapleNote) {
+              setInitialNote(createdStapleNote);
+              setTitleValue(createdStapleNote.title || '');
+              setError(null);
+              return; // Exit early since we found/created the note
+            }
+          }
+        }
+        // Offline and note not found in cache (and not a staple note)
         setError('Note not found in local cache');
       }
     } catch (err) {

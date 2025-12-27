@@ -37,30 +37,12 @@ export function useTabNavigation({ notebookId, notebookSlug, userId }: UseTabNav
     
     // Staple tabs (Scratch, Now, etc.) - open the note directly using slug
     if (isStapleNoteTab(tab)) {
-      const isOffline = typeof window !== 'undefined' && !navigator.onLine;
-      
-      if (isOffline) {
-        // Load from local cache when offline
-        try {
-          const allLocalNotes = await getAllNotesLocally();
-          const stapleNote = allLocalNotes.find(
-            (n) => n.notebookId === notebookId && n.title === tab.name && n.tabId === 'staple' && n.userId === userId
-          );
-          if (stapleNote) {
-            const slug = createSlug(stapleNote.title);
-            router.push(`/${notebookSlug}/${slug}`);
-            return 'redirect';
-          }
-        } catch (error) {
-          console.error('Error loading staple note from cache:', error);
-        }
-      } else {
-        const stapleNote = await ensureStapleNoteExists(tab.name, notebookId, userId);
-        if (stapleNote) {
-          const slug = createSlug(stapleNote.title);
-          router.push(`/${notebookSlug}/${slug}`);
-          return 'redirect';
-        }
+      // Use ensureStapleNoteExists which handles both online and offline cases
+      const stapleNote = await ensureStapleNoteExists(tab.name, notebookId, userId);
+      if (stapleNote) {
+        const slug = createSlug(stapleNote.title);
+        router.push(`/${notebookSlug}/${slug}`);
+        return 'redirect';
       }
       return 'stay';
     }
