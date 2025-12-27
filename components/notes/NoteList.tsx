@@ -81,18 +81,18 @@ export default function NoteList({ notes, onNoteClick, onNoteDeleted }: NoteList
 
   return (
     <>
-      <div className="space-y-2">
+      <div className="space-y-1">
         {notes.map((note) => (
           <div
             key={note.id}
-            className="relative w-full p-4 bg-bg-secondary rounded hover:bg-bg-secondary/80 transition-colors"
+            className="relative w-full p-2 bg-bg-secondary rounded hover:bg-bg-secondary/80 transition-colors"
           >
             <button
               onClick={() => onNoteClick(note)}
               className="w-full text-left"
             >
-              <div className="flex items-start justify-between mb-2 pr-8">
-                <h3 className="font-semibold text-lg text-text-primary">
+              <div className="flex items-start justify-between mb-1 pr-8">
+                <h3 className="font-semibold text-base text-text-primary">
                   {note.title || 'Untitled Note'}
                 </h3>
                 <span className="text-xs text-text-secondary whitespace-nowrap ml-2">
@@ -105,7 +105,7 @@ export default function NoteList({ notes, onNoteClick, onNoteDeleted }: NoteList
                 </p>
               )}
               {note.images.length > 0 && (
-                <div className="mt-2 flex gap-2">
+                <div className="mt-1 flex gap-2">
                   {note.images.slice(0, 3).map((img, idx) => (
                     <img
                       key={idx}
@@ -120,11 +120,11 @@ export default function NoteList({ notes, onNoteClick, onNoteDeleted }: NoteList
             {/* Delete button in top right */}
             <button
               onClick={(e) => handleDeleteClick(e, note.id, note.title || 'Untitled Note')}
-              className="absolute top-2 right-2 w-6 h-6 flex items-center justify-center text-text-secondary hover:text-red-500 transition-colors"
+              className="absolute top-1.5 right-1.5 w-6 h-6 flex items-center justify-center text-red-500 hover:text-red-400 transition-colors"
               title="Delete note"
               aria-label="Delete note"
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="18" y1="6" x2="6" y2="18"></line>
                 <line x1="6" y1="6" x2="18" y2="18"></line>
               </svg>
