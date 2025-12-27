@@ -27,14 +27,22 @@ export function useSyncQueue() {
         }
         
         try {
+          console.log('[Sync Queue] Attempting to sync note:', item.noteId, 'with data keys:', Object.keys(item.data));
           await updateNote(item.noteId, item.data);
           await removeFromSyncQueue(item.noteId);
+          console.log('[Sync Queue] ✅ Successfully synced note:', item.noteId);
           // Trigger sync event for UI update
           if (typeof window !== 'undefined') {
             window.dispatchEvent(new Event('note-synced'));
           }
-        } catch (error) {
-          console.error(`Error syncing note ${item.noteId}:`, error);
+        } catch (error: any) {
+          console.error(`[Sync Queue] ❌ Error syncing note ${item.noteId}:`, error);
+          console.error('[Sync Queue] Error details:', {
+            noteId: item.noteId,
+            errorMessage: error?.message,
+            errorCode: error?.code,
+            dataKeys: Object.keys(item.data || {}),
+          });
           // Dispatch error event for UI
           if (typeof window !== 'undefined') {
             window.dispatchEvent(new CustomEvent('note-sync-error', { 

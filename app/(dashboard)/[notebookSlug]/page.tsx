@@ -307,14 +307,6 @@ export default function NotebookPage() {
             </div>
             <div className="flex items-center gap-1">
               <button
-                onClick={handleCreateNote}
-                className="flex items-center justify-center w-12 h-12 bg-green-600 hover:bg-green-700 text-white rounded transition-colors font-semibold"
-                title="Create New Note"
-                aria-label="Create New Note"
-              >
-                <span className="text-3xl leading-none">+</span>
-              </button>
-              <button
                 onClick={() => {
                   setShowSearch(!showSearch);
                   if (showSearch) {
@@ -329,6 +321,14 @@ export default function NotebookPage() {
                   <circle cx="11" cy="11" r="8"/>
                   <line x1="21" y1="21" x2="16.65" y2="16.65"/>
                 </svg>
+              </button>
+              <button
+                onClick={handleCreateNote}
+                className="flex items-center justify-center w-12 h-12 bg-green-600 hover:bg-green-700 text-white rounded transition-colors font-semibold"
+                title="Create New Note"
+                aria-label="Create New Note"
+              >
+                <span className="text-3xl leading-none">+</span>
               </button>
             </div>
           </div>

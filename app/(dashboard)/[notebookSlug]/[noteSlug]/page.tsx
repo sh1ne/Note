@@ -655,15 +655,13 @@ export default function NoteEditorPage() {
                     }
                     
                     // Force immediate save to ensure image is persisted
-                    // The editor's onChange will trigger a save, but we want to ensure it happens
-                    // Give it a moment for the editor to update, then trigger save
-                    setTimeout(() => {
-                      if (editor) {
-                        // Trigger content change to ensure save happens
-                        const html = editor.getHTML();
-                        // The onChange handler will pick this up and save
+                    // Wait for editor to update, then force save
+                    setTimeout(async () => {
+                      if (editor && note) {
+                        // Force immediate save with current content (including the new image)
+                        await saveNote(true);
                       }
-                    }, 100);
+                    }, 300); // Give editor time to update HTML
                   } catch (error) {
                     console.error('Error uploading image:', error);
                   } finally {
