@@ -14,9 +14,23 @@ const STATIC_ASSETS = [
 self.addEventListener('install', (event) => {
   console.log('[Service Worker] Installing...');
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
+    caches.open(CACHE_NAME).then(async (cache) => {
       console.log('[Service Worker] Caching app shell');
-      return cache.addAll(STATIC_ASSETS);
+      await cache.addAll(STATIC_ASSETS);
+      // Verify root HTML is cached (critical for offline navigation)
+      const rootResponse = await cache.match('/');
+      if (!rootResponse) {
+        console.warn('[Service Worker] Root HTML not cached, attempting to fetch...');
+        try {
+          const fetchResponse = await fetch('/');
+          if (fetchResponse.ok) {
+            await cache.put('/', fetchResponse.clone());
+            console.log('[Service Worker] Root HTML cached successfully');
+          }
+        } catch (error) {
+          console.error('[Service Worker] Failed to cache root HTML:', error);
+        }
+      }
     })
   );
   // Force activation of new service worker
@@ -63,13 +77,14 @@ self.addEventListener('fetch', (event) => {
   // Strategy: Cache First for static assets and HTML pages, Network First for API routes
   event.respondWith(
     caches.match(request).then((cachedResponse) => {
-      // For static assets (_next/static), use cache first
+      // For static assets (_next/static), use cache-first strategy
+      // This ensures route chunks work offline once loaded
       if (url.pathname.startsWith('/_next/static/')) {
         if (cachedResponse) {
           return cachedResponse;
         }
+        // Not in cache, try network and cache for next time
         return fetch(request).then((response) => {
-          // Cache successful responses
           if (response.status === 200) {
             const responseToCache = response.clone();
             caches.open(RUNTIME_CACHE).then((cache) => {
@@ -77,6 +92,13 @@ self.addEventListener('fetch', (event) => {
             });
           }
           return response;
+        }).catch(() => {
+          // Network failed and not in cache - return error
+          return new Response('Asset not cached', {
+            status: 503,
+            statusText: 'Service Unavailable',
+            headers: new Headers({ 'Content-Type': 'text/plain' }),
+          });
         });
       }
 
@@ -111,8 +133,73 @@ self.addEventListener('fetch', (event) => {
               return response;
             })
             .catch(() => {
-              // Network failed for navigation request - return offline page
-              // DO NOT return cached "/" as it causes infinite loops
+              // Network failed for navigation request
+              // For dashboard routes (/base/*), return app shell to allow client-side routing
+              if (url.pathname.startsWith('/base/') || url.pathname.startsWith('/notebook')) {
+                return caches.match('/').then((rootResponse) => {
+                  if (rootResponse) {
+                    console.log('[Service Worker] Returning app shell for dashboard route:', url.pathname);
+                    return rootResponse;
+                  }
+                  // Root not cached - return offline page
+                  return new Response(
+                `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Offline - Note App</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      background: #000;
+      color: #fff;
+      text-align: center;
+      padding: 20px;
+    }
+    .container {
+      max-width: 400px;
+    }
+    h1 { font-size: 24px; margin-bottom: 16px; }
+    p { font-size: 14px; line-height: 1.5; color: #aaa; margin-bottom: 24px; }
+    button {
+      background: #22c55e;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 14px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    button:hover { background: #16a34a; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>⚠️ Offline</h1>
+    <p>This page isn't cached. Please go back to a page you've visited before, or go online to load this page.</p>
+    <button onclick="window.history.back()">Go Back</button>
+  </div>
+</body>
+</html>`,
+                {
+                  status: 503,
+                  statusText: 'Service Unavailable',
+                  headers: new Headers({
+                    'Content-Type': 'text/html',
+                  }),
+                }
+              );
+                });
+              }
+              
+              // For non-dashboard routes, return offline page
               return new Response(
                 `<!DOCTYPE html>
 <html lang="en">
