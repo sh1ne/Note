@@ -50,7 +50,9 @@ export default function BottomNav({
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                console.log('[BottomNav] Tab clicked:', tab.name, 'id:', tab.id);
+                const isOffline = typeof window !== 'undefined' && !navigator.onLine;
+                console.log('[BottomNav] Tab clicked:', tab.name, 'id:', tab.id, 'offline:', isOffline, 'timestamp:', new Date().toISOString());
+                console.trace('[BottomNav] Click stack trace');
                 onTabClick(tab.id);
               }}
               type="button"

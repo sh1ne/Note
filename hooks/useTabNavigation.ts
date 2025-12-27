@@ -66,7 +66,9 @@ export function useTabNavigation({ notebookId, notebookSlug, userId }: UseTabNav
       if (stapleNote) {
         const slug = createSlug(stapleNote.title);
         const targetUrl = `/${notebookSlug}/${slug}`;
-        console.log('[navigateToTab] Client-side navigation to:', targetUrl);
+        const isOffline = typeof window !== 'undefined' && !navigator.onLine;
+        console.log('[navigateToTab] Client-side navigation to:', targetUrl, 'offline:', isOffline, 'timestamp:', new Date().toISOString());
+        console.trace('[navigateToTab] Navigation stack trace');
         // Use router.push() for client-side navigation (no full page reload)
         router.push(targetUrl);
         return 'redirect';
@@ -95,7 +97,9 @@ export function useTabNavigation({ notebookId, notebookSlug, userId }: UseTabNav
         if (notesData.length > 0) {
           const noteSlug = createSlug(notesData[0].title);
           const targetUrl = `/${notebookSlug}/${noteSlug}`;
-          console.log('[navigateToTab] Client-side navigation to:', targetUrl);
+          const isOffline = typeof window !== 'undefined' && !navigator.onLine;
+          console.log('[navigateToTab] Client-side navigation to:', targetUrl, 'offline:', isOffline, 'timestamp:', new Date().toISOString());
+          console.trace('[navigateToTab] Navigation stack trace');
           // Use router.push() for client-side navigation (no full page reload)
           router.push(targetUrl);
           return 'redirect';
