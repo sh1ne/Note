@@ -11,19 +11,8 @@ import {
   orderBy,
   Timestamp,
   writeBatch,
-  enableNetwork,
 } from 'firebase/firestore';
 import { db } from './config';
-
-// Helper to ensure network is enabled before Firestore operations
-const ensureNetwork = async () => {
-  try {
-    await enableNetwork(db);
-  } catch (error) {
-    // Network might already be enabled, ignore error
-    console.warn('Network enable warning:', error);
-  }
-};
 
 // Retry helper for Firestore operations
 const retryFirestoreOperation = async <T>(
@@ -35,7 +24,7 @@ const retryFirestoreOperation = async <T>(
   
   for (let i = 0; i < maxRetries; i++) {
     try {
-      await ensureNetwork();
+      // Don't call enableNetwork here - it's handled in config.ts to prevent duplicate calls
       return await operation();
     } catch (error: any) {
       lastError = error;
