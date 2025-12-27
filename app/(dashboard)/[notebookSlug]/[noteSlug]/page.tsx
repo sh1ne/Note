@@ -647,13 +647,16 @@ export default function NoteEditorPage() {
                     }
                     
                     // Force immediate save to ensure image is persisted
-                    // Wait for editor to update, then force save
-                    setTimeout(async () => {
-                      if (editor && note) {
-                        // Force immediate save with current content (including the new image)
-                        await saveNote(true);
-                      }
-                    }, 300); // Give editor time to update HTML
+                    // Wait for editor to update HTML, then save and wait for completion
+                    await new Promise(resolve => setTimeout(resolve, 500)); // Give editor time to update HTML
+                    
+                    if (editor && note) {
+                      // Force immediate save with current content (including the new image)
+                      // Wait for save to complete before continuing
+                      await saveNote(true);
+                      // Give a bit more time for Firestore to process
+                      await new Promise(resolve => setTimeout(resolve, 200));
+                    }
                   } catch (error) {
                     console.error('Error uploading image:', error);
                   } finally {
