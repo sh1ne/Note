@@ -74,12 +74,33 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // In dev mode, don't intercept /next/static/ requests if not cached
+  // This allows Next.js dev server to handle them normally
+  // In production, /_next/static/ assets should be cached from build
+  const isDevStaticAsset = url.pathname.startsWith('/next/static/');
+  const isProdStaticAsset = url.pathname.startsWith('/_next/static/');
+  
+  if (isDevStaticAsset) {
+    // For dev mode static assets, check cache first
+    event.respondWith(
+      caches.match(request).then((cachedResponse) => {
+        if (cachedResponse) {
+          return cachedResponse;
+        }
+        // Not in cache - let request go through normally (don't intercept)
+        // This allows Next.js dev server to handle it
+        return fetch(request);
+      })
+    );
+    return;
+  }
+
   // Strategy: Cache First for static assets and HTML pages, Network First for API routes
   event.respondWith(
     caches.match(request).then((cachedResponse) => {
-      // For static assets (_next/static), use cache-first strategy
+      // For production static assets (_next/static), use cache-first strategy
       // This ensures route chunks work offline once loaded
-      if (url.pathname.startsWith('/_next/static/')) {
+      if (isProdStaticAsset) {
         if (cachedResponse) {
           return cachedResponse;
         }
@@ -94,6 +115,7 @@ self.addEventListener('fetch', (event) => {
           return response;
         }).catch(() => {
           // Network failed and not in cache - return error
+          // In production, these assets should be cached from build
           return new Response('Asset not cached', {
             status: 503,
             statusText: 'Service Unavailable',
