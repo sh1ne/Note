@@ -11,14 +11,24 @@ export function useSyncQueue() {
   const isProcessingRef = useRef(false);
 
   const processSyncQueue = async () => {
-    // Prevent concurrent processing
-    if (isProcessingRef.current) return;
+    const timestamp = new Date().toISOString();
+    const isOnline = typeof window !== 'undefined' ? navigator.onLine : false;
     
-    // Only process if online
-    if (typeof window !== 'undefined' && !navigator.onLine) {
+    console.log(`[SYNC_TRACE][useSyncQueue][PROCESS_CALLED][online=${isOnline}][isProcessing=${isProcessingRef.current}][timestamp=${timestamp}] processSyncQueue called`);
+    
+    // Prevent concurrent processing
+    if (isProcessingRef.current) {
+      console.log(`[SYNC_TRACE][useSyncQueue][PROCESS_SKIPPED][online=${isOnline}][reason=already_processing][timestamp=${timestamp}] Already processing, skipping`);
       return;
     }
     
+    // Only process if online
+    if (typeof window !== 'undefined' && !navigator.onLine) {
+      console.log(`[SYNC_TRACE][useSyncQueue][PROCESS_BLOCKED][online=${isOnline}][reason=offline][timestamp=${timestamp}] ⚠️ BLOCKED - Attempted to process sync queue while OFFLINE`);
+      return;
+    }
+    
+    console.log(`[SYNC_TRACE][useSyncQueue][PROCESS_START][online=${isOnline}][timestamp=${timestamp}] Starting sync queue processing`);
     isProcessingRef.current = true;
 
     try {
@@ -165,33 +175,53 @@ export function useSyncQueue() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
+    const mountTimestamp = new Date().toISOString();
+    const isOnline = navigator.onLine;
+    const hookId = `sync-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
+    console.log(`[SYNC_TRACE][useSyncQueue][MOUNT][id=${hookId}][online=${isOnline}][timestamp=${mountTimestamp}] useSyncQueue hook mounted`);
+
     // HARD GUARANTEE: Only set up sync processing if we're online
     // This prevents any sync attempts while offline
     if (!navigator.onLine) {
-      console.log('[Sync Queue] Offline on mount - not setting up sync processing');
+      console.log(`[SYNC_TRACE][useSyncQueue][SETUP_OFFLINE][id=${hookId}][online=${isOnline}][timestamp=${mountTimestamp}] Offline on mount - not setting up sync processing (no interval, no immediate call)`);
       // Only set up online event listener - no interval, no immediate processing
       const handleOnline = () => {
+        const onlineTimestamp = new Date().toISOString();
+        const wasOnline = navigator.onLine;
+        console.log(`[SYNC_TRACE][useSyncQueue][ONLINE_EVENT][id=${hookId}][online=${wasOnline}][timestamp=${onlineTimestamp}] Online event fired - setting up sync processing`);
+        
         // When coming online, set up the interval and process queue
         console.log('[Sync Queue] Coming online - setting up sync processing');
         processSyncQueue();
         
         // Set up interval only when online
         if (intervalRef.current) {
+          console.log(`[SYNC_TRACE][useSyncQueue][INTERVAL_CLEARED][id=${hookId}][timestamp=${onlineTimestamp}] Clearing existing interval before creating new one`);
           clearInterval(intervalRef.current);
         }
         intervalRef.current = setInterval(() => {
+          const intervalTimestamp = new Date().toISOString();
+          const stillOnline = navigator.onLine;
+          console.log(`[SYNC_TRACE][useSyncQueue][INTERVAL_TICK][id=${hookId}][online=${stillOnline}][timestamp=${intervalTimestamp}] Interval tick`);
           // Double-check we're still online before processing
           if (navigator.onLine) {
             processSyncQueue();
+          } else {
+            console.log(`[SYNC_TRACE][useSyncQueue][INTERVAL_SKIPPED][id=${hookId}][online=${stillOnline}][timestamp=${intervalTimestamp}] Interval tick skipped - went offline`);
           }
         }, 30000);
+        console.log(`[SYNC_TRACE][useSyncQueue][INTERVAL_CREATED][id=${hookId}][online=${wasOnline}][timestamp=${onlineTimestamp}] Interval created (30s)`);
       };
 
       window.addEventListener('online', handleOnline);
 
       return () => {
+        const unmountTimestamp = new Date().toISOString();
+        console.log(`[SYNC_TRACE][useSyncQueue][UNMOUNT][id=${hookId}][online=${navigator.onLine}][timestamp=${unmountTimestamp}] useSyncQueue hook unmounting (offline setup)`);
         window.removeEventListener('online', handleOnline);
         if (intervalRef.current) {
+          console.log(`[SYNC_TRACE][useSyncQueue][INTERVAL_CLEARED][id=${hookId}][timestamp=${unmountTimestamp}] Clearing interval on unmount`);
           clearInterval(intervalRef.current);
           intervalRef.current = null;
         }
@@ -199,7 +229,11 @@ export function useSyncQueue() {
     }
 
     // We're online - set up full sync processing
+    console.log(`[SYNC_TRACE][useSyncQueue][SETUP_ONLINE][id=${hookId}][online=${isOnline}][timestamp=${mountTimestamp}] Online on mount - setting up full sync processing`);
+    
     const handleOnline = () => {
+      const onlineTimestamp = new Date().toISOString();
+      console.log(`[SYNC_TRACE][useSyncQueue][ONLINE_EVENT][id=${hookId}][online=${navigator.onLine}][timestamp=${onlineTimestamp}] Online event fired`);
       processSyncQueue();
     };
 
@@ -207,19 +241,29 @@ export function useSyncQueue() {
 
     // Process queue every 30 seconds (only if online)
     intervalRef.current = setInterval(() => {
+      const intervalTimestamp = new Date().toISOString();
+      const stillOnline = navigator.onLine;
+      console.log(`[SYNC_TRACE][useSyncQueue][INTERVAL_TICK][id=${hookId}][online=${stillOnline}][timestamp=${intervalTimestamp}] Interval tick`);
       // Double-check we're still online before processing
       if (navigator.onLine) {
         processSyncQueue();
+      } else {
+        console.log(`[SYNC_TRACE][useSyncQueue][INTERVAL_SKIPPED][id=${hookId}][online=${stillOnline}][timestamp=${intervalTimestamp}] Interval tick skipped - went offline`);
       }
     }, 30000);
+    console.log(`[SYNC_TRACE][useSyncQueue][INTERVAL_CREATED][id=${hookId}][online=${isOnline}][timestamp=${mountTimestamp}] Interval created (30s)`);
 
     // Process immediately on mount (we're online)
+    console.log(`[SYNC_TRACE][useSyncQueue][IMMEDIATE_PROCESS][id=${hookId}][online=${isOnline}][timestamp=${mountTimestamp}] Processing queue immediately on mount`);
     processSyncQueue();
 
     // Cleanup
     return () => {
+      const unmountTimestamp = new Date().toISOString();
+      console.log(`[SYNC_TRACE][useSyncQueue][UNMOUNT][id=${hookId}][online=${navigator.onLine}][timestamp=${unmountTimestamp}] useSyncQueue hook unmounting (online setup)`);
       window.removeEventListener('online', handleOnline);
       if (intervalRef.current) {
+        console.log(`[SYNC_TRACE][useSyncQueue][INTERVAL_CLEARED][id=${hookId}][timestamp=${unmountTimestamp}] Clearing interval on unmount`);
         clearInterval(intervalRef.current);
         intervalRef.current = null;
       }

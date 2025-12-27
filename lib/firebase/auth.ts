@@ -28,6 +28,8 @@ export const logOut = async () => {
   if (typeof window !== 'undefined') {
     localStorage.removeItem('cached_user_id');
     localStorage.removeItem('cached_user_email');
+    // Clear sessionStorage auth flag (allows redirects again on next session)
+    sessionStorage.removeItem('dashboard_auth_established');
   }
   
   // Then sign out from Firebase
