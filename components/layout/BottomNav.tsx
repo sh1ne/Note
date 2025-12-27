@@ -38,7 +38,7 @@ export default function BottomNav({
           title="Create note"
           aria-label="Create new note"
         >
-          <span className="text-2xl">+</span>
+          <span className="text-3xl leading-none">+</span>
         </button>
         {sortedTabs.map((tab) => {
           const isStapleTab = tab.isStaple;

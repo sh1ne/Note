@@ -507,10 +507,10 @@ export default function NoteEditorPage() {
       {/* Header Bar */}
       <div className={`sticky ${!isOnline ? 'top-8' : 'top-0'} bg-bg-primary border-b border-bg-secondary z-20`}>
         <div className="flex items-center justify-between p-4">
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-0.5">
             <button
               onClick={handleBack}
-              className="p-2 text-text-primary hover:text-text-secondary hover:bg-bg-secondary rounded-lg transition-colors"
+              className="p-1.5 text-text-primary hover:text-text-secondary hover:bg-bg-secondary rounded-lg transition-colors"
               title="Back"
               aria-label="Back"
             >
@@ -525,7 +525,7 @@ export default function NoteEditorPage() {
                 }
               }}
               disabled={editor && !editor.can().undo()}
-              className="p-2 text-text-primary hover:text-text-secondary hover:bg-bg-secondary rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="p-1.5 text-text-primary hover:text-text-secondary hover:bg-bg-secondary rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               title="Undo"
               aria-label="Undo"
             >
@@ -541,7 +541,7 @@ export default function NoteEditorPage() {
                 }
               }}
               disabled={editor && !editor.can().redo()}
-              className="p-2 text-text-primary hover:text-text-secondary hover:bg-bg-secondary rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="p-1.5 text-text-primary hover:text-text-secondary hover:bg-bg-secondary rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               title="Redo"
               aria-label="Redo"
             >
@@ -573,7 +573,7 @@ export default function NoteEditorPage() {
               </span>
             )}
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-0.5">
             {/* Image Upload Button */}
             <button
               onClick={async (e) => {
@@ -621,7 +621,7 @@ export default function NoteEditorPage() {
                 }, 0);
               }}
               disabled={!editor || !user?.uid || !initialNote?.id}
-              className="p-2 text-blue-400 hover:text-blue-300 hover:bg-bg-secondary rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="p-2 text-blue-400 hover:text-blue-300 hover:bg-bg-secondary rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-black/50"
               title="Insert Image (Images only)"
               aria-label="Insert Image"
             >
@@ -634,7 +634,7 @@ export default function NoteEditorPage() {
             <div className="relative" ref={shareMenuRef}>
               <button
                 onClick={() => setShowShareMenu(!showShareMenu)}
-                className="p-2 text-purple-400 hover:text-purple-300 hover:bg-bg-secondary rounded-lg transition-colors"
+                className="p-2 text-purple-400 hover:text-purple-300 hover:bg-bg-secondary rounded-lg transition-colors border border-black/50"
                 title="Share Note"
                 aria-label="Share Note"
               >
@@ -810,11 +810,11 @@ export default function NoteEditorPage() {
                   setFindQuery('');
                 }
               }}
-              className="p-2 text-yellow-400 hover:text-yellow-300 hover:bg-bg-secondary rounded-lg transition-colors border border-yellow-400/30"
+              className="p-2 text-yellow-400 hover:text-yellow-300 hover:bg-bg-secondary rounded-lg transition-colors border border-black/50"
               title="Find"
               aria-label="Find"
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="11" cy="11" r="8"/>
                 <path d="m21 21-4.35-4.35"/>
               </svg>
@@ -825,7 +825,7 @@ export default function NoteEditorPage() {
               title="Create New Note"
               aria-label="Create New Note"
             >
-              +
+              <span className="text-3xl leading-none">+</span>
             </button>
           </div>
         </div>
