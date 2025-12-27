@@ -589,12 +589,12 @@ export default function NoteEditorPage() {
       const isOffline = typeof window !== 'undefined' && !navigator.onLine;
       if (isOffline) {
         // Get userId from IndexedDB if user is null
-        let fallbackUserId = user?.uid;
+        let fallbackUserId: string | undefined = user?.uid;
         if (!fallbackUserId) {
           try {
             const { getAuthState } = await import('@/lib/utils/authState');
             const authState = await getAuthState();
-            fallbackUserId = authState?.userId || null;
+            fallbackUserId = authState?.userId || undefined;
           } catch (error) {
             console.error('[loadNote] Error getting auth state in catch block:', error);
           }
