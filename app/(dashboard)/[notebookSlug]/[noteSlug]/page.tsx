@@ -864,6 +864,11 @@ export default function NoteEditorPage() {
         console.log('Verified note exists locally before navigation');
       }
 
+      // Refresh tabs list to include the newly created tab (only if online, as offline tabs are temp)
+      if (!isOffline) {
+        await refreshTabs();
+      }
+      
       router.push(`/${notebookSlug}/${noteSlug}`);
     } catch (error) {
       console.error('Error creating note:', error);

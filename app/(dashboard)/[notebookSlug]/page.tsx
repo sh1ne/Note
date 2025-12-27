@@ -114,7 +114,7 @@ export default function NotebookPage() {
   }, [user, notebookSlug]);
 
   // Use custom hooks (only after notebookId is loaded)
-  const { tabs, activeTabId, setActiveTabId, getTabById, loading } = useTabs({ 
+  const { tabs, activeTabId, setActiveTabId, getTabById, loading, refreshTabs } = useTabs({ 
     notebookId: notebookId || '',
     defaultTabName: 'Scratch'
   });
@@ -408,6 +408,11 @@ export default function NotebookPage() {
           throw new Error('Note was not saved locally');
         }
         console.log('Verified note exists locally before navigation');
+      }
+      
+      // Refresh tabs list to include the newly created tab (only if online, as offline tabs are temp)
+      if (!isOffline) {
+        await refreshTabs();
       }
       
       router.push(`/${notebookSlug}/${noteSlug}`);
