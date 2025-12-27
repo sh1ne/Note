@@ -80,17 +80,97 @@ self.addEventListener('fetch', (event) => {
         });
       }
 
+      // Check if this is a navigation request (full page load) - CRITICAL: Handle this FIRST
+      const isNavigationRequest = request.mode === 'navigate';
+      
       // For HTML pages (app routes), use cache first with network fallback
       // This ensures offline navigation works even if a specific route isn't cached
       const isHtmlRequest = request.headers.get('accept')?.includes('text/html') || 
                            url.pathname === '/' ||
                            (!url.pathname.startsWith('/_next/') && !url.pathname.startsWith('/api/'));
       
-      // Check if this is a navigation request (full page load)
-      const isNavigationRequest = request.mode === 'navigate';
-      
       if (isHtmlRequest) {
-        // Try cache first for HTML pages
+        // CRITICAL: For navigation requests, NEVER return cached "/" - it causes infinite loops
+        if (isNavigationRequest) {
+          // Try to get the specific route from cache first
+          if (cachedResponse) {
+            // This is the actual route being requested, safe to return
+            return cachedResponse;
+          }
+          
+          // Not in cache, try network
+          return fetch(request)
+            .then((response) => {
+              // Cache successful responses
+              if (response.status === 200) {
+                const responseToCache = response.clone();
+                caches.open(RUNTIME_CACHE).then((cache) => {
+                  cache.put(request, responseToCache);
+                });
+              }
+              return response;
+            })
+            .catch(() => {
+              // Network failed for navigation request - return offline page
+              // DO NOT return cached "/" as it causes infinite loops
+              return new Response(
+                `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Offline - Note App</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      background: #000;
+      color: #fff;
+      text-align: center;
+      padding: 20px;
+    }
+    .container {
+      max-width: 400px;
+    }
+    h1 { font-size: 24px; margin-bottom: 16px; }
+    p { font-size: 14px; line-height: 1.5; color: #aaa; margin-bottom: 24px; }
+    button {
+      background: #22c55e;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 14px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    button:hover { background: #16a34a; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>⚠️ Offline</h1>
+    <p>This page isn't cached. Please go back to a page you've visited before, or go online to load this page.</p>
+    <button onclick="window.history.back()">Go Back</button>
+  </div>
+</body>
+</html>`,
+                {
+                  status: 503,
+                  statusText: 'Service Unavailable',
+                  headers: new Headers({
+                    'Content-Type': 'text/html',
+                  }),
+                }
+              );
+            });
+        }
+        
+        // For non-navigation HTML requests (e.g., fetch() calls), use cache first
         if (cachedResponse) {
           // Also try to update cache in background (will fail silently if offline)
           fetch(request).then((response) => {
