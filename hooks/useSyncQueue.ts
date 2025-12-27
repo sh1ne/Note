@@ -31,9 +31,11 @@ export function useSyncQueue() {
           await updateNote(item.noteId, item.data);
           await removeFromSyncQueue(item.noteId);
           console.log('[Sync Queue] ✅ Successfully synced note:', item.noteId);
-          // Trigger sync event for UI update
+          // Trigger sync event for UI update with noteId
           if (typeof window !== 'undefined') {
-            window.dispatchEvent(new Event('note-synced'));
+            window.dispatchEvent(new CustomEvent('note-synced', { 
+              detail: { noteId: item.noteId } 
+            }));
           }
         } catch (error: any) {
           console.error(`[Sync Queue] ❌ Error syncing note ${item.noteId}:`, error);

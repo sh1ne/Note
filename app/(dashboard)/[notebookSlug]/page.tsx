@@ -260,9 +260,30 @@ export default function NotebookPage() {
   };
 
   const handleCreateNote = async () => {
-    if (!user || !notebookId) return;
+    if (!user) return;
 
     const isOffline = typeof window !== 'undefined' && !navigator.onLine;
+    
+    // If offline and notebookId is not set, try to get it from cache
+    let currentNotebookId = notebookId;
+    if (isOffline && !currentNotebookId && user && notebookSlug) {
+      try {
+        const { getNotebookBySlugLocally } = await import('@/lib/utils/localStorage');
+        const cachedNotebook = await getNotebookBySlugLocally(user.uid, notebookSlug);
+        if (cachedNotebook) {
+          currentNotebookId = cachedNotebook.id;
+          setNotebookId(cachedNotebook.id); // Update state
+        }
+      } catch (cacheError) {
+        console.error('Error loading notebook from cache in handleCreateNote:', cacheError);
+      }
+    }
+    
+    if (!currentNotebookId) {
+      alert('Notebook not found. Please go online to load it first.');
+      return;
+    }
+    
     let uniqueTitle: string | null = null;
 
     try {
@@ -271,7 +292,7 @@ export default function NotebookPage() {
         // For offline, use a simple counter-based approach
         const allLocalNotes = await getAllNotesLocally();
         const existingTitles = allLocalNotes
-          .filter((n) => n.notebookId === notebookId && n.userId === user.uid && !n.deletedAt)
+          .filter((n) => n.notebookId === currentNotebookId && n.userId === user.uid && !n.deletedAt)
           .map((n) => n.title.trim().toLowerCase());
         
         const baseTitle = 'Note';
@@ -282,7 +303,7 @@ export default function NotebookPage() {
           counter++;
         }
       } else {
-        uniqueTitle = await generateUniqueNoteTitle('New Note', notebookId, user.uid);
+        uniqueTitle = await generateUniqueNoteTitle('New Note', currentNotebookId, user.uid);
       }
 
       if (!uniqueTitle) {
@@ -305,7 +326,7 @@ export default function NotebookPage() {
         const newNote: Note = {
           id: noteId,
           userId: user.uid,
-          notebookId,
+          notebookId: currentNotebookId,
           tabId: newTabId,
           title: uniqueTitle,
           content: '',
@@ -326,7 +347,7 @@ export default function NotebookPage() {
           content: '',
           contentPlain: '',
           images: [],
-          notebookId,
+          notebookId: currentNotebookId,
           tabId: newTabId,
           userId: user.uid,
         });
@@ -334,7 +355,7 @@ export default function NotebookPage() {
       } else {
         // Online: Create in Firestore
         newTabId = await createTab({
-        notebookId,
+        notebookId: currentNotebookId,
         name: uniqueTitle,
         icon: '📄',
         order: 0,
@@ -344,9 +365,9 @@ export default function NotebookPage() {
       });
 
         noteId = await createNote({
-        userId: user.uid,
-        notebookId,
-        tabId: newTabId,
+          userId: user.uid,
+          notebookId: currentNotebookId,
+          tabId: newTabId,
         title: uniqueTitle,
         content: '',
         contentPlain: '',
@@ -391,7 +412,7 @@ export default function NotebookPage() {
           const { getAllNotesLocally } = await import('@/lib/utils/localStorage');
           const allLocalNotes = await getAllNotesLocally();
           const createdNote = allLocalNotes.find(
-            (n) => n.title === uniqueTitle && n.notebookId === notebookId && n.userId === user.uid
+            (n) => n.title === uniqueTitle && n.notebookId === currentNotebookId && n.userId === user.uid
           );
           if (createdNote) {
             // Note was created, just navigate to it

@@ -335,8 +335,37 @@ export default function NoteEditorPage() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     
-    const handleSync = () => {
-      setIsSavedToCloud(true);
+    const handleSync = (event: Event) => {
+      // Check if this sync event is for the current note
+      const customEvent = event as CustomEvent;
+      if (customEvent.detail?.noteId) {
+        // If event has a noteId, only update if it matches current note
+        if (note?.id && customEvent.detail.noteId === note.id) {
+          setIsSavedToCloud(true);
+        }
+      } else {
+        // If no noteId in event, update for any sync (backward compatibility)
+        // But also check if we have a pending sync for this note
+        if (note?.id) {
+          // Check if this note is in the sync queue
+          const checkSyncQueue = async () => {
+            try {
+              const { getSyncQueue } = await import('@/lib/utils/localStorage');
+              const queue = await getSyncQueue();
+              const isInQueue = queue.some((item) => item.noteId === note.id);
+              if (!isInQueue) {
+                // Note is no longer in queue, so it must have synced
+                setIsSavedToCloud(true);
+              }
+            } catch (error) {
+              console.error('Error checking sync queue:', error);
+            }
+          };
+          checkSyncQueue();
+        } else {
+          setIsSavedToCloud(true);
+        }
+      }
     };
     
     window.addEventListener('note-synced', handleSync);
@@ -344,7 +373,7 @@ export default function NoteEditorPage() {
     return () => {
       window.removeEventListener('note-synced', handleSync);
     };
-  }, []);
+  }, [note?.id]);
 
   // Only update active tab when noteId changes (switching notes), not when note object changes
   useEffect(() => {
