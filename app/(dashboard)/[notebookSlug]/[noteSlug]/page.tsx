@@ -573,7 +573,7 @@ export default function NoteEditorPage() {
               </span>
             )}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
             {/* Image Upload Button */}
             <button
               onClick={async (e) => {
@@ -810,7 +810,7 @@ export default function NoteEditorPage() {
                   setFindQuery('');
                 }
               }}
-              className="p-2 text-yellow-400 hover:text-yellow-300 hover:bg-bg-secondary rounded-lg transition-colors"
+              className="p-2 text-yellow-400 hover:text-yellow-300 hover:bg-bg-secondary rounded-lg transition-colors border border-yellow-400/30"
               title="Find"
               aria-label="Find"
             >
@@ -819,19 +819,6 @@ export default function NoteEditorPage() {
                 <path d="m21 21-4.35-4.35"/>
               </svg>
             </button>
-            {note.tabId && note.tabId !== 'staple' && (
-              <button
-                onClick={handleDelete}
-                className="p-2 text-red-500 hover:text-red-400 hover:bg-bg-secondary rounded-lg transition-colors"
-                title="Delete Note"
-                aria-label="Delete Note"
-              >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="18" y1="6" x2="6" y2="18"></line>
-                  <line x1="6" y1="6" x2="18" y2="18"></line>
-                </svg>
-              </button>
-            )}
             <button
               onClick={handleCreateNote}
               className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded transition-colors font-semibold"
@@ -880,17 +867,32 @@ export default function NoteEditorPage() {
               autoFocus
             />
           ) : (
-            <div className="flex items-center gap-3">
-              <h1 
-                className="text-2xl font-bold cursor-pointer hover:text-text-secondary"
-                onClick={() => setIsEditingTitle(true)}
-                title="Click to edit title"
-              >
-                {note.title || 'Untitled Note'}
-              </h1>
-              <span className="text-sm text-text-secondary">
-                • {formatDate(note.updatedAt)}
-              </span>
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <h1 
+                  className="text-2xl font-bold cursor-pointer hover:text-text-secondary"
+                  onClick={() => setIsEditingTitle(true)}
+                  title="Click to edit title"
+                >
+                  {note.title || 'Untitled Note'}
+                </h1>
+                <span className="text-sm text-text-secondary">
+                  • {formatDate(note.updatedAt)}
+                </span>
+              </div>
+              {note.tabId && note.tabId !== 'staple' && (
+                <button
+                  onClick={handleDelete}
+                  className="p-2 text-red-500 hover:text-red-400 hover:bg-bg-secondary rounded-lg transition-colors"
+                  title="Delete Note"
+                  aria-label="Delete Note"
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                  </svg>
+                </button>
+              )}
             </div>
           )}
         </div>

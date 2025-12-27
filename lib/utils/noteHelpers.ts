@@ -139,18 +139,21 @@ export async function generateUniqueNoteTitle(
       .filter((n) => !n.deletedAt && (!excludeNoteId || n.id !== excludeNoteId))
       .map((n) => n.title.trim().toLowerCase());
     
-    let uniqueTitle = baseTitle;
+    // If baseTitle is "New Note", use "Note" instead
+    const actualBaseTitle = baseTitle === 'New Note' ? 'Note' : baseTitle;
+    
+    let uniqueTitle = actualBaseTitle;
     let counter = 1;
     
     while (existingTitles.includes(uniqueTitle.trim().toLowerCase())) {
-      uniqueTitle = `${baseTitle} ${counter}`;
+      uniqueTitle = `${actualBaseTitle}${counter}`;
       counter++;
     }
     
     return uniqueTitle;
   } catch (error) {
     console.error('Error generating unique note title:', error);
-    return baseTitle; // Fallback to base title if error
+    return baseTitle === 'New Note' ? 'Note' : baseTitle; // Fallback to base title if error
   }
 }
 
