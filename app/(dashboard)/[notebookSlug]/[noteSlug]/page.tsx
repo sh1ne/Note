@@ -486,6 +486,13 @@ export default function NoteEditorPage() {
     }).format(date);
   };
 
+  const getSaveStatus = () => {
+    if (!isOnline) return 'Saved offline';
+    if (isSavedToCloud) return 'Cloud Saved';
+    if (lastSaved) return 'Saved locally';
+    return null;
+  };
+
   return (
     <div className="min-h-screen bg-bg-primary text-text-primary pb-16">
       {/* Offline Banner */}
