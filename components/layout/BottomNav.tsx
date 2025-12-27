@@ -30,7 +30,7 @@ export default function BottomNav({
   const sortedTabs = [...regularTabsToShow, ...sortedStapleTabs];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-bg-primary border-t border-bg-secondary z-50 overflow-hidden" style={{ borderRadius: 0 }}>
+    <nav className="fixed left-0 right-0 bg-bg-primary border-t border-bg-secondary z-50 overflow-hidden" style={{ borderRadius: 0, bottom: '-4px' }}>
       <div className="flex items-center justify-around h-14 px-2" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
         <button
           onClick={onCreateNote}
