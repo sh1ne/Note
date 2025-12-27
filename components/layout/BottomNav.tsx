@@ -31,7 +31,7 @@ export default function BottomNav({
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-bg-primary border-t border-bg-secondary z-50 rounded-t-2xl overflow-hidden">
-      <div className="flex items-center justify-around h-14 px-2" style={{ marginBottom: 'max(env(safe-area-inset-bottom, 0px), 48px)' }}>
+      <div className="flex items-center justify-around h-14 px-2 safe-area-inset-bottom">
         <button
           onClick={onCreateNote}
           className="flex flex-col items-center justify-center w-12 h-12 bg-green-600 hover:bg-green-700 text-white rounded transition-colors"
