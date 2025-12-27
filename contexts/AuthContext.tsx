@@ -41,16 +41,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   useEffect(() => {
     if (typeof window === 'undefined') return;
     
-    // On initial mount, check Firebase persistence directly
+    // On initial mount, ALWAYS check Firebase persistence directly
+    // This ensures we have the user immediately, even before onAuthStateChanged fires
     if (isInitialMountRef.current) {
       isInitialMountRef.current = false;
       // Always check auth.currentUser on mount - Firebase persistence should have it
+      // This is critical for offline scenarios where onAuthStateChanged might be delayed
       if (auth.currentUser) {
         lastKnownUserRef.current = auth.currentUser;
         setUser(auth.currentUser);
         localStorage.setItem('cached_user_id', auth.currentUser.uid);
         localStorage.setItem('cached_user_email', auth.currentUser.email || '');
-        console.log('[Auth] Initial mount - found user in Firebase persistence');
+        console.log('[Auth] Initial mount - found user in Firebase persistence:', auth.currentUser.uid);
+        setLoading(false); // Set loading to false immediately if we have a user
+      } else {
+        // No user in persistence - check cache as fallback
+        const cachedUserId = localStorage.getItem('cached_user_id');
+        if (cachedUserId && !navigator.onLine) {
+          console.log('[Auth] Initial mount offline - have cached user ID but no Firebase user');
+          // Don't set user, but layout will check cache
+        }
       }
     }
     
