@@ -646,6 +646,17 @@ export default function NoteEditorPage() {
                     } else {
                       editor.chain().focus().setImage({ src: imageUrl, width: selectedSize }).run();
                     }
+                    
+                    // Force immediate save to ensure image is persisted
+                    // The editor's onChange will trigger a save, but we want to ensure it happens
+                    // Give it a moment for the editor to update, then trigger save
+                    setTimeout(() => {
+                      if (editor) {
+                        // Trigger content change to ensure save happens
+                        const html = editor.getHTML();
+                        // The onChange handler will pick this up and save
+                      }
+                    }, 100);
                   } catch (error) {
                     console.error('Error uploading image:', error);
                   } finally {

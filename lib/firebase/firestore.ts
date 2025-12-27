@@ -298,13 +298,39 @@ export const getNotes = async (
   
   const q = query(collection(db, 'notes'), ...constraints);
   const snapshot = await getDocs(q);
-  const notes = snapshot.docs.map((doc) => ({
-    id: doc.id,
-    ...doc.data(),
-    createdAt: doc.data().createdAt.toDate(),
-    updatedAt: doc.data().updatedAt.toDate(),
-    deletedAt: doc.data().deletedAt?.toDate() || null,
-  })) as Note[];
+  const notes = snapshot.docs.map((doc) => {
+    const data = doc.data();
+    // Ensure images array exists - extract from content if missing
+    let images = data.images || [];
+    if (!Array.isArray(images) || images.length === 0) {
+      // Extract images from HTML content if images array is missing or empty
+      const content = data.content || '';
+      if (content && typeof content === 'string') {
+        // Simple regex to extract image URLs from HTML
+        const imgRegex = /<img[^>]+src=["']([^"']+)["']/gi;
+        const extractedUrls: string[] = [];
+        let match;
+        while ((match = imgRegex.exec(content)) !== null) {
+          const url = match[1];
+          // Only include non-data URLs (Firebase Storage URLs)
+          if (url && !url.startsWith('data:') && !extractedUrls.includes(url)) {
+            extractedUrls.push(url);
+          }
+        }
+        if (extractedUrls.length > 0) {
+          images = extractedUrls;
+        }
+      }
+    }
+    return {
+      id: doc.id,
+      ...data,
+      images: images, // Ensure images array is always present
+      createdAt: data.createdAt.toDate(),
+      updatedAt: data.updatedAt.toDate(),
+      deletedAt: data.deletedAt?.toDate() || null,
+    };
+  }) as Note[];
   
   // Sort client-side to avoid index requirement
   return notes.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());

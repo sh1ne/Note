@@ -4,6 +4,7 @@ import { updateNote } from '@/lib/firebase/firestore';
 import { saveNoteLocally, addToSyncQueue } from '@/lib/utils/localStorage';
 import { useNoteCache } from '@/hooks/useNoteCache';
 import { generateUniqueNoteTitle } from '@/lib/utils/noteHelpers';
+import { extractImageUrls } from '@/lib/utils/imageHelpers';
 
 interface UseNoteOptions {
   noteId: string;
@@ -88,6 +89,9 @@ export function useNote({ noteId, initialNote, onSaveComplete }: UseNoteOptions)
 
     const currentContent = editorRef.current.getHTML();
     const currentPlainText = editorRef.current.getText();
+    
+    // Extract image URLs from HTML content
+    const imageUrls = extractImageUrls(currentContent);
 
     // Don't call setContent - it causes re-renders that trigger loops
     // Content is managed by the editor itself
@@ -96,6 +100,7 @@ export function useNote({ noteId, initialNote, onSaveComplete }: UseNoteOptions)
       ...note,
       content: currentContent,
       contentPlain: currentPlainText,
+      images: imageUrls, // Update images array from HTML content
       updatedAt: new Date(),
     };
     // CRITICAL: Don't call setNote here - it causes content prop to change, triggering editor re-render
@@ -142,6 +147,7 @@ export function useNote({ noteId, initialNote, onSaveComplete }: UseNoteOptions)
           content: currentContent,
           contentPlain: currentPlainText,
           title: finalTitle,
+          images: imageUrls, // Include images array
           notebookId: note.notebookId, // Ensure notebookId is correct
         });
         // Trigger sync event for UI update - this means it successfully synced to cloud
@@ -158,6 +164,7 @@ export function useNote({ noteId, initialNote, onSaveComplete }: UseNoteOptions)
           content: currentContent,
           contentPlain: currentPlainText,
           title: note.title,
+          images: imageUrls, // Include images array
         });
         // Dispatch sync error event
         if (typeof window !== 'undefined') {
