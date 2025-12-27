@@ -486,11 +486,19 @@ export default function NoteEditorPage() {
     }).format(date);
   };
 
-  const getSaveStatus = () => {
-    if (!isOnline) return 'Saved offline';
-    if (isSavedToCloud) return 'Cloud Saved';
-    if (lastSaved) return 'Saved locally';
-    return null;
+  const getSaveLocation = () => {
+    // Determine where the note was last saved
+    if (!isOnline) return 'Offline';
+    if (isSavedToCloud) return 'Cloud';
+    if (lastSaved) return 'Local';
+    // If we have a note, check if it was recently updated (within last minute = likely cloud saved)
+    if (note) {
+      const now = new Date();
+      const noteAge = now.getTime() - note.updatedAt.getTime();
+      // If note was updated in last 2 minutes and we're online, assume it's cloud saved
+      if (noteAge < 120000 && isOnline) return 'Cloud';
+    }
+    return 'Local'; // Default fallback
   };
 
   return (
@@ -551,32 +559,21 @@ export default function NoteEditorPage() {
             </button>
           </div>
           <div className="flex-1 flex items-center justify-center">
+            {/* Only show active/transient status in top bar */}
             {isSaving && (
               <span className="text-xs text-text-secondary">
                 {isOnline ? 'Saving to cloud...' : 'Saving locally...'}
               </span>
             )}
-            {!isSaving && (
-              <>
-                {isOnline && isSavedToCloud && (
-                  <span className="text-xs text-text-secondary">Cloud Saved</span>
-                )}
-                {isOnline && !isSavedToCloud && lastSaved && (
-                  <span className="text-xs text-text-secondary">Saved locally</span>
-                )}
-                {!isOnline && (
-                  <span className="text-xs text-text-secondary">Saved offline</span>
-                )}
-              </>
+            {!isSaving && !isOnline && (
+              <span className="text-xs text-red-400">⚠️ Offline</span>
             )}
-            {!isOnline && (
-              <span className="text-xs text-red-400 ml-2">⚠️ Offline</span>
-            )}
-            {pendingSyncCount > 0 && (
-              <span className="text-xs text-orange-400 ml-2">
+            {!isSaving && pendingSyncCount > 0 && (
+              <span className="text-xs text-orange-400">
                 {pendingSyncCount} pending
               </span>
             )}
+            {/* When idle and all good, show nothing in top bar */}
           </div>
           <div className="flex items-center">
             {/* Image Upload Button */}
@@ -934,8 +931,7 @@ export default function NoteEditorPage() {
                   {note.title || 'Untitled Note'}
                 </h1>
                 <span className="text-sm text-text-secondary">
-                  {getSaveStatus() && ` • ${getSaveStatus()}`}
-                  {` • ${formatDate(note.updatedAt)}`}
+                  {` • Last saved: ${formatDate(note.updatedAt)} (${getSaveLocation()})`}
                 </span>
               </div>
               {note.tabId && note.tabId !== 'staple' && (
