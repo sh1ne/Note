@@ -37,6 +37,8 @@ export default function RichTextEditor({
   
   // Track if we're updating from props to prevent onUpdate trigger
   const isUpdatingFromPropsRef = useRef(false);
+  const onChangeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastContentRef = useRef<string>('');
   
   const editor = useEditor({
     immediatelyRender: false, // Fix SSR hydration warnings
@@ -87,18 +89,34 @@ export default function RichTextEditor({
         emptyEditorClass: 'is-editor-empty',
       }),
     ],
-    content,
+    // Don't use content prop - we'll set it manually to avoid controlled component issues
+    // This makes the editor uncontrolled, preventing infinite loops
     onUpdate: ({ editor }) => {
       // Skip onChange if we're updating from props to prevent infinite loop
       if (isUpdatingFromPropsRef.current) {
         return;
       }
-      // Use requestAnimationFrame to ensure we get the latest content
-      requestAnimationFrame(() => {
-        const html = editor.getHTML();
-        const plainText = editor.getText();
-        onChange(html, plainText);
-      });
+      
+      // Get current content
+      const html = editor.getHTML();
+      const plainText = editor.getText();
+      
+      // Debounce onChange to prevent rapid-fire calls
+      // Clear any pending onChange call
+      if (onChangeTimeoutRef.current) {
+        clearTimeout(onChangeTimeoutRef.current);
+      }
+      
+      // Only call onChange if content actually changed
+      if (html !== lastContentRef.current) {
+        lastContentRef.current = html;
+        
+        // Debounce the onChange call by 300ms to batch rapid updates and prevent loops
+        onChangeTimeoutRef.current = setTimeout(() => {
+          onChange(html, plainText);
+          onChangeTimeoutRef.current = null;
+        }, 300);
+      }
     },
     editorProps: {
       attributes: {
@@ -142,29 +160,25 @@ export default function RichTextEditor({
     }
   }, [editor, onEditorReady]);
 
-  // Track previous content to prevent unnecessary updates
-  const prevContentRef = useRef<string>('');
+  // Track if editor has been initialized - only set content ONCE on mount
+  const isInitializedRef = useRef(false);
 
-  // Handle content prop changes ONLY when it's actually different
-  // Use emitUpdate: false to prevent triggering onUpdate callback
+  // Set initial content ONLY once when editor is first created
+  // After this, we NEVER update editor from content prop to prevent infinite loops
+  // For note switches, the parent component will remount this component with new content
   useEffect(() => {
-    if (!editor) return;
+    if (!editor || isInitializedRef.current) return;
     
-    const currentContent = editor.getHTML();
-    // Only update if content prop is different AND it's not the same as last time
-    if (content !== currentContent && content !== prevContentRef.current) {
-      prevContentRef.current = content;
+    if (content) {
+      isInitializedRef.current = true;
       isUpdatingFromPropsRef.current = true;
       editor.commands.setContent(content, false);
-      // Reset flag after a longer delay to ensure onUpdate doesn't fire
-      // Use requestAnimationFrame to ensure it happens after any pending updates
-      requestAnimationFrame(() => {
-        setTimeout(() => {
-          isUpdatingFromPropsRef.current = false;
-        }, 50);
-      });
+      // Reset flag after editor processes the update
+      setTimeout(() => {
+        isUpdatingFromPropsRef.current = false;
+      }, 300);
     }
-  }, [editor, content]);
+  }, [editor]); // ONLY depend on editor - completely ignore content prop after init
 
   // Show toolbar only when text is selected (mobile) or when editor is focused (desktop)
   useEffect(() => {
@@ -349,7 +363,7 @@ function EditorToolbar({ editor, onCreateNote }: { editor: any; onCreateNote?: (
           // Keep focus on editor
           setTimeout(() => editor.commands.focus(), 10);
         }}
-        className={`px-2 py-1.5 rounded transition-all text-black dark:text-white hover:text-text-primary shrink-0 ${
+        className={`px-2 py-1.5 rounded transition-all text-text-primary hover:text-text-primary shrink-0 ${
           editor.isActive('bold') 
             ? 'bg-blue-600/20 border-2 border-blue-500 text-blue-400 font-semibold' 
             : 'border-2 border-transparent hover:bg-bg-primary/30'
@@ -364,7 +378,7 @@ function EditorToolbar({ editor, onCreateNote }: { editor: any; onCreateNote?: (
           editor.chain().focus().toggleItalic().run();
           setTimeout(() => editor.commands.focus(), 10);
         }}
-        className={`px-2 py-1.5 rounded transition-all text-black dark:text-white hover:text-text-primary shrink-0 ${
+        className={`px-2 py-1.5 rounded transition-all text-text-primary hover:text-text-primary shrink-0 ${
           editor.isActive('italic') 
             ? 'bg-blue-600/20 border-2 border-blue-500 text-blue-400 font-semibold' 
             : 'border-2 border-transparent hover:bg-bg-primary/30'
@@ -379,7 +393,7 @@ function EditorToolbar({ editor, onCreateNote }: { editor: any; onCreateNote?: (
           editor.chain().focus().toggleUnderline().run();
           setTimeout(() => editor.commands.focus(), 10);
         }}
-        className={`px-2 py-1.5 rounded transition-all text-black dark:text-white hover:text-text-primary shrink-0 ${
+        className={`px-2 py-1.5 rounded transition-all text-text-primary hover:text-text-primary shrink-0 ${
           editor.isActive('underline') 
             ? 'bg-blue-600/20 border-2 border-blue-500 text-blue-400 font-semibold' 
             : 'border-2 border-transparent hover:bg-bg-primary/30'
@@ -394,7 +408,7 @@ function EditorToolbar({ editor, onCreateNote }: { editor: any; onCreateNote?: (
           editor.chain().focus().toggleStrike().run();
           setTimeout(() => editor.commands.focus(), 10);
         }}
-        className={`px-2 py-1.5 rounded transition-all text-black dark:text-white hover:text-text-primary shrink-0 ${
+        className={`px-2 py-1.5 rounded transition-all text-text-primary hover:text-text-primary shrink-0 ${
           editor.isActive('strike') 
             ? 'bg-blue-600/20 border-2 border-blue-500 text-blue-400 font-semibold' 
             : 'border-2 border-transparent hover:bg-bg-primary/30'
@@ -411,7 +425,7 @@ function EditorToolbar({ editor, onCreateNote }: { editor: any; onCreateNote?: (
           editor.chain().focus().toggleBulletList().run();
           setTimeout(() => editor.commands.focus(), 10);
         }}
-        className={`px-2 py-1.5 rounded transition-all text-black dark:text-white hover:text-text-primary shrink-0 ${
+        className={`px-2 py-1.5 rounded transition-all text-text-primary hover:text-text-primary shrink-0 ${
           editor.isActive('bulletList') 
             ? 'bg-blue-600/20 border-2 border-blue-500 text-blue-400 font-semibold' 
             : 'border-2 border-transparent hover:bg-bg-primary/30'
@@ -426,7 +440,7 @@ function EditorToolbar({ editor, onCreateNote }: { editor: any; onCreateNote?: (
           editor.chain().focus().toggleOrderedList().run();
           setTimeout(() => editor.commands.focus(), 10);
         }}
-        className={`px-2 py-1.5 rounded transition-all text-black dark:text-white hover:text-text-primary shrink-0 ${
+        className={`px-2 py-1.5 rounded transition-all text-text-primary hover:text-text-primary shrink-0 ${
           editor.isActive('orderedList') 
             ? 'bg-blue-600/20 border-2 border-blue-500 text-blue-400 font-semibold' 
             : 'border-2 border-transparent hover:bg-bg-primary/30'
@@ -441,7 +455,7 @@ function EditorToolbar({ editor, onCreateNote }: { editor: any; onCreateNote?: (
           editor.chain().focus().toggleTaskList().run();
           setTimeout(() => editor.commands.focus(), 10);
         }}
-        className={`px-2 py-1.5 rounded transition-all text-black dark:text-white hover:text-text-primary shrink-0 ${
+        className={`px-2 py-1.5 rounded transition-all text-text-primary hover:text-text-primary shrink-0 ${
           editor.isActive('taskList') 
             ? 'bg-blue-600/20 border-2 border-blue-500 text-blue-400 font-semibold' 
             : 'border-2 border-transparent hover:bg-bg-primary/30'
@@ -458,7 +472,7 @@ function EditorToolbar({ editor, onCreateNote }: { editor: any; onCreateNote?: (
           editor.chain().focus().setTextAlign('left').run();
           setTimeout(() => editor.commands.focus(), 10);
         }}
-        className={`px-2 py-1.5 rounded transition-all text-black dark:text-white hover:text-text-primary shrink-0 ${
+        className={`px-2 py-1.5 rounded transition-all text-text-primary hover:text-text-primary shrink-0 ${
           isLeftActive 
             ? 'bg-blue-600/20 border-2 border-blue-500 text-blue-400' 
             : 'border-2 border-transparent hover:bg-bg-primary/30'
@@ -475,7 +489,7 @@ function EditorToolbar({ editor, onCreateNote }: { editor: any; onCreateNote?: (
           editor.chain().focus().setTextAlign('center').run();
           setTimeout(() => editor.commands.focus(), 10);
         }}
-        className={`px-2 py-1.5 rounded transition-all text-black dark:text-white hover:text-text-primary shrink-0 ${
+        className={`px-2 py-1.5 rounded transition-all text-text-primary hover:text-text-primary shrink-0 ${
           editor.isActive({ textAlign: 'center' }) 
             ? 'bg-blue-600/20 border-2 border-blue-500 text-blue-400' 
             : 'border-2 border-transparent hover:bg-bg-primary/30'
@@ -492,7 +506,7 @@ function EditorToolbar({ editor, onCreateNote }: { editor: any; onCreateNote?: (
           editor.chain().focus().setTextAlign('right').run();
           setTimeout(() => editor.commands.focus(), 10);
         }}
-        className={`px-2 py-1.5 rounded transition-all text-black dark:text-white hover:text-text-primary shrink-0 ${
+        className={`px-2 py-1.5 rounded transition-all text-text-primary hover:text-text-primary shrink-0 ${
           editor.isActive({ textAlign: 'right' }) 
             ? 'bg-blue-600/20 border-2 border-blue-500 text-blue-400' 
             : 'border-2 border-transparent hover:bg-bg-primary/30'
