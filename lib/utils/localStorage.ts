@@ -26,9 +26,9 @@ export const getDB = async (): Promise<IDBPDatabase<NotesDB>> => {
   db = await openDB<NotesDB>('notes-db', 2, {
     upgrade(db, oldVersion) {
       if (oldVersion < 1) {
-      const notesStore = db.createObjectStore('notes', { keyPath: 'id' });
-      notesStore.createIndex('by-updatedAt', 'updatedAt');
-      db.createObjectStore('syncQueue', { keyPath: 'noteId' });
+        const notesStore = db.createObjectStore('notes', { keyPath: 'id' });
+        notesStore.createIndex('by-updatedAt', 'updatedAt');
+        db.createObjectStore('syncQueue', { keyPath: 'noteId' });
       }
       if (oldVersion < 2) {
         const backupsStore = db.createObjectStore('backups', { keyPath: 'timestamp' });
@@ -94,7 +94,7 @@ export const saveBackup = async (data: any) => {
     const sorted = allBackups.sort((a, b) => b.timestamp - a.timestamp);
     const toDelete = sorted.slice(10);
     for (const backup of toDelete) {
-      await database.delete('backups', backup.timestamp.toString());
+      await database.delete('backups', backup.timestamp);
     }
   }
 };
@@ -110,6 +110,3 @@ export const getAllBackups = async () => {
   const database = await getDB();
   return await database.getAll('backups');
 };
-
-
-

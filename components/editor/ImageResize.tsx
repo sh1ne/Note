@@ -1,7 +1,6 @@
 'use client';
 
 import Image from '@tiptap/extension-image';
-import { mergeAttributes } from '@tiptap/core';
 
 // Extended Image extension with width attribute support
 export const ImageResize = Image.extend({
@@ -54,4 +53,3 @@ export const ImageResize = Image.extend({
     };
   },
 });
-

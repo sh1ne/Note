@@ -46,7 +46,7 @@ export function useSyncQueue() {
           
           // If note doesn't exist in Firestore, remove it from queue (it's stale)
           if (error?.message?.includes('does not exist in Firestore') || 
-              error?.message?.includes('Note') && error?.message?.includes('does not exist')) {
+              (error?.message?.includes('Note') && error?.message?.includes('does not exist'))) {
             console.warn('[Sync Queue] ⚠️ Note does not exist, removing from queue:', item.noteId);
             await removeFromSyncQueue(item.noteId);
             // Trigger sync event to update UI (pending count will decrease)
@@ -102,6 +102,3 @@ export function useSyncQueue() {
 
   return { processSyncQueue };
 }
-
-
-

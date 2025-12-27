@@ -6,13 +6,15 @@ export default function ServiceWorkerRegistration() {
   useEffect(() => {
     if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
       // Register service worker
+      let updateInterval: NodeJS.Timeout | null = null;
+      
       navigator.serviceWorker
         .register('/sw.js', { scope: '/' })
         .then((registration) => {
           console.log('[Service Worker] Registered successfully:', registration.scope);
 
           // Check for updates periodically
-          setInterval(() => {
+          updateInterval = setInterval(() => {
             registration.update();
           }, 60000); // Check every minute
 
@@ -38,7 +40,7 @@ export default function ServiceWorkerRegistration() {
       // Note: controllerchange only fires when new SW takes control (usually when all tabs closed)
       // So this is safe - user won't be actively editing when this fires
       let refreshing = false;
-      navigator.serviceWorker.addEventListener('controllerchange', () => {
+      const handleControllerChange = () => {
         if (!refreshing) {
           refreshing = true;
           // Wait a moment to ensure any pending saves complete (2.5s debounce + buffer)
@@ -46,7 +48,17 @@ export default function ServiceWorkerRegistration() {
             window.location.reload();
           }, 4000); // Wait 4 seconds to ensure saves complete
         }
-      });
+      };
+      
+      navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange);
+      
+      // Cleanup function
+      return () => {
+        if (updateInterval) {
+          clearInterval(updateInterval);
+        }
+        navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange);
+      };
     }
   }, []);
 

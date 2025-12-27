@@ -65,5 +65,3 @@ const compressImage = async (file: File, maxWidth = 1920, quality = 0.8): Promis
   });
 };
 
-
-

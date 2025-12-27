@@ -1,8 +1,6 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { saveBackup } from '@/lib/utils/localStorage';
-import { getNotebooks } from '@/lib/firebase/firestore';
-import { getTabs } from '@/lib/firebase/firestore';
-import { getNotes } from '@/lib/firebase/firestore';
+import { getNotebooks, getTabs, getNotes } from '@/lib/firebase/firestore';
 
 /**
  * Hook to manage automatic backups
@@ -80,4 +78,3 @@ export function useAutoBackup(userId: string | null) {
     };
   }, [userId, createBackup]);
 }
-

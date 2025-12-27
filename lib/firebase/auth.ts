@@ -28,5 +28,3 @@ export const getCurrentUser = (): Promise<FirebaseUser | null> => {
   });
 };
 
-
-

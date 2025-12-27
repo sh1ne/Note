@@ -64,4 +64,3 @@ export function useTabNavigation({ notebookId, notebookSlug, userId }: UseTabNav
 
   return { navigateToTab };
 }
-

@@ -13,8 +13,17 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 import { db } from './config';
+import { Notebook, Tab, Note, UserPreferences } from '../types';
+import { createSlug, ensureUniqueSlug } from '../utils/slug';
+import { extractImageUrls } from '../utils/imageHelpers';
 
 // Retry helper for Firestore operations
+// NOTE: This is kept separate from lib/utils/retry.ts because Firestore requires special handling:
+// - Only retries on 'unavailable' or 'offline' errors (network issues)
+// - Immediately throws other errors (permissions, validation, etc.) without retrying
+// - Uses simple linear backoff instead of exponential (sufficient for network retries)
+// The general retry utility in lib/utils/retry.ts handles all retryable errors with exponential backoff,
+// which is not appropriate for Firestore operations that should fail fast on non-network errors.
 const retryFirestoreOperation = async <T>(
   operation: () => Promise<T>,
   maxRetries = 3,
@@ -42,9 +51,6 @@ const retryFirestoreOperation = async <T>(
   
   throw lastError || new Error('Operation failed after retries');
 };
-
-import { Notebook, Tab, Note, UserPreferences } from '../types';
-import { createSlug, ensureUniqueSlug } from '../utils/slug';
 
 // Notebooks
 export const createNotebook = async (notebook: Omit<Notebook, 'id' | 'slug'> & { name: string; userId: string }) => {
@@ -79,7 +85,7 @@ export const getNotebooks = async (userId: string): Promise<Notebook[]> => {
     const snapshot = await getDocs(q);
     const notebooks: Notebook[] = [];
     const batch = writeBatch(db);
-  let needsUpdate = false;
+    let needsUpdate = false;
   
   for (const docSnapshot of snapshot.docs) {
     const data = docSnapshot.data();
@@ -306,17 +312,7 @@ export const getNotes = async (
       // Extract images from HTML content if images array is missing or empty
       const content = data.content || '';
       if (content && typeof content === 'string') {
-        // Simple regex to extract image URLs from HTML
-        const imgRegex = /<img[^>]+src=["']([^"']+)["']/gi;
-        const extractedUrls: string[] = [];
-        let match;
-        while ((match = imgRegex.exec(content)) !== null) {
-          const url = match[1];
-          // Only include non-data URLs (Firebase Storage URLs)
-          if (url && !url.startsWith('data:') && !extractedUrls.includes(url)) {
-            extractedUrls.push(url);
-          }
-        }
+        const extractedUrls = extractImageUrls(content);
         if (extractedUrls.length > 0) {
           images = extractedUrls;
         }

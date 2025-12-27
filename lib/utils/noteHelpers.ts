@@ -140,13 +140,19 @@ export async function generateUniqueNoteTitle(
       .map((n) => n.title.trim().toLowerCase());
     
     // If baseTitle is "New Note", use "Note" instead
-    const actualBaseTitle = baseTitle === 'New Note' ? 'Note' : baseTitle;
+    const effectiveBaseTitle = baseTitle === 'New Note' ? 'Note' : baseTitle;
     
-    let uniqueTitle = actualBaseTitle;
+    let uniqueTitle = effectiveBaseTitle;
     let counter = 1;
     
+    // If the base title itself exists, start numbering from 1
+    if (existingTitles.includes(uniqueTitle.trim().toLowerCase())) {
+      uniqueTitle = `${effectiveBaseTitle}${counter}`;
+      counter++;
+    }
+    
     while (existingTitles.includes(uniqueTitle.trim().toLowerCase())) {
-      uniqueTitle = `${actualBaseTitle}${counter}`;
+      uniqueTitle = `${effectiveBaseTitle}${counter}`;
       counter++;
     }
     

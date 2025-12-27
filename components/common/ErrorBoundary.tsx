@@ -27,10 +27,10 @@ export class ErrorBoundary extends React.Component<
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen flex items-center justify-center bg-black text-white p-4">
+        <div className="min-h-screen flex items-center justify-center bg-bg-primary text-text-primary p-4">
           <div className="text-center">
             <h2 className="text-2xl font-bold mb-4">Something went wrong</h2>
-            <p className="text-gray-400 mb-4">
+            <p className="text-text-secondary mb-4">
               {this.state.error?.message || 'An unexpected error occurred'}
             </p>
             <button
@@ -38,7 +38,7 @@ export class ErrorBoundary extends React.Component<
                 this.setState({ hasError: false, error: null });
                 window.location.reload();
               }}
-              className="px-4 py-2 bg-gray-800 text-white rounded hover:bg-gray-700"
+              className="px-4 py-2 bg-bg-secondary text-text-primary rounded hover:bg-bg-secondary/80 transition-colors"
             >
               Reload Page
             </button>
