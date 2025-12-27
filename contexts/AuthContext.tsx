@@ -128,39 +128,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         setLoading(false);
       } else {
         // Firebase says user is null
-        if (isOffline) {
-          // OFFLINE: Ignore Firebase callback, trust IndexedDB
-          // Check if IndexedDB has auth state
-          const authState = await getAuthState();
-          if (authState) {
-            // IndexedDB says we're authenticated - trust it, ignore Firebase
-            console.log('[Auth] Offline: Firebase says null but IndexedDB has auth state - trusting IndexedDB');
-            // Keep last known user if we have it, or check auth.currentUser
-            if (lastKnownUserRef.current) {
-              setUser(lastKnownUserRef.current);
-            } else if (auth.currentUser) {
-              // Firebase persistence still has user even though callback says null
-              console.log('[Auth] Offline: Using auth.currentUser despite callback saying null');
-              lastKnownUserRef.current = auth.currentUser;
-              setUser(auth.currentUser);
-              await saveAuthState(auth.currentUser.uid, auth.currentUser.email || '');
-            }
-            // Don't clear state - IndexedDB is source of truth when offline
-            setLoading(false);
-            return;
+        // CRITICAL: Don't trust Firebase callback - check IndexedDB first (source of truth)
+        // Firebase can fire null for many reasons (token refresh, network hiccup, etc.)
+        // Only clear IndexedDB on explicit logout, not from this callback
+        const authState = await getAuthState();
+        
+        if (authState) {
+          // IndexedDB says we're authenticated - trust it, ignore Firebase null callback
+          // This handles both online and offline scenarios
+          const isOffline = !navigator.onLine;
+          console.log(`[Auth] Firebase says null but IndexedDB has auth state (${isOffline ? 'offline' : 'online'}) - trusting IndexedDB`);
+          
+          // Keep last known user if we have it, or check auth.currentUser
+          if (lastKnownUserRef.current) {
+            setUser(lastKnownUserRef.current);
+          } else if (auth.currentUser) {
+            // Firebase persistence still has user even though callback says null
+            console.log('[Auth] Using auth.currentUser despite callback saying null');
+            lastKnownUserRef.current = auth.currentUser;
+            setUser(auth.currentUser);
+            await saveAuthState(auth.currentUser.uid, auth.currentUser.email || '');
           }
-          // Offline, no IndexedDB state, no Firebase user - truly logged out
-          console.log('[Auth] Offline: No auth state anywhere - user is logged out');
-          setUser(null);
+          // Don't clear IndexedDB - it's the source of truth
           setLoading(false);
-        } else {
-          // ONLINE: Firebase says user is logged out - clear IndexedDB and state
-          console.log('[Auth] Online: Firebase says user logged out - clearing IndexedDB');
-          await clearAuthState();
-          lastKnownUserRef.current = null;
-          setUser(null);
-          setLoading(false);
+          return;
         }
+        
+        // No IndexedDB state - user is truly logged out (or never logged in)
+        // Only clear state if IndexedDB is also empty
+        console.log('[Auth] Firebase says null and IndexedDB is empty - user is logged out');
+        lastKnownUserRef.current = null;
+        setUser(null);
+        setLoading(false);
+        // Note: Don't call clearAuthState() here - it's already empty
       }
     });
 
