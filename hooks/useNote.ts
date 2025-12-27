@@ -169,7 +169,8 @@ export function useNote({ noteId, initialNote, onSaveComplete }: UseNoteOptions)
 
       // Save locally immediately
       saveNoteLocally(updatedNote);
-      updateCache(updatedNote);
+      // Don't call updateCache here - it causes infinite loop
+      // Cache will be updated after successful cloud save
 
       // Use the unified saveNote function (debounced)
       // Clear any pending saves first
