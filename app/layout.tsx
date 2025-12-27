@@ -60,9 +60,32 @@ if (typeof window !== 'undefined') {
     if (event.reason && (event.reason.message?.includes('ChunkLoadError') || event.reason.message?.includes('Failed to fetch'))) {
       const isOffline = !navigator.onLine;
       if (isOffline) {
-        console.warn('[Global Handler] ChunkLoadError while offline - showing offline fallback');
+        console.warn('[Global Handler] ChunkLoadError while offline - attempting to redirect to cached route');
         event.preventDefault();
-        // Show offline fallback UI
+        
+        // If we're on a dashboard route, try to redirect to a cached staple route
+        const currentPath = window.location.pathname;
+        if (currentPath.startsWith('/base/') || currentPath.startsWith('/notebook')) {
+          // Extract notebook slug
+          const parts = currentPath.split('/');
+          const notebookSlug = parts[1] || 'base';
+          
+          // Try to redirect to a cached staple route (most likely to be cached)
+          const cachedRoutes = [
+            \`/\${notebookSlug}/scratch\`,
+            \`/\${notebookSlug}/now\`,
+            \`/\${notebookSlug}/short-term\`,
+            \`/\${notebookSlug}/long-term\`,
+          ];
+          
+          // Redirect to first staple route (Scratch is most likely cached)
+          const targetRoute = cachedRoutes[0];
+          console.warn(\`[Global Handler] Redirecting to cached route: \${targetRoute}\`);
+          window.location.href = targetRoute;
+          return;
+        }
+        
+        // Not on dashboard route - show offline fallback UI
         const fallback = document.getElementById('offline-chunk-fallback');
         if (fallback) {
           fallback.style.display = 'block';
@@ -87,9 +110,32 @@ if (typeof window !== 'undefined') {
     if (event.error && (event.error.message?.includes('ChunkLoadError') || event.error.message?.includes('Failed to fetch'))) {
       const isOffline = !navigator.onLine;
       if (isOffline) {
-        console.warn('[Global Handler] ChunkLoadError while offline - showing offline fallback');
+        console.warn('[Global Handler] ChunkLoadError while offline - attempting to redirect to cached route');
         event.preventDefault();
-        // Show offline fallback UI
+        
+        // If we're on a dashboard route, try to redirect to a cached staple route
+        const currentPath = window.location.pathname;
+        if (currentPath.startsWith('/base/') || currentPath.startsWith('/notebook')) {
+          // Extract notebook slug
+          const parts = currentPath.split('/');
+          const notebookSlug = parts[1] || 'base';
+          
+          // Try to redirect to a cached staple route (most likely to be cached)
+          const cachedRoutes = [
+            \`/\${notebookSlug}/scratch\`,
+            \`/\${notebookSlug}/now\`,
+            \`/\${notebookSlug}/short-term\`,
+            \`/\${notebookSlug}/long-term\`,
+          ];
+          
+          // Redirect to first staple route (Scratch is most likely cached)
+          const targetRoute = cachedRoutes[0];
+          console.warn(\`[Global Handler] Redirecting to cached route: \${targetRoute}\`);
+          window.location.href = targetRoute;
+          return;
+        }
+        
+        // Not on dashboard route - show offline fallback UI
         const fallback = document.getElementById('offline-chunk-fallback');
         if (fallback) {
           fallback.style.display = 'block';

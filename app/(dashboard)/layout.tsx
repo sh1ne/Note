@@ -185,6 +185,29 @@ export default function DashboardLayout({
     }
   }, [user, loading, router, pathname, hasIndexedDBAuth]);
 
+  // Prefetch staple routes when online to ensure they're cached
+  useEffect(() => {
+    if (typeof window === 'undefined' || !router) return;
+    
+    const isOnline = navigator.onLine;
+    const notebookSlug = pathname?.split('/')[1]; // Extract notebook slug from pathname
+    
+    if (isOnline && notebookSlug && notebookSlug !== 'notebook') {
+      // Prefetch staple routes to ensure chunks are cached
+      const stapleRoutes = [
+        `/${notebookSlug}/scratch`,
+        `/${notebookSlug}/now`,
+        `/${notebookSlug}/short-term`,
+        `/${notebookSlug}/long-term`,
+      ];
+      
+      console.log('[DashboardLayout] Prefetching staple routes:', stapleRoutes);
+      stapleRoutes.forEach((route) => {
+        router.prefetch(route);
+      });
+    }
+  }, [router, pathname]);
+
   if (loading || hasIndexedDBAuth === null) {
     return <LoadingSpinner message="Loading..." />;
   }
