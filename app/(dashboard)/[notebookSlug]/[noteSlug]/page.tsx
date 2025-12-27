@@ -343,7 +343,7 @@ export default function NoteEditorPage() {
       
       let noteData: Note | null = null;
       
-      if (isOffline) {
+      if (isOffline && user) {
         // Try local cache first when offline
         try {
           const { getAllNotesLocally } = await import('@/lib/utils/localStorage');
