@@ -507,10 +507,10 @@ export default function NoteEditorPage() {
       {/* Header Bar */}
       <div className={`sticky ${!isOnline ? 'top-8' : 'top-0'} bg-bg-primary border-b border-bg-secondary z-20`}>
         <div className="flex items-center justify-between p-4">
-          <div className="flex items-center gap-0.5">
+          <div className="flex items-center">
             <button
               onClick={handleBack}
-              className="p-1.5 text-text-primary hover:text-text-secondary hover:bg-bg-secondary rounded-lg transition-colors"
+              className="p-1 text-text-primary hover:text-text-secondary hover:bg-bg-secondary rounded-lg transition-colors"
               title="Back"
               aria-label="Back"
             >
@@ -525,7 +525,7 @@ export default function NoteEditorPage() {
                 }
               }}
               disabled={editor && !editor.can().undo()}
-              className="p-1.5 text-text-primary hover:text-text-secondary hover:bg-bg-secondary rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="p-1 text-text-primary hover:text-text-secondary hover:bg-bg-secondary rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               title="Undo"
               aria-label="Undo"
             >
@@ -541,7 +541,7 @@ export default function NoteEditorPage() {
                 }
               }}
               disabled={editor && !editor.can().redo()}
-              className="p-1.5 text-text-primary hover:text-text-secondary hover:bg-bg-secondary rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="p-1 text-text-primary hover:text-text-secondary hover:bg-bg-secondary rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               title="Redo"
               aria-label="Redo"
             >
@@ -573,7 +573,7 @@ export default function NoteEditorPage() {
               </span>
             )}
           </div>
-          <div className="flex items-center gap-0.5">
+          <div className="flex items-center">
             {/* Image Upload Button */}
             <button
               onClick={async (e) => {
@@ -621,7 +621,7 @@ export default function NoteEditorPage() {
                 }, 0);
               }}
               disabled={!editor || !user?.uid || !initialNote?.id}
-              className="p-2 text-blue-400 hover:text-blue-300 hover:bg-bg-secondary rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-black/50"
+              className="p-2 text-blue-400 hover:text-blue-300 hover:bg-bg-secondary rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               title="Insert Image (Images only)"
               aria-label="Insert Image"
             >
@@ -634,7 +634,7 @@ export default function NoteEditorPage() {
             <div className="relative" ref={shareMenuRef}>
               <button
                 onClick={() => setShowShareMenu(!showShareMenu)}
-                className="p-2 text-purple-400 hover:text-purple-300 hover:bg-bg-secondary rounded-lg transition-colors border border-black/50"
+                className="p-2 text-purple-400 hover:text-purple-300 hover:bg-bg-secondary rounded-lg transition-colors"
                 title="Share Note"
                 aria-label="Share Note"
               >
@@ -810,7 +810,7 @@ export default function NoteEditorPage() {
                   setFindQuery('');
                 }
               }}
-              className="p-2 text-yellow-400 hover:text-yellow-300 hover:bg-bg-secondary rounded-lg transition-colors border border-black/50"
+              className="p-2 text-cyan-400 hover:text-cyan-300 hover:bg-bg-secondary rounded-lg transition-colors"
               title="Find"
               aria-label="Find"
             >
@@ -821,7 +821,7 @@ export default function NoteEditorPage() {
             </button>
             <button
               onClick={handleCreateNote}
-              className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded transition-colors font-semibold"
+              className="flex items-center justify-center w-12 h-12 bg-green-600 hover:bg-green-700 text-white rounded transition-colors font-semibold"
               title="Create New Note"
               aria-label="Create New Note"
             >
