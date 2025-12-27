@@ -3,6 +3,7 @@ import { useRouter } from 'next/navigation';
 import { Tab } from '@/lib/types';
 import { ensureStapleNoteExists, isStapleNoteTab, isSpecialTab } from '@/lib/utils/noteHelpers';
 import { getNotes } from '@/lib/firebase/firestore';
+import { getAllNotesLocally } from '@/lib/utils/localStorage';
 import { createSlug } from '@/lib/utils/slug';
 
 interface UseTabNavigationOptions {
@@ -36,11 +37,30 @@ export function useTabNavigation({ notebookId, notebookSlug, userId }: UseTabNav
     
     // Staple tabs (Scratch, Now, etc.) - open the note directly using slug
     if (isStapleNoteTab(tab)) {
-      const stapleNote = await ensureStapleNoteExists(tab.name, notebookId, userId);
-      if (stapleNote) {
-        const slug = createSlug(stapleNote.title);
-        router.push(`/${notebookSlug}/${slug}`);
-        return 'redirect';
+      const isOffline = typeof window !== 'undefined' && !navigator.onLine;
+      
+      if (isOffline) {
+        // Load from local cache when offline
+        try {
+          const allLocalNotes = await getAllNotesLocally();
+          const stapleNote = allLocalNotes.find(
+            (n) => n.notebookId === notebookId && n.title === tab.name && n.tabId === 'staple' && n.userId === userId
+          );
+          if (stapleNote) {
+            const slug = createSlug(stapleNote.title);
+            router.push(`/${notebookSlug}/${slug}`);
+            return 'redirect';
+          }
+        } catch (error) {
+          console.error('Error loading staple note from cache:', error);
+        }
+      } else {
+        const stapleNote = await ensureStapleNoteExists(tab.name, notebookId, userId);
+        if (stapleNote) {
+          const slug = createSlug(stapleNote.title);
+          router.push(`/${notebookSlug}/${slug}`);
+          return 'redirect';
+        }
       }
       return 'stay';
     }
@@ -48,7 +68,21 @@ export function useTabNavigation({ notebookId, notebookSlug, userId }: UseTabNav
     // Regular note tabs - open the first note in that tab using slug
     if (!options?.skipRedirect) {
       try {
-        const notesData = await getNotes(notebookId, tab.id, userId);
+        const isOffline = typeof window !== 'undefined' && !navigator.onLine;
+        
+        let notesData;
+        if (isOffline) {
+          // Load from local cache when offline
+          const allLocalNotes = await getAllNotesLocally();
+          notesData = allLocalNotes.filter(
+            (n) => n.notebookId === notebookId && n.tabId === tab.id && n.userId === userId && !n.deletedAt
+          );
+          // Sort by updatedAt descending (most recent first)
+          notesData.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
+        } else {
+          notesData = await getNotes(notebookId, tab.id, userId);
+        }
+        
         if (notesData.length > 0) {
           const noteSlug = createSlug(notesData[0].title);
           router.push(`/${notebookSlug}/${noteSlug}`);

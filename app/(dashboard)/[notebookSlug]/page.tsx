@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { getNotes, createNote, createTab, getNotebookBySlug } from '@/lib/firebase/firestore';
+import { saveNoteLocally, getAllNotesLocally, addToSyncQueue } from '@/lib/utils/localStorage';
 import { Note } from '@/lib/types';
 import BottomNav from '@/components/layout/BottomNav';
 import NoteList from '@/components/notes/NoteList';
@@ -142,12 +143,41 @@ export default function NotebookPage() {
     if (!user || !notebookId) return;
     try {
       setError(null);
-      const notesData = await getNotes(notebookId, tabId, user.uid);
+      
+      const isOffline = typeof window !== 'undefined' && !navigator.onLine;
+      
+      let notesData: Note[];
+      if (isOffline) {
+        // Load from local cache when offline
+        const allLocalNotes = await getAllNotesLocally();
+        notesData = allLocalNotes.filter(
+          (n) => n.notebookId === notebookId && n.tabId === tabId && n.userId === user.uid
+        );
+      } else {
+        notesData = await getNotes(notebookId, tabId, user.uid);
+      }
+      
       setNotes(notesData);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load notes';
       console.error('Error loading notes:', err);
-      setError(errorMessage);
+      
+      // If offline, try to load from local cache as fallback
+      const isOffline = typeof window !== 'undefined' && !navigator.onLine;
+      if (isOffline) {
+        try {
+          const allLocalNotes = await getAllNotesLocally();
+          const notesData = allLocalNotes.filter(
+            (n) => n.notebookId === notebookId && n.tabId === tabId && n.userId === user.uid
+          );
+          setNotes(notesData);
+          setError(null); // Clear error since we loaded from cache
+        } catch (cacheErr) {
+          setError('Unable to load notes. Please check your connection.');
+        }
+      } else {
+        setError(errorMessage);
+      }
     }
   };
 
@@ -155,8 +185,20 @@ export default function NotebookPage() {
     if (!user || !notebookId) return;
     try {
       setError(null);
-      // Get all notes including staple notes (Scratch, Now, Short-Term, Long-term) for search
-      const notesData = await getNotes(notebookId, undefined, user.uid);
+      
+      // Check if offline
+      const isOffline = typeof window !== 'undefined' && !navigator.onLine;
+      
+      let notesData: Note[];
+      if (isOffline) {
+        // Load from local cache when offline
+        const allLocalNotes = await getAllNotesLocally();
+        notesData = allLocalNotes.filter((n) => n.notebookId === notebookId && n.userId === user.uid);
+      } else {
+        // Get all notes including staple notes (Scratch, Now, Short-Term, Long-term) for search
+        notesData = await getNotes(notebookId, undefined, user.uid);
+      }
+      
       // Exclude staple notes from display, but keep them for search
       // Staple notes have tabId === 'staple'
       const regularNotes = notesData.filter((n) => n && !n.deletedAt && n.tabId !== 'staple');
@@ -164,45 +206,126 @@ export default function NotebookPage() {
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load notes';
       console.error('Error loading all notes:', err);
-      setError(errorMessage);
+      
+      // If offline, try to load from local cache as fallback
+      const isOffline = typeof window !== 'undefined' && !navigator.onLine;
+      if (isOffline) {
+        try {
+          const allLocalNotes = await getAllNotesLocally();
+          const notesData = allLocalNotes.filter((n) => n.notebookId === notebookId && n.userId === user.uid);
+          const regularNotes = notesData.filter((n) => n && !n.deletedAt && n.tabId !== 'staple');
+          setNotes(regularNotes);
+          setError(null); // Clear error since we loaded from cache
+        } catch (cacheErr) {
+          setError('Unable to load notes. Please check your connection.');
+        }
+      } else {
+        setError(errorMessage);
+      }
     }
   };
 
   const handleCreateNote = async () => {
     if (!user || !notebookId) return;
 
-    try {
-      // Generate unique title
-      const uniqueTitle = await generateUniqueNoteTitle('New Note', notebookId, user.uid);
-      
-      const newTabId = await createTab({
-        notebookId,
-        name: uniqueTitle,
-        icon: '📄',
-        order: 0,
-        isLocked: false,
-        isStaple: false,
-        createdAt: new Date(),
-      });
+    const isOffline = typeof window !== 'undefined' && !navigator.onLine;
 
-      const noteId = await createNote({
-        userId: user.uid,
-        notebookId,
-        tabId: newTabId,
-        title: uniqueTitle,
-        content: '',
-        contentPlain: '',
-        images: [],
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        isArchived: false,
-        deletedAt: null,
-      });
+    try {
+      // Generate unique title (check local cache if offline)
+      let uniqueTitle: string;
+      if (isOffline) {
+        // For offline, use a simple counter-based approach
+        const allLocalNotes = await getAllNotesLocally();
+        const existingTitles = allLocalNotes
+          .filter((n) => n.notebookId === notebookId && !n.deletedAt)
+          .map((n) => n.title.trim().toLowerCase());
+        
+        const baseTitle = 'Note';
+        let counter = 1;
+        uniqueTitle = baseTitle;
+        while (existingTitles.includes(uniqueTitle.trim().toLowerCase())) {
+          uniqueTitle = `${baseTitle}${counter}`;
+          counter++;
+        }
+      } else {
+        uniqueTitle = await generateUniqueNoteTitle('New Note', notebookId, user.uid);
+      }
+
+      // Generate temporary ID for offline notes
+      const tempNoteId = isOffline ? `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}` : undefined;
+      const tempTabId = isOffline ? `temp-tab-${Date.now()}-${Math.random().toString(36).substr(2, 9)}` : undefined;
+
+      let newTabId: string;
+      let noteId: string;
+
+      if (isOffline) {
+        // Offline: Use temporary IDs and save locally
+        newTabId = tempTabId!;
+        noteId = tempNoteId!;
+        
+        // Create note locally
+        const newNote: Note = {
+          id: noteId,
+          userId: user.uid,
+          notebookId,
+          tabId: newTabId,
+          title: uniqueTitle,
+          content: '',
+          contentPlain: '',
+          images: [],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          isArchived: false,
+          deletedAt: null,
+        };
+        
+        await saveNoteLocally(newNote);
+        
+        // Add to sync queue for when we come back online
+        await addToSyncQueue(noteId, {
+          title: uniqueTitle,
+          content: '',
+          contentPlain: '',
+          images: [],
+          notebookId,
+        });
+      } else {
+        // Online: Create in Firestore
+        newTabId = await createTab({
+          notebookId,
+          name: uniqueTitle,
+          icon: '📄',
+          order: 0,
+          isLocked: false,
+          isStaple: false,
+          createdAt: new Date(),
+        });
+
+        noteId = await createNote({
+          userId: user.uid,
+          notebookId,
+          tabId: newTabId,
+          title: uniqueTitle,
+          content: '',
+          contentPlain: '',
+          images: [],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          isArchived: false,
+          deletedAt: null,
+        });
+      }
 
       const noteSlug = createSlug(uniqueTitle);
       router.push(`/${notebookSlug}/${noteSlug}`);
     } catch (error) {
       console.error('Error creating note:', error);
+      // Show user-friendly error
+      if (isOffline) {
+        alert('Note created offline. It will sync when you\'re back online.');
+      } else {
+        alert('Failed to create note. Please try again.');
+      }
     }
   };
 
