@@ -142,8 +142,7 @@ export default function RichTextEditor({
     }
   }, [editor, onEditorReady]);
 
-  // Track if we're updating from props to prevent onUpdate trigger
-  const isUpdatingFromPropsRef = useRef(false);
+  // Track previous content to prevent unnecessary updates
   const prevContentRef = useRef<string>('');
 
   // Handle content prop changes ONLY when it's actually different
