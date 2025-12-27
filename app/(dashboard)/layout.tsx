@@ -14,20 +14,21 @@ export default function DashboardLayout({
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading && !user) {
-      // Check if we're offline and have cached user info
-      // Don't redirect to login if we're offline - user might still be authenticated
+    if (!loading) {
+      // Check if we have a user OR if we're offline with cached user info
       const isOffline = typeof window !== 'undefined' && !navigator.onLine;
       const cachedUserId = typeof window !== 'undefined' ? localStorage.getItem('cached_user_id') : null;
       
-      if (isOffline && cachedUserId) {
+      if (!user && !isOffline) {
+        // Online and no user - redirect to login
+        router.push('/login');
+      } else if (!user && isOffline && !cachedUserId) {
+        // Offline and no user and no cache - redirect to login
+        router.push('/login');
+      } else if (!user && isOffline && cachedUserId) {
         // Offline with cached user - don't redirect, allow app to work offline
-        console.log('[DashboardLayout] Offline mode - keeping user session with cached ID');
-        return;
+        console.log('[DashboardLayout] Offline mode - keeping user session with cached ID:', cachedUserId);
       }
-      
-      // Online or no cached user - redirect to login
-      router.push('/login');
     }
   }, [user, loading, router]);
 
@@ -35,11 +36,12 @@ export default function DashboardLayout({
     return <LoadingSpinner message="Loading..." />;
   }
 
-  if (typeof window !== 'undefined' && !user && !loading) {
-    return null;
-  }
+  // Allow rendering if we have a user OR if we're offline with cached user info
+  const isOffline = typeof window !== 'undefined' && !navigator.onLine;
+  const cachedUserId = typeof window !== 'undefined' ? localStorage.getItem('cached_user_id') : null;
+  const shouldRender = user || (isOffline && cachedUserId);
 
-  if (!user) {
+  if (!shouldRender) {
     return null;
   }
 
