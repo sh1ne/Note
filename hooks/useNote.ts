@@ -423,12 +423,17 @@ export function useNote({ noteId, initialNote, onSaveComplete }: UseNoteOptions)
       if (note && editorRef.current) {
         const currentContent = editorRef.current.getHTML();
         const currentPlainText = editorRef.current.getText();
+        
+        // Extract image URLs from HTML content (same as in saveNote)
+        const imageUrls = extractImageUrls(currentContent);
+        
         try {
           // Save locally first (instant)
           const updatedNote: Note = {
             ...note,
             content: currentContent,
             contentPlain: currentPlainText,
+            images: imageUrls, // Include images array
             updatedAt: new Date(),
           };
           saveNoteLocally(updatedNote);
@@ -438,12 +443,14 @@ export function useNote({ noteId, initialNote, onSaveComplete }: UseNoteOptions)
           content: currentContent,
           contentPlain: currentPlainText,
           title: note.title,
+          images: imageUrls, // Include images array
         }).catch(() => {
             // If sync fails, add to queue
             addToSyncQueue(noteId, {
               content: currentContent,
               contentPlain: currentPlainText,
               title: note.title,
+              images: imageUrls, // Include images array
             });
           });
         } catch (error) {

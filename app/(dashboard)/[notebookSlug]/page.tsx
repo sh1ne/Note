@@ -305,7 +305,7 @@ export default function NotebookPage() {
                 </svg>
               </button>
             </div>
-            <div className="flex items-center">
+            <div className="flex items-center gap-1">
               <button
                 onClick={handleCreateNote}
                 className="flex items-center justify-center w-12 h-12 bg-green-600 hover:bg-green-700 text-white rounded transition-colors font-semibold"
@@ -321,13 +321,13 @@ export default function NotebookPage() {
                     setSearchQuery('');
                   }
                 }}
-                className="p-2 text-cyan-400 hover:text-cyan-300 hover:bg-bg-secondary rounded-lg transition-colors ml-1"
+                className="p-2 text-cyan-400 hover:text-cyan-300 hover:bg-bg-secondary rounded-lg transition-colors"
                 title="Search"
                 aria-label="Search"
               >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="11" cy="11" r="8"/>
-                  <path d="m21 21-4.35-4.35"/>
+                  <line x1="21" y1="21" x2="16.65" y2="16.65"/>
                 </svg>
               </button>
             </div>

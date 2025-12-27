@@ -381,8 +381,16 @@ export default function NoteEditorPage() {
   };
 
   const handleTabClick = async (tabId: string) => {
-    // Save current note before switching
-    await saveNote(true);
+    // Save current note before switching - ensure images are saved
+    // Give it a moment to ensure editor content is fully updated
+    if (editor) {
+      // Force editor to update its content
+      const html = editor.getHTML();
+      // Trigger a save with current content
+      await saveNote(true);
+      // Small delay to ensure save completes
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
 
     const tab = getTabById(tabId);
     if (!tab) return;
@@ -606,10 +614,9 @@ export default function NoteEditorPage() {
                       <div class="bg-bg-secondary border border-bg-primary rounded-lg p-6 max-w-sm w-full mx-4">
                         <h3 class="text-lg font-semibold text-text-primary mb-4">Choose Image Size</h3>
                         <div class="flex flex-col gap-2 mb-4">
-                          <button class="px-4 py-2 bg-bg-primary text-text-primary rounded hover:bg-bg-secondary border border-bg-secondary text-left" data-size="150px">Small (150px)</button>
-                          <button class="px-4 py-2 bg-bg-primary text-text-primary rounded hover:bg-bg-secondary border border-bg-secondary text-left" data-size="300px">Medium (300px)</button>
-                          <button class="px-4 py-2 bg-bg-primary text-text-primary rounded hover:bg-bg-secondary border border-bg-secondary text-left" data-size="500px">Large (500px)</button>
-                          <button class="px-4 py-2 bg-bg-primary text-text-primary rounded hover:bg-bg-secondary border border-bg-secondary text-left" data-size="100%">Full Width</button>
+                          <button class="px-4 py-2 bg-bg-primary text-text-primary rounded hover:bg-bg-secondary border border-bg-secondary text-left" data-size="100px">Small (100px)</button>
+                          <button class="px-4 py-2 bg-bg-primary text-text-primary rounded hover:bg-bg-secondary border border-bg-secondary text-left" data-size="150px">Medium (150px)</button>
+                          <button class="px-4 py-2 bg-bg-primary text-text-primary rounded hover:bg-bg-secondary border border-bg-secondary text-left" data-size="300px">Large (300px)</button>
                           <button class="px-4 py-2 bg-bg-primary text-text-primary rounded hover:bg-bg-secondary border border-bg-secondary text-left" data-size="auto">Original Size</button>
                         </div>
                         <button class="w-full px-4 py-2 bg-bg-primary text-text-primary rounded hover:bg-bg-secondary border border-bg-secondary" data-cancel>Cancel</button>

@@ -160,17 +160,25 @@ export default function NoteList({ notes, onNoteClick, onNoteDeleted }: NoteList
               }`}
             >
               <div className="flex items-start gap-2">
-                {/* Checkbox */}
-                <input
-                  type="checkbox"
-                  checked={isSelected}
-                  onChange={(e) => {
+                {/* Checkbox - larger clickable area */}
+                <div 
+                  className="mt-1 flex-shrink-0 cursor-pointer"
+                  onClick={(e) => {
                     e.stopPropagation();
                     toggleNoteSelection(note.id, e as any);
                   }}
-                  onClick={(e) => e.stopPropagation()}
-                  className="mt-1 w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
-                />
+                >
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={(e) => {
+                      e.stopPropagation();
+                      toggleNoteSelection(note.id, e as any);
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                    className="w-6 h-6 text-blue-600 rounded focus:ring-blue-500 cursor-pointer"
+                  />
+                </div>
                 <button
                   onClick={() => {
                     if (!isSelected) {
