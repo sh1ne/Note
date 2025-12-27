@@ -65,7 +65,10 @@ export function useTabNavigation({ notebookId, notebookSlug, userId }: UseTabNav
       const stapleNote = await ensureStapleNoteExists(tab.name, currentNotebookId, userId);
       if (stapleNote) {
         const slug = createSlug(stapleNote.title);
-        router.push(`/${notebookSlug}/${slug}`);
+        const targetUrl = `/${notebookSlug}/${slug}`;
+        console.log('[navigateToTab] Client-side navigation to:', targetUrl);
+        // Use router.push() for client-side navigation (no full page reload)
+        router.push(targetUrl);
         return 'redirect';
       }
       return 'stay';
@@ -91,7 +94,10 @@ export function useTabNavigation({ notebookId, notebookSlug, userId }: UseTabNav
         
         if (notesData.length > 0) {
           const noteSlug = createSlug(notesData[0].title);
-          router.push(`/${notebookSlug}/${noteSlug}`);
+          const targetUrl = `/${notebookSlug}/${noteSlug}`;
+          console.log('[navigateToTab] Client-side navigation to:', targetUrl);
+          // Use router.push() for client-side navigation (no full page reload)
+          router.push(targetUrl);
           return 'redirect';
         }
       } catch (error) {

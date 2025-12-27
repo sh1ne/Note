@@ -47,7 +47,13 @@ export default function BottomNav({
           return (
             <button
               key={tab.id}
-              onClick={() => onTabClick(tab.id)}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('[BottomNav] Tab clicked:', tab.name, 'id:', tab.id);
+                onTabClick(tab.id);
+              }}
+              type="button"
               className={`flex flex-col items-center justify-center h-12 text-text-primary hover:bg-bg-secondary rounded min-w-0 ${
                 activeTabId === tab.id ? 'bg-bg-secondary' : ''
               } ${isStapleTab ? 'flex-1' : 'flex-1 min-w-0'}`}

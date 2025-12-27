@@ -86,6 +86,9 @@ self.addEventListener('fetch', (event) => {
                            url.pathname === '/' ||
                            (!url.pathname.startsWith('/_next/') && !url.pathname.startsWith('/api/'));
       
+      // Check if this is a navigation request (full page load)
+      const isNavigationRequest = request.mode === 'navigate';
+      
       if (isHtmlRequest) {
         // Try cache first for HTML pages
         if (cachedResponse) {
@@ -116,11 +119,70 @@ self.addEventListener('fetch', (event) => {
             return response;
           })
           .catch(() => {
-            // Network failed, try to return app shell (root HTML)
+            // Network failed
+            // CRITICAL: For navigation requests, DO NOT return cached "/" as it causes infinite loops
+            if (isNavigationRequest) {
+              // Return a dedicated offline page instead of booting the full Next.js app
+              return new Response(
+                `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Offline - Note App</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      background: #000;
+      color: #fff;
+      text-align: center;
+      padding: 20px;
+    }
+    .container {
+      max-width: 400px;
+    }
+    h1 { font-size: 24px; margin-bottom: 16px; }
+    p { font-size: 14px; line-height: 1.5; color: #aaa; margin-bottom: 24px; }
+    button {
+      background: #22c55e;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 14px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    button:hover { background: #16a34a; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>⚠️ Offline</h1>
+    <p>This page isn't cached. Please go back to a page you've visited before, or go online to load this page.</p>
+    <button onclick="window.history.back()">Go Back</button>
+  </div>
+</body>
+</html>`,
+                {
+                  status: 503,
+                  statusText: 'Service Unavailable',
+                  headers: new Headers({
+                    'Content-Type': 'text/html',
+                  }),
+                }
+              );
+            }
+            
+            // For non-navigation HTML requests (e.g., fetch() calls), return root HTML
             // This allows React to load and handle client-side routing
             return caches.match('/').then((rootResponse) => {
               if (rootResponse) {
-                // Return the root HTML so React can load and handle routing
                 return rootResponse;
               }
               // Last resort: return offline message

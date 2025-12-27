@@ -25,6 +25,13 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Temporary diagnostic: Track document navigations
+  if (typeof window !== 'undefined') {
+    window.addEventListener('beforeunload', () => {
+      console.warn('[NAV][beforeunload] full document navigation');
+    });
+  }
+  
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="antialiased" suppressHydrationWarning>
