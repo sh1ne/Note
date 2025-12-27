@@ -339,7 +339,53 @@ export default function NoteEditorPage() {
       
       if (!notebookId || !user) return;
       
-      const noteData = await getNoteBySlug(noteSlug, notebookId, user.uid);
+      const isOffline = typeof window !== 'undefined' && !navigator.onLine;
+      
+      let noteData: Note | null = null;
+      
+      if (isOffline) {
+        // Try local cache first when offline
+        try {
+          const { getAllNotesLocally } = await import('@/lib/utils/localStorage');
+          const allLocalNotes = await getAllNotesLocally();
+          const allNotes = allLocalNotes.filter((n) => n.notebookId === notebookId && n.userId === user.uid);
+          
+          // Check if it's a staple note slug
+          const stapleSlugMap: Record<string, string> = {
+            'scratch': 'Scratch',
+            'now': 'Now',
+            'short-term': 'Short-Term',
+            'long-term': 'Long-term',
+          };
+          
+          if (stapleSlugMap[noteSlug]) {
+            const title = stapleSlugMap[noteSlug];
+            noteData = allNotes.find((n) => n.title === title && n.tabId === 'staple') || null;
+          } else {
+            // Regular note - find by slug
+            const matchingNotes = allNotes.filter((note) => {
+              const noteSlugFromTitle = createSlug(note.title);
+              return noteSlugFromTitle === noteSlug;
+            });
+            
+            if (matchingNotes.length > 0) {
+              matchingNotes.sort((a, b) => {
+                const aTime = a.updatedAt?.getTime() || 0;
+                const bTime = b.updatedAt?.getTime() || 0;
+                return bTime - aTime;
+              });
+              noteData = matchingNotes[0];
+            }
+          }
+        } catch (cacheError) {
+          console.error('Error loading from cache:', cacheError);
+        }
+      }
+      
+      // If not found in cache (or online), try Firestore
+      if (!noteData) {
+        noteData = await getNoteBySlug(noteSlug, notebookId, user.uid);
+      }
       
       if (noteData) {
         setInitialNote(noteData);
@@ -356,7 +402,56 @@ export default function NoteEditorPage() {
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load note';
       console.error('Error loading note:', err);
-      setError(errorMessage);
+      
+      // If offline, try local cache as fallback
+      const isOffline = typeof window !== 'undefined' && !navigator.onLine;
+      if (isOffline) {
+        try {
+          const { getAllNotesLocally } = await import('@/lib/utils/localStorage');
+          const allLocalNotes = await getAllNotesLocally();
+          const allNotes = allLocalNotes.filter((n) => n.notebookId === notebookId && n.userId === user.uid);
+          
+          const stapleSlugMap: Record<string, string> = {
+            'scratch': 'Scratch',
+            'now': 'Now',
+            'short-term': 'Short-Term',
+            'long-term': 'Long-term',
+          };
+          
+          let noteData: Note | null = null;
+          
+          if (stapleSlugMap[noteSlug]) {
+            const title = stapleSlugMap[noteSlug];
+            noteData = allNotes.find((n) => n.title === title && n.tabId === 'staple') || null;
+          } else {
+            const matchingNotes = allNotes.filter((note) => {
+              const noteSlugFromTitle = createSlug(note.title);
+              return noteSlugFromTitle === noteSlug;
+            });
+            
+            if (matchingNotes.length > 0) {
+              matchingNotes.sort((a, b) => {
+                const aTime = a.updatedAt?.getTime() || 0;
+                const bTime = b.updatedAt?.getTime() || 0;
+                return bTime - aTime;
+              });
+              noteData = matchingNotes[0];
+            }
+          }
+          
+          if (noteData) {
+            setInitialNote(noteData);
+            setTitleValue(noteData.title || '');
+            setError(null);
+          } else {
+            setError('Note not found in local cache');
+          }
+        } catch (cacheError) {
+          setError('Unable to load note. Please check your connection.');
+        }
+      } else {
+        setError(errorMessage);
+      }
     } finally {
       setLoading(false);
     }
