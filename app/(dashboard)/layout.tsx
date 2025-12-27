@@ -37,7 +37,13 @@ export default function DashboardLayout({
   }, [loading]);
 
   useEffect(() => {
-    if (!loading && hasIndexedDBAuth !== null && !hasRedirectedRef.current) {
+    // CRITICAL: Never redirect if we're still checking IndexedDB auth state
+    // This prevents race conditions during navigation
+    if (hasIndexedDBAuth === null) {
+      return; // Still checking, don't redirect yet
+    }
+    
+    if (!loading && !hasRedirectedRef.current) {
       const isOffline = typeof window !== 'undefined' && !navigator.onLine;
       const isOnDashboardRoute = pathname && pathname !== '/login' && pathname !== '/signup' && pathname !== '/';
       
@@ -56,14 +62,22 @@ export default function DashboardLayout({
         return; // Never redirect when offline on dashboard route
       }
       
-      // Only redirect if: IndexedDB is empty AND online AND no user
+      // CRITICAL: If we're on a dashboard route, NEVER redirect (even if online)
+      // This prevents redirects during navigation between notes
+      // Only redirect if we're NOT on a dashboard route (e.g., direct URL access)
+      if (isOnDashboardRoute) {
+        console.log('[DashboardLayout] On dashboard route - preventing redirect');
+        return; // Never redirect when on dashboard route
+      }
+      
+      // Only redirect if: IndexedDB is empty AND online AND no user AND not on dashboard route
       if (!user && !isOffline && !hasIndexedDBAuth) {
-        // Online, no user, no IndexedDB auth state - redirect to login
+        // Online, no user, no IndexedDB auth state, not on dashboard - redirect to login
         console.log('[DashboardLayout] No auth state - redirecting to login');
         hasRedirectedRef.current = true;
         router.push('/login');
-      } else if (!user && isOffline && !hasIndexedDBAuth && !isOnDashboardRoute) {
-        // Offline, no user, no IndexedDB auth, and not on dashboard route - redirect to login
+      } else if (!user && isOffline && !hasIndexedDBAuth) {
+        // Offline, no user, no IndexedDB auth, not on dashboard route - redirect to login
         console.log('[DashboardLayout] Offline, no auth state, not on dashboard - redirecting to login');
         hasRedirectedRef.current = true;
         router.push('/login');
