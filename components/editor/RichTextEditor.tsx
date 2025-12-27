@@ -382,19 +382,21 @@ export default function RichTextEditor({
     const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
     if (isMobile) return;
     
-    const editorWrapper = document.querySelector('.bg-bg-primary');
+    const editorWrapper = document.querySelector('.bg-bg-primary') as HTMLElement;
     if (!editorWrapper) return;
     
-    const handleDragOver = (e: DragEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
+    const handleDragOver = (e: Event) => {
+      const dragEvent = e as DragEvent;
+      dragEvent.preventDefault();
+      dragEvent.stopPropagation();
     };
     
-    const handleDrop = async (e: DragEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
+    const handleDrop = async (e: Event) => {
+      const dragEvent = e as DragEvent;
+      dragEvent.preventDefault();
+      dragEvent.stopPropagation();
       
-      const files = e.dataTransfer?.files;
+      const files = dragEvent.dataTransfer?.files;
       if (!files || files.length === 0) return;
       
       const imageFile = Array.from(files).find(file => file.type.startsWith('image/'));

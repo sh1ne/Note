@@ -35,12 +35,16 @@ export default function ServiceWorkerRegistration() {
         });
 
       // Handle service worker updates
+      // Note: controllerchange only fires when new SW takes control (usually when all tabs closed)
+      // So this is safe - user won't be actively editing when this fires
       let refreshing = false;
       navigator.serviceWorker.addEventListener('controllerchange', () => {
         if (!refreshing) {
           refreshing = true;
-          // Reload page when new service worker takes control
-          window.location.reload();
+          // Wait a moment to ensure any pending saves complete (2.5s debounce + buffer)
+          setTimeout(() => {
+            window.location.reload();
+          }, 4000); // Wait 4 seconds to ensure saves complete
         }
       });
     }

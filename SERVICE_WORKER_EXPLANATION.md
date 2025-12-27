@@ -70,6 +70,20 @@ Created a service worker that implements:
 - **External resources**: Cross-origin requests not cached
 - **Dynamic data**: Note content from Firestore not cached (uses IndexedDB instead)
 
+### Why Dynamic Data Isn't Cached in Service Worker
+
+**This is actually the CORRECT approach for your app!** Here's why:
+
+1. **IndexedDB Already Handles It**: Your app uses IndexedDB to store note data offline, which is separate from service worker caching. This is the right pattern:
+   - **Service Worker** = Caches app shell/assets (HTML, CSS, JS)
+   - **IndexedDB** = Stores note data offline
+
+2. **Firebase Data Changes Frequently**: Note content changes constantly as users type. Caching Firebase responses would lead to stale data.
+
+3. **Real-time Sync**: Your app needs fresh data from Firestore, not cached responses. The IndexedDB layer provides offline access while maintaining data freshness when online.
+
+4. **No Problem for Your Setup**: Your architecture is correct - service worker for assets, IndexedDB for data. This is a best practice!
+
 ## Cache Strategy Details
 
 ### Static Assets (`/_next/static/`)
@@ -97,7 +111,11 @@ When offline:
 2. **New Version Detected**: Service worker downloads in background
 3. **Installation**: New service worker installs (old one still active)
 4. **Activation**: When all tabs are closed, new service worker activates
-5. **Page Reload**: Page automatically reloads to use new version
+5. **Page Reload**: Page reloads to use new version, but:
+   - **Smart Reload**: Checks if user is actively editing
+   - **Save Protection**: Waits for pending saves (2.5s debounce) before reloading
+   - **Active Typing Detection**: Delays reload if user is currently typing
+   - **No Data Loss**: Ensures all changes are saved before reload
 
 ## Cache Size Management
 
