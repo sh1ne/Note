@@ -149,6 +149,8 @@ export default function NoteEditorPage() {
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const shareMenuRef = useRef<HTMLDivElement>(null);
+  const isUpdatingUrlRef = useRef(false); // Prevent infinite loop from URL updates
+  const isLoadingNoteRef = useRef(false); // Prevent multiple simultaneous loadNote calls
 
   // Check sync queue periodically to show pending count (especially useful when offline)
   useEffect(() => {
@@ -292,7 +294,8 @@ export default function NoteEditorPage() {
   });
 
   useEffect(() => {
-    if (user && noteSlug && notebookId) {
+    // Don't load if we're updating the URL or already loading (prevents infinite loop)
+    if (user && noteSlug && notebookId && !isUpdatingUrlRef.current && !isLoadingNoteRef.current) {
       loadNote();
     }
   }, [user, noteSlug, notebookId]);
@@ -395,11 +398,21 @@ export default function NoteEditorPage() {
   }, [initialNote?.id, editor]);
 
   const loadNote = async () => {
+    // Prevent multiple simultaneous calls
+    if (isLoadingNoteRef.current) {
+      console.log('[loadNote] Already loading, skipping duplicate call');
+      return;
+    }
+    
     try {
+      isLoadingNoteRef.current = true;
       setError(null);
       setLoading(true);
       
-      if (!user) return;
+      if (!user) {
+        isLoadingNoteRef.current = false;
+        return;
+      }
       
       const isOffline = typeof window !== 'undefined' && !navigator.onLine;
       
@@ -479,9 +492,15 @@ export default function NoteEditorPage() {
         setTitleValue(noteData.title || '');
         
         // Update URL if slug doesn't match (e.g., if title changed)
+        // But only if we're not already updating the URL (prevents infinite loop)
         const expectedSlug = createSlug(noteData.title);
-        if (expectedSlug !== noteSlug) {
+        if (expectedSlug !== noteSlug && !isUpdatingUrlRef.current) {
+          isUpdatingUrlRef.current = true;
           router.replace(`/${notebookSlug}/${expectedSlug}`);
+          // Reset flag after a short delay to allow navigation to complete
+          setTimeout(() => {
+            isUpdatingUrlRef.current = false;
+          }, 1000);
         }
       } else if (!isOffline) {
         // Only set error if online and note not found
@@ -586,6 +605,7 @@ export default function NoteEditorPage() {
       }
     } finally {
       setLoading(false);
+      isLoadingNoteRef.current = false;
     }
   };
 
