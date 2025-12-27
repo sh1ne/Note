@@ -142,26 +142,34 @@ export default function RichTextEditor({
     }
   }, [editor, onEditorReady]);
 
-  // Track previous content to prevent unnecessary updates
-  const prevContentRef = useRef<string>('');
+  // Track if editor has been initialized and the last content we set from props
+  const isInitializedRef = useRef(false);
+  const lastPropContentRef = useRef<string>('');
 
-  // Handle content prop changes ONLY when it's actually different
-  // Use emitUpdate: false to prevent triggering onUpdate callback
+  // Handle content prop changes ONLY on initial load or when explicitly different
+  // This prevents the loop: we only update editor from props when switching notes, not on every user input
   useEffect(() => {
     if (!editor) return;
     
     const currentContent = editor.getHTML();
-    // Only update if content prop is different AND it's not the same as last time
-    if (content !== currentContent && content !== prevContentRef.current) {
-      prevContentRef.current = content;
+    
+    // Only update if:
+    // 1. Not yet initialized (first load)
+    // 2. Content prop changed AND it's different from what we last set (switching notes)
+    // 3. Content prop is different from current editor content
+    const shouldUpdate = !isInitializedRef.current || 
+                         (content !== lastPropContentRef.current && content !== currentContent);
+    
+    if (shouldUpdate) {
+      lastPropContentRef.current = content;
+      isInitializedRef.current = true;
       isUpdatingFromPropsRef.current = true;
       editor.commands.setContent(content, false);
-      // Reset flag after a longer delay to ensure onUpdate doesn't fire
-      // Use requestAnimationFrame to ensure it happens after any pending updates
+      // Reset flag after editor has processed the update
       requestAnimationFrame(() => {
-        setTimeout(() => {
+        requestAnimationFrame(() => {
           isUpdatingFromPropsRef.current = false;
-        }, 50);
+        });
       });
     }
   }, [editor, content]);
