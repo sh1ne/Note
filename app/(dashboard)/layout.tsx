@@ -61,53 +61,77 @@ export default function DashboardLayout({
     console.log(`[AUTH_TRACE][DashboardLayout][AUTH_CHECK][route=${pathname}][online=${isOnline}][loading=${loading}][timestamp=${timestamp}] Starting auth check - authResolvedOnceRef=${authResolvedOnceRef.current}`);
 
     // Wait for AuthContext to finish loading before checking IndexedDB
-    if (!loading) {
-      const checkIndexedDBAuth = async () => {
-        const checkStartTime = Date.now();
-        const checkTimestamp = new Date().toISOString();
-        console.log(`[AUTH_TRACE][DashboardLayout][AUTH_CHECK_START][route=${pathname}][online=${isOnline}][timestamp=${checkTimestamp}] Beginning async IndexedDB check`);
-        
-        try {
-          const authenticated = await isAuthenticated();
-          const checkEndTime = Date.now();
-          const checkDuration = checkEndTime - checkStartTime;
-          
-          console.log(`[AUTH_TRACE][DashboardLayout][AUTH_CHECK_RESULT][route=${pathname}][online=${isOnline}][authenticated=${authenticated}][duration=${checkDuration}ms][timestamp=${checkTimestamp}] IndexedDB check completed`);
-          
-          setHasIndexedDBAuth(authenticated);
-          
-          const beforeAuthResolved = authResolvedOnceRef.current;
-          const beforeCanRedirect = canRedirectRef.current;
-          authResolvedOnceRef.current = true; // Mark as resolved
-          
-          // CRITICAL: Once auth is established, disable redirects permanently
-          // This prevents any future redirects during navigation
-          if (authenticated) {
-            canRedirectRef.current = false;
-            // STRUCTURAL FIX: Persist to sessionStorage (survives hard reloads)
-            if (typeof window !== 'undefined') {
-              sessionStorage.setItem(sessionAuthKey, 'true');
-              console.log(`[AUTH_TRACE][DashboardLayout][SESSION_AUTH_SAVED][route=${pathname}][online=${isOnline}][timestamp=${checkTimestamp}] Saved auth state to sessionStorage`);
-            }
-            console.log(`[AUTH_TRACE][DashboardLayout][CAN_REDIRECT_CHANGE][route=${pathname}][online=${isOnline}][before=${beforeCanRedirect}][after=${canRedirectRef.current}][timestamp=${checkTimestamp}] Auth established - redirects permanently disabled`);
+    // BUT: Add timeout fallback - if loading takes too long, check anyway
+    const checkWithTimeout = () => {
+      if (loading) {
+        // If still loading after 3 seconds, proceed anyway (timeout fallback)
+        setTimeout(() => {
+          if (loading && !authResolvedOnceRef.current) {
+            console.warn(`[AUTH_TRACE][DashboardLayout][AUTH_CHECK_TIMEOUT][route=${pathname}] Loading timeout - proceeding with auth check anyway`);
+            performAuthCheck();
           }
-          
-          console.log(`[AUTH_TRACE][DashboardLayout][AUTH_RESOLVED_CHANGE][route=${pathname}][online=${isOnline}][before=${beforeAuthResolved}][after=${authResolvedOnceRef.current}][timestamp=${checkTimestamp}] Auth resolved flag set`);
-          console.log('[DashboardLayout] Checked IndexedDB auth state:', authenticated);
-        } catch (error) {
-          const checkEndTime = Date.now();
-          const checkDuration = checkEndTime - checkStartTime;
-          console.error(`[AUTH_TRACE][DashboardLayout][AUTH_CHECK_ERROR][route=${pathname}][online=${isOnline}][duration=${checkDuration}ms][timestamp=${checkTimestamp}] Error checking IndexedDB auth:`, error);
-          setHasIndexedDBAuth(false);
-          authResolvedOnceRef.current = true; // Mark as resolved even on error
-          console.log(`[AUTH_TRACE][DashboardLayout][AUTH_RESOLVED_CHANGE][route=${pathname}][online=${isOnline}][after=${authResolvedOnceRef.current}][timestamp=${checkTimestamp}] Auth resolved flag set (error case)`);
+        }, 3000);
+        return;
+      }
+      performAuthCheck();
+    };
+
+    const performAuthCheck = async () => {
+      const checkStartTime = Date.now();
+      const checkTimestamp = new Date().toISOString();
+      console.log(`[AUTH_TRACE][DashboardLayout][AUTH_CHECK_START][route=${pathname}][online=${isOnline}][timestamp=${checkTimestamp}] Beginning async IndexedDB check`);
+      
+      try {
+        // Add timeout to IndexedDB check (5 seconds max)
+        const authPromise = isAuthenticated();
+        const timeoutPromise = new Promise<boolean>((resolve) => {
+          setTimeout(() => {
+            console.warn(`[AUTH_TRACE][DashboardLayout][AUTH_CHECK_TIMEOUT][route=${pathname}] IndexedDB check timed out, defaulting to user state`);
+            resolve(false); // Default to false if timeout
+          }, 5000);
+        });
+        
+        const authenticated = await Promise.race([authPromise, timeoutPromise]);
+        const checkEndTime = Date.now();
+        const checkDuration = checkEndTime - checkStartTime;
+        
+        console.log(`[AUTH_TRACE][DashboardLayout][AUTH_CHECK_RESULT][route=${pathname}][online=${isOnline}][authenticated=${authenticated}][duration=${checkDuration}ms][timestamp=${checkTimestamp}] IndexedDB check completed`);
+        
+        // If IndexedDB check failed/timed out, fall back to user state
+        const finalAuthState = authenticated || !!user;
+        setHasIndexedDBAuth(finalAuthState);
+        
+        const beforeAuthResolved = authResolvedOnceRef.current;
+        const beforeCanRedirect = canRedirectRef.current;
+        authResolvedOnceRef.current = true; // Mark as resolved
+        
+        // CRITICAL: Once auth is established, disable redirects permanently
+        // This prevents any future redirects during navigation
+        if (finalAuthState) {
+          canRedirectRef.current = false;
+          // STRUCTURAL FIX: Persist to sessionStorage (survives hard reloads)
+          if (typeof window !== 'undefined') {
+            sessionStorage.setItem(sessionAuthKey, 'true');
+            console.log(`[AUTH_TRACE][DashboardLayout][SESSION_AUTH_SAVED][route=${pathname}][online=${isOnline}][timestamp=${checkTimestamp}] Saved auth state to sessionStorage`);
+          }
+          console.log(`[AUTH_TRACE][DashboardLayout][CAN_REDIRECT_CHANGE][route=${pathname}][online=${isOnline}][before=${beforeCanRedirect}][after=${canRedirectRef.current}][timestamp=${checkTimestamp}] Auth established - redirects permanently disabled`);
         }
-      };
-      checkIndexedDBAuth();
-    } else {
-      console.log(`[AUTH_TRACE][DashboardLayout][AUTH_CHECK_DEFERRED][route=${pathname}][online=${isOnline}][loading=${loading}][timestamp=${timestamp}] Auth check deferred - waiting for loading to complete`);
-    }
-  }, [loading, pathname]);
+        
+        console.log(`[AUTH_TRACE][DashboardLayout][AUTH_RESOLVED_CHANGE][route=${pathname}][online=${isOnline}][before=${beforeAuthResolved}][after=${authResolvedOnceRef.current}][timestamp=${checkTimestamp}] Auth resolved flag set`);
+        console.log('[DashboardLayout] Checked IndexedDB auth state:', finalAuthState);
+      } catch (error) {
+        const checkEndTime = Date.now();
+        const checkDuration = checkEndTime - checkStartTime;
+        console.error(`[AUTH_TRACE][DashboardLayout][AUTH_CHECK_ERROR][route=${pathname}][online=${isOnline}][duration=${checkDuration}ms][timestamp=${checkTimestamp}] Error checking IndexedDB auth:`, error);
+        // Fall back to user state on error
+        setHasIndexedDBAuth(!!user);
+        authResolvedOnceRef.current = true; // Mark as resolved even on error
+        console.log(`[AUTH_TRACE][DashboardLayout][AUTH_RESOLVED_CHANGE][route=${pathname}][online=${isOnline}][after=${authResolvedOnceRef.current}][timestamp=${checkTimestamp}] Auth resolved flag set (error case)`);
+      }
+    };
+
+    checkWithTimeout();
+  }, [loading, pathname, user]);
 
   useEffect(() => {
     const timestamp = new Date().toISOString();
