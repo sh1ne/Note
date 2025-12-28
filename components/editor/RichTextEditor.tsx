@@ -428,7 +428,7 @@ export default function RichTextEditor({
 
 
   return (
-    <div className="bg-bg-primary text-text-primary min-h-[calc(100vh-200px)]">
+    <div className="bg-bg-primary text-text-primary min-h-[calc(100vh-200px)]" data-content-font-size>
       {showToolbar && <EditorToolbar editor={editor} onCreateNote={onCreateNote} userId={userId} noteId={noteId} />}
       <div className="p-4">
         <EditorContent editor={editor} />

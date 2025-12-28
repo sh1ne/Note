@@ -106,21 +106,30 @@ body {
   --text-secondary: #90caf9;
 }
 
-/* Font size variables */
-[data-font-size="small"] {
+/* Font size variables - ONLY apply to content areas, not root/html to prevent layout scaling */
+/* This ensures font-size changes only affect text content, not rem-based layout elements */
+/* Root font-size stays at 16px so rem-based layout (spacing, sizing) never changes */
+body[data-font-size="small"] .tiptap,
+body[data-font-size="small"] [data-content-font-size] {
   font-size: 14px;
 }
 
-[data-font-size="medium"] {
+body[data-font-size="medium"] .tiptap,
+body[data-font-size="medium"] [data-content-font-size] {
   font-size: 16px;
 }
 
-[data-font-size="large"] {
+body[data-font-size="large"] .tiptap,
+body[data-font-size="large"] [data-content-font-size] {
   font-size: 18px;
 }
 
+html {
+  font-size: 16px !important; /* Fixed root font-size - never changes to prevent layout scaling */
+}
+
 body {
-  font-size: var(--font-size, 16px);
+  font-size: 16px; /* Fixed - never changes to prevent layout scaling */
 }
 
 /* Toast animation */

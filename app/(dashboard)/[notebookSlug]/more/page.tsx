@@ -191,14 +191,16 @@ export default function MorePage() {
       const prefs = await getUserPreferences(user.uid);
       if (prefs?.fontSize && ['small', 'medium', 'large'].includes(prefs.fontSize)) {
         setFontSize(prefs.fontSize);
-        document.documentElement.setAttribute('data-font-size', prefs.fontSize);
+        // Apply font-size to content areas only, not root to prevent layout scaling
+        document.body.setAttribute('data-font-size', prefs.fontSize);
       } else {
         // Fallback to localStorage
     if (typeof window !== 'undefined') {
-      const savedFontSize = localStorage.getItem('fontSize') as 'small' | 'medium' | 'large' | null;
-      if (savedFontSize && ['small', 'medium', 'large'].includes(savedFontSize)) {
-        setFontSize(savedFontSize);
-        document.documentElement.setAttribute('data-font-size', savedFontSize);
+        const savedFontSize = localStorage.getItem('fontSize') as 'small' | 'medium' | 'large' | null;
+        if (savedFontSize && ['small', 'medium', 'large'].includes(savedFontSize)) {
+          setFontSize(savedFontSize);
+          // Apply font-size to content areas only, not root to prevent layout scaling
+          document.body.setAttribute('data-font-size', savedFontSize);
             // Sync to Firestore
             await updateUserPreferences(user.uid, { fontSize: savedFontSize });
           }
@@ -211,7 +213,8 @@ export default function MorePage() {
         const savedFontSize = localStorage.getItem('fontSize') as 'small' | 'medium' | 'large' | null;
         if (savedFontSize && ['small', 'medium', 'large'].includes(savedFontSize)) {
           setFontSize(savedFontSize);
-          document.documentElement.setAttribute('data-font-size', savedFontSize);
+          // Apply font-size to content areas only, not root to prevent layout scaling
+          document.body.setAttribute('data-font-size', savedFontSize);
         }
       }
     }
@@ -583,8 +586,8 @@ export default function MorePage() {
                   key={size}
                   onClick={async () => {
                     setFontSize(size);
-                    // Apply font size to document
-                    document.documentElement.setAttribute('data-font-size', size);
+                    // Apply font size to content areas only, not root to prevent layout scaling
+                    document.body.setAttribute('data-font-size', size);
                     // Save to Firestore
                     if (user) {
                       try {
