@@ -109,6 +109,17 @@ body {
 /* Font size variables - ONLY apply to content areas, not root/html to prevent layout scaling */
 /* This ensures font-size changes only affect text content, not rem-based layout elements */
 /* Root font-size stays at 16px so rem-based layout (spacing, sizing) never changes */
+
+/* CRITICAL: Explicitly prevent html element from ever having font-size changed */
+/* This blocks any old cached CSS rules that might match html[data-font-size] */
+html,
+html[data-font-size="small"],
+html[data-font-size="medium"],
+html[data-font-size="large"] {
+  font-size: 16px !important; /* Fixed root font-size - never changes to prevent layout scaling */
+}
+
+/* Only apply font-size to content areas (editor), never to html or body */
 body[data-font-size="small"] .tiptap,
 body[data-font-size="small"] [data-content-font-size] {
   font-size: 14px;
@@ -122,10 +133,6 @@ body[data-font-size="medium"] [data-content-font-size] {
 body[data-font-size="large"] .tiptap,
 body[data-font-size="large"] [data-content-font-size] {
   font-size: 18px;
-}
-
-html {
-  font-size: 16px !important; /* Fixed root font-size - never changes to prevent layout scaling */
 }
 
 body {
