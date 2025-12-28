@@ -23,10 +23,19 @@ export default function ServiceWorkerRegistration() {
             const newWorker = registration.installing;
             if (newWorker) {
               newWorker.addEventListener('statechange', () => {
-                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                  // New service worker available
-                  console.log('[Service Worker] New version available');
-                  // Optionally show a notification to user
+                if (newWorker.state === 'installed') {
+                  if (navigator.serviceWorker.controller) {
+                    // New service worker available - auto-skip-waiting and reload
+                    console.log('[Service Worker] New version available, activating...');
+                    newWorker.postMessage({ type: 'SKIP_WAITING' });
+                    // Wait a moment for skipWaiting to process, then reload
+                    setTimeout(() => {
+                      window.location.reload();
+                    }, 1000);
+                  } else {
+                    // First install - no action needed
+                    console.log('[Service Worker] Initial install complete');
+                  }
                 }
               });
             }

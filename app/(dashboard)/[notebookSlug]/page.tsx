@@ -542,6 +542,20 @@ export default function NotebookPage() {
 
   return (
     <div className="min-h-screen bg-bg-primary text-text-primary pb-16">
+      {swWarning && (
+        <div
+          style={{
+            backgroundColor: '#fbbf24',
+            color: '#000',
+            padding: '8px 16px',
+            textAlign: 'center',
+            fontSize: '14px',
+            fontWeight: '500',
+          }}
+        >
+          {swWarning}
+        </div>
+      )}
       {/* Header Bar for All Notes */}
       {isAllNotesTab && (
         <div className="sticky top-0 bg-bg-primary border-b border-bg-secondary z-20">
