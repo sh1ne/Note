@@ -58,6 +58,20 @@ export default function ServiceWorkerRegistration() {
             // Also check active worker (might be active but not controlling yet)
             if (registration.active && !navigator.serviceWorker.controller) {
               console.log('[Service Worker] Found active worker but not controlling');
+              // If there's an active worker but no controller, try to claim clients
+              if (registration.active.state === 'activated') {
+                console.log('[Service Worker] Active worker is activated, sending CLAIM_CLIENTS message...');
+                registration.active.postMessage({ type: 'CLAIM_CLIENTS' });
+                // If still not controlling after a short delay, reload to let it take control
+                setTimeout(() => {
+                  if (!navigator.serviceWorker.controller) {
+                    console.log('[Service Worker] Still not controlling after claim attempt, reloading...');
+                    window.location.reload();
+                  } else {
+                    console.log('[Service Worker] Successfully claimed clients!');
+                  }
+                }, 500);
+              }
               // If there's an active worker but no controller, it means the SW activated
               // before this page loaded. We need to reload to let it take control.
               // But first, try to send a message to claim clients
