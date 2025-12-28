@@ -136,7 +136,8 @@ body[data-font-size="large"],
   font-size: 18px;
 }
 
-body {
+/* Base body font-size - only applies if data-font-size is not set */
+body:not([data-font-size]) {
   font-size: var(--font-size, 16px);
 }
 
