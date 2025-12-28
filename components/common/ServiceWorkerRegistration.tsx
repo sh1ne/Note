@@ -18,19 +18,46 @@ export default function ServiceWorkerRegistration() {
             console.log('[Service Worker] Already controlling page');
           } else {
             console.log('[Service Worker] Not yet controlling - checking state...');
-            // Check if there's a waiting or installing worker
+            
+            // Helper to activate a worker
+            const activateWorker = (worker: ServiceWorker) => {
+              if (worker.state === 'installed' || worker.state === 'waiting') {
+                console.log(`[Service Worker] Activating ${worker.state} worker...`);
+                worker.postMessage({ type: 'SKIP_WAITING' });
+              }
+            };
+            
+            // Check for waiting worker (already installed, just waiting)
             if (registration.waiting) {
               console.log('[Service Worker] Found waiting worker, activating...');
-              registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+              activateWorker(registration.waiting);
             }
+            
+            // Check for installing worker (still installing)
             if (registration.installing) {
               console.log('[Service Worker] Found installing worker, will activate when ready');
-              registration.installing.addEventListener('statechange', () => {
-                if (registration.installing?.state === 'installed' && !navigator.serviceWorker.controller) {
-                  console.log('[Service Worker] Installing worker ready, activating...');
-                  registration.installing.postMessage({ type: 'SKIP_WAITING' });
+              const installingWorker = registration.installing;
+              
+              // Listen for state changes
+              installingWorker.addEventListener('statechange', () => {
+                console.log(`[Service Worker] Installing worker state changed to: ${installingWorker.state}`);
+                if (installingWorker.state === 'installed' || installingWorker.state === 'waiting') {
+                  if (!navigator.serviceWorker.controller) {
+                    console.log('[Service Worker] Installing worker ready, activating...');
+                    activateWorker(installingWorker);
+                  }
                 }
               });
+              
+              // Also check current state (might already be installed)
+              if (installingWorker.state === 'installed' || installingWorker.state === 'waiting') {
+                activateWorker(installingWorker);
+              }
+            }
+            
+            // Also check active worker (might be active but not controlling yet)
+            if (registration.active && !navigator.serviceWorker.controller) {
+              console.log('[Service Worker] Found active worker but not controlling, waiting for controllerchange...');
             }
           }
 
