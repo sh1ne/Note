@@ -89,11 +89,13 @@ self.addEventListener('activate', (event) => {
             console.log('[Service Worker] Deleting old cache:', cacheName);
             return caches.delete(cacheName);
           })
-      );
+      ).then(() => {
+        // Take control of all pages immediately (must be inside waitUntil)
+        console.log('[Service Worker] Claiming clients...');
+        return self.clients.claim();
+      });
     })
   );
-  // Take control of all pages immediately
-  return self.clients.claim();
 });
 
 // Fetch event - 3 deterministic lanes
