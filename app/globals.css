@@ -136,6 +136,22 @@ body[data-font-size="large"],
   font-size: 18px;
 }
 
+/* Make TipTap editor respond to body font-size */
+body[data-font-size="small"] .tiptap,
+body[data-font-size="small"] [data-content-font-size] {
+  font-size: 14px;
+}
+
+body[data-font-size="medium"] .tiptap,
+body[data-font-size="medium"] [data-content-font-size] {
+  font-size: 16px;
+}
+
+body[data-font-size="large"] .tiptap,
+body[data-font-size="large"] [data-content-font-size] {
+  font-size: 18px;
+}
+
 /* Base body font-size - only applies if data-font-size is not set */
 body:not([data-font-size]) {
   font-size: var(--font-size, 16px);
