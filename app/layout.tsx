@@ -50,9 +50,30 @@ export default function RootLayout({
 // CRITICAL: Prevent root font-size changes that cause layout scaling
 // Remove data-font-size from html element immediately on load (prevents zoomed-in appearance)
 if (typeof document !== 'undefined') {
+  // Remove attribute immediately
   document.documentElement.removeAttribute('data-font-size');
   // Also ensure html font-size is fixed at 16px
   document.documentElement.style.fontSize = '16px';
+  
+  // Watch for any attempts to set data-font-size on html and immediately remove it
+  // This prevents old cached JavaScript from causing layout scaling
+  const observer = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      if (mutation.type === 'attributes' && mutation.attributeName === 'data-font-size') {
+        const html = document.documentElement;
+        if (html.hasAttribute('data-font-size')) {
+          console.warn('[FontSizeGuard] Blocked attempt to set data-font-size on html element');
+          html.removeAttribute('data-font-size');
+          html.style.fontSize = '16px';
+        }
+      }
+    });
+  });
+  
+  observer.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['data-font-size']
+  });
 }
 
 // Global error handler for IndexedDB VersionErrors from old cached code
