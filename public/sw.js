@@ -158,15 +158,18 @@ self.addEventListener('fetch', (event) => {
               }
               return response;
             })
-            .catch(() => {
+            .catch((error) => {
               // Network failed for navigation request
+              console.log('[Service Worker] Navigation request failed for:', url.pathname, 'error:', error);
               // For dashboard routes (/base/*), return app shell to allow client-side routing
               if (url.pathname.startsWith('/base/') || url.pathname.startsWith('/notebook')) {
+                console.log('[Service Worker] Dashboard route detected, checking for app shell...');
                 return caches.match('/').then((rootResponse) => {
                   if (rootResponse) {
-                    console.log('[Service Worker] Returning app shell for dashboard route:', url.pathname);
+                    console.log('[Service Worker] ✅ Returning app shell for dashboard route:', url.pathname);
                     return rootResponse;
                   }
+                  console.warn('[Service Worker] ❌ Root HTML not cached! Cannot serve app shell for:', url.pathname);
                   // Root not cached - return offline page
                   return new Response(
                 `<!DOCTYPE html>
