@@ -109,21 +109,29 @@ body {
 /* Font size variables */
 /* CRITICAL: Prevent html element from ever having font-size changed by these rules */
 /* These rules should only apply to body and content elements, not html */
-html,
+/* Must use higher specificity and !important to ensure html never changes */
+html {
+  font-size: 16px !important;
+}
+html[data-font-size],
 html[data-font-size="small"],
 html[data-font-size="medium"],
 html[data-font-size="large"] {
   font-size: 16px !important;
 }
 
+/* Only apply to non-html elements */
+body[data-font-size="small"],
 [data-font-size="small"]:not(html) {
   font-size: 14px;
 }
 
+body[data-font-size="medium"],
 [data-font-size="medium"]:not(html) {
   font-size: 16px;
 }
 
+body[data-font-size="large"],
 [data-font-size="large"]:not(html) {
   font-size: 18px;
 }
