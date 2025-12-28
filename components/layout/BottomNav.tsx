@@ -41,19 +41,25 @@ export default function BottomNav({
       }}
     >
       <div 
-        className="flex items-center justify-around h-14 px-1" 
+        className="flex items-center justify-around" 
         style={{ 
           paddingBottom: 'env(safe-area-inset-bottom, 0px)', 
           height: '56px',
+          paddingLeft: '4px',
+          paddingRight: '4px',
           fontSize: '16px' // Isolate from data-font-size changes
         }}
       >
         <button
           onClick={onCreateNote}
-          className="flex flex-col items-center justify-center w-12 h-12 bg-green-600 hover:bg-green-700 text-white rounded transition-colors shrink-0"
+          className="flex flex-col items-center justify-center bg-green-600 hover:bg-green-700 text-white rounded transition-colors shrink-0"
           title="Create note"
           aria-label="Create new note"
-          style={{ fontSize: '16px' }} // Isolate from data-font-size changes
+          style={{ 
+            fontSize: '16px', // Isolate from data-font-size changes
+            width: '48px',
+            height: '48px'
+          }}
         >
           <span style={{ fontSize: '30px', lineHeight: 1 }}>+</span>
         </button>
@@ -72,10 +78,14 @@ export default function BottomNav({
                 onTabClick(tab.id);
               }}
               type="button"
-              className={`flex flex-col items-center justify-center h-12 text-text-primary hover:bg-bg-secondary rounded flex-shrink-0 ${
+              className={`flex flex-col items-center justify-center text-text-primary hover:bg-bg-secondary rounded flex-shrink-0 ${
                 activeTabId === tab.id ? 'bg-bg-secondary' : ''
               } ${isStapleTab ? 'flex-1' : 'flex-1'}`}
-              style={{ minWidth: 0, fontSize: '16px' }} // Isolate from data-font-size changes
+              style={{ 
+                minWidth: 0, 
+                fontSize: '16px', // Isolate from data-font-size changes
+                height: '48px'
+              }}
             >
               <span style={{ fontSize: '18px', lineHeight: '1.2' }}>{tab.icon}</span>
               <span 
