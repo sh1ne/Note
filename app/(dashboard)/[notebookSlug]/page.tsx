@@ -451,15 +451,43 @@ export default function NotebookPage() {
     const tab = getTabById(tabId);
     if (!tab) return;
 
-    // Don't navigate if we're already on this tab and it's a staple tab
+    // Don't navigate if we're already on this tab
     // (prevents infinite loading when clicking the same tab)
-    if (isStapleNoteTab(tab) && activeTabId === tabId) {
-      // Check if we're already on the note page for this tab
-      const expectedSlug = createSlug(tab.name);
+    if (activeTabId === tabId) {
+      // Check if we're already on the correct page for this tab
       const currentPath = pathname || '';
-      if (currentPath.includes(`/${notebookSlug}/${expectedSlug}`)) {
-        // Already on this note, don't navigate again
-        return;
+      
+      if (isStapleNoteTab(tab)) {
+        // For staple tabs, check if we're on the note page
+        const expectedSlug = createSlug(tab.name);
+        if (currentPath.includes(`/${notebookSlug}/${expectedSlug}`)) {
+          // Already on this note, don't navigate again
+          console.log('[handleTabClick] Already on staple tab, skipping navigation:', tab.name);
+          return;
+        }
+      } else if (tab.name === 'All Notes') {
+        // For "All Notes", check if we're on the notebook page with view param
+        if (currentPath === `/${notebookSlug}` || currentPath === `/${notebookSlug}?view=all-notes`) {
+          console.log('[handleTabClick] Already on All Notes, skipping navigation');
+          return;
+        }
+      } else if (tab.name === 'More') {
+        // For "More", check if we're on the more page
+        if (currentPath === `/${notebookSlug}/more`) {
+          console.log('[handleTabClick] Already on More, skipping navigation');
+          return;
+        }
+      } else {
+        // For regular tabs, check if we're on a note in this tab
+        // If we're already on a note page and it belongs to this tab, don't navigate
+        const noteSlug = currentPath.split('/').pop()?.split('?')[0];
+        if (noteSlug && currentPath.startsWith(`/${notebookSlug}/`)) {
+          // We're on a note page - check if it belongs to this tab
+          // For now, just skip navigation if we're already on a note page
+          // (More precise check would require loading the note, which we want to avoid)
+          console.log('[handleTabClick] Already on a note page, skipping navigation for tab:', tab.name);
+          return;
+        }
       }
     }
 

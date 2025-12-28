@@ -91,9 +91,15 @@ self.addEventListener('fetch', (event) => {
           return cachedResponse;
         }
         // Not in cache - fetch it (will fail offline, but that's expected in dev mode)
-        // Don't catch the error - let it fail naturally so Next.js can handle it
+        // CRITICAL: Don't catch the error - let it fail naturally so Next.js can handle it
         // This prevents the Service Worker from breaking the page with 404/503 responses
-        return fetch(request);
+        // If offline, the fetch will fail and the browser will handle it naturally
+        return fetch(request).catch((error) => {
+          // In dev mode, if fetch fails (offline), just let it fail - don't return 503
+          // The browser will handle the failed request naturally
+          console.log('[Service Worker] Dev static asset fetch failed (offline):', url.pathname);
+          throw error; // Re-throw to let browser handle it
+        });
       })
     );
     return;
