@@ -36,6 +36,7 @@ export default function RootLayout({
   if (typeof window !== 'undefined') {
     // Remove any existing data-font-size from html element (from old code or cached state)
     document.documentElement.removeAttribute('data-font-size');
+    // Don't set inline style - let CSS handle it naturally
   }
   
   return (
@@ -50,10 +51,8 @@ export default function RootLayout({
 // CRITICAL: Prevent root font-size changes that cause layout scaling
 // Remove data-font-size from html element immediately on load (prevents zoomed-in appearance)
 if (typeof document !== 'undefined') {
-  // Remove attribute immediately
+  // Remove attribute immediately - this is the key fix
   document.documentElement.removeAttribute('data-font-size');
-  // Also ensure html font-size is fixed at 16px
-  document.documentElement.style.fontSize = '16px';
   
   // Watch for any attempts to set data-font-size on html and immediately remove it
   // This prevents old cached JavaScript from causing layout scaling
@@ -64,7 +63,7 @@ if (typeof document !== 'undefined') {
         if (html.hasAttribute('data-font-size')) {
           console.warn('[FontSizeGuard] Blocked attempt to set data-font-size on html element');
           html.removeAttribute('data-font-size');
-          html.style.fontSize = '16px';
+          // Don't set inline style - let CSS handle it naturally
         }
       }
     });
