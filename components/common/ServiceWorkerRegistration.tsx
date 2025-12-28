@@ -37,16 +37,23 @@ export default function ServiceWorkerRegistration() {
         });
 
       // Handle service worker updates
-      // Note: controllerchange only fires when new SW takes control (usually when all tabs closed)
-      // So this is safe - user won't be actively editing when this fires
+      // Only reload if there's actually a new service worker (not on initial install)
       let refreshing = false;
+      let hasExistingController = !!navigator.serviceWorker.controller;
+      
       const handleControllerChange = () => {
-        if (!refreshing) {
+        // Only reload if we had an existing controller (meaning this is an update, not initial install)
+        // This prevents reload loops on first load
+        if (!refreshing && hasExistingController) {
           refreshing = true;
-          // Wait a moment to ensure any pending saves complete (2.5s debounce + buffer)
+          console.log('[Service Worker] New version activated, reloading in 2 seconds...');
+          // Wait a moment to ensure any pending saves complete
           setTimeout(() => {
             window.location.reload();
-          }, 4000); // Wait 4 seconds to ensure saves complete
+          }, 2000); // Reduced from 4s to 2s for better UX
+        } else if (!hasExistingController) {
+          // First install - just log, don't reload
+          console.log('[Service Worker] Initial install complete, no reload needed');
         }
       };
       
