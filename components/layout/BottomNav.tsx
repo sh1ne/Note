@@ -31,15 +31,31 @@ export default function BottomNav({
     : sortedStapleTabs;
 
   return (
-    <nav className="fixed left-0 right-0 bg-bg-primary border-t border-bg-secondary z-50 overflow-hidden" style={{ borderRadius: 0, bottom: '-4px', height: '56px' }}>
-      <div className="flex items-center justify-around h-14 px-1" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)', height: '56px' }}>
+    <nav 
+      className="fixed left-0 right-0 bg-bg-primary border-t border-bg-secondary z-50 overflow-hidden" 
+      style={{ 
+        borderRadius: 0, 
+        bottom: '-4px', 
+        height: '56px',
+        fontSize: '16px' // Isolate from data-font-size changes
+      }}
+    >
+      <div 
+        className="flex items-center justify-around h-14 px-1" 
+        style={{ 
+          paddingBottom: 'env(safe-area-inset-bottom, 0px)', 
+          height: '56px',
+          fontSize: '16px' // Isolate from data-font-size changes
+        }}
+      >
         <button
           onClick={onCreateNote}
           className="flex flex-col items-center justify-center w-12 h-12 bg-green-600 hover:bg-green-700 text-white rounded transition-colors shrink-0"
           title="Create note"
           aria-label="Create new note"
+          style={{ fontSize: '16px' }} // Isolate from data-font-size changes
         >
-          <span className="text-3xl leading-none">+</span>
+          <span style={{ fontSize: '30px', lineHeight: 1 }}>+</span>
         </button>
         {sortedTabs.map((tab) => {
           const isStapleTab = tab.isStaple;
@@ -59,12 +75,13 @@ export default function BottomNav({
               className={`flex flex-col items-center justify-center h-12 text-text-primary hover:bg-bg-secondary rounded flex-shrink-0 ${
                 activeTabId === tab.id ? 'bg-bg-secondary' : ''
               } ${isStapleTab ? 'flex-1' : 'flex-1'}`}
-              style={{ minWidth: 0 }}
+              style={{ minWidth: 0, fontSize: '16px' }} // Isolate from data-font-size changes
             >
-              <span className="text-lg shrink-0" style={{ lineHeight: '1.2' }}>{tab.icon}</span>
+              <span style={{ fontSize: '18px', lineHeight: '1.2' }}>{tab.icon}</span>
               <span 
-                className={`leading-tight text-center px-0.5 mt-0.5 ${isStapleTab ? 'text-[10px] truncate w-full' : 'text-[10px]'}`}
+                className={`leading-tight text-center px-0.5 mt-0.5 ${isStapleTab ? 'truncate w-full' : ''}`}
                 style={{ 
+                  fontSize: '10px', // Fixed pixel size, not rem-based
                   minHeight: '12px', 
                   display: 'flex', 
                   alignItems: 'center', 
