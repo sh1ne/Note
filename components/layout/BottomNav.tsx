@@ -31,63 +31,74 @@ export default function BottomNav({
     : sortedStapleTabs;
 
   return (
-    <nav 
-      className="fixed left-0 right-0 bg-bg-primary border-t border-bg-secondary z-50 overflow-hidden" 
-      style={{ 
-        borderRadius: 0, 
-        bottom: '-4px', 
-        height: '56px',
-        fontSize: '16px' // Isolate from data-font-size changes
-      }}
-    >
-      <div 
-        className="flex items-center justify-around" 
+    <>
+      <style jsx>{`
+        /* Force BottomNav to always use 16px base sizing, regardless of data-font-size */
+        nav[data-bottom-nav] {
+          font-size: 16px !important;
+        }
+        nav[data-bottom-nav] * {
+          font-size: inherit;
+        }
+      `}</style>
+      <nav 
+        data-bottom-nav
+        className="fixed left-0 right-0 bg-bg-primary border-t border-bg-secondary z-50 overflow-hidden" 
         style={{ 
-          paddingBottom: 'env(safe-area-inset-bottom, 0px)', 
+          borderRadius: 0, 
+          bottom: '-4px', 
           height: '56px',
-          paddingLeft: '4px',
-          paddingRight: '4px',
           fontSize: '16px' // Isolate from data-font-size changes
         }}
       >
-        <button
-          onClick={onCreateNote}
-          className="flex flex-col items-center justify-center bg-green-600 hover:bg-green-700 text-white rounded transition-colors shrink-0"
-          title="Create note"
-          aria-label="Create new note"
+        <div 
+          className="flex items-center justify-around" 
           style={{ 
-            fontSize: '16px', // Isolate from data-font-size changes
-            width: '48px',
-            height: '48px'
+            paddingBottom: 'env(safe-area-inset-bottom, 0px)', 
+            height: '56px',
+            paddingLeft: '4px',
+            paddingRight: '4px',
+            fontSize: '16px' // Isolate from data-font-size changes
           }}
         >
-          <span style={{ fontSize: '30px', lineHeight: 1 }}>+</span>
-        </button>
-        {sortedTabs.map((tab) => {
-          const isStapleTab = tab.isStaple;
-          const isRegularTab = !isStapleTab;
-          return (
-            <button
-              key={tab.id}
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                const isOffline = typeof window !== 'undefined' && !navigator.onLine;
-                console.log('[BottomNav] Tab clicked:', tab.name, 'id:', tab.id, 'offline:', isOffline, 'timestamp:', new Date().toISOString());
-                console.trace('[BottomNav] Click stack trace');
-                onTabClick(tab.id);
-              }}
-              type="button"
-              className={`flex flex-col items-center justify-center text-text-primary hover:bg-bg-secondary rounded flex-shrink-0 ${
-                activeTabId === tab.id ? 'bg-bg-secondary' : ''
-              } ${isStapleTab ? 'flex-1' : 'flex-1'}`}
-              style={{ 
-                minWidth: 0, 
-                fontSize: '16px', // Isolate from data-font-size changes
-                height: '48px'
-              }}
-            >
-              <span style={{ fontSize: '18px', lineHeight: '1.2' }}>{tab.icon}</span>
+          <button
+            onClick={onCreateNote}
+            className="flex flex-col items-center justify-center bg-green-600 hover:bg-green-700 text-white rounded transition-colors shrink-0"
+            title="Create note"
+            aria-label="Create new note"
+            style={{ 
+              fontSize: '16px', // Isolate from data-font-size changes
+              width: '48px',
+              height: '48px'
+            }}
+          >
+            <span style={{ fontSize: '30px', lineHeight: 1 }}>+</span>
+          </button>
+          {sortedTabs.map((tab) => {
+            const isStapleTab = tab.isStaple;
+            const isRegularTab = !isStapleTab;
+            return (
+              <button
+                key={tab.id}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const isOffline = typeof window !== 'undefined' && !navigator.onLine;
+                  console.log('[BottomNav] Tab clicked:', tab.name, 'id:', tab.id, 'offline:', isOffline, 'timestamp:', new Date().toISOString());
+                  console.trace('[BottomNav] Click stack trace');
+                  onTabClick(tab.id);
+                }}
+                type="button"
+                className={`flex flex-col items-center justify-center text-text-primary hover:bg-bg-secondary rounded flex-shrink-0 ${
+                  activeTabId === tab.id ? 'bg-bg-secondary' : ''
+                } ${isStapleTab ? 'flex-1' : 'flex-1'}`}
+                style={{ 
+                  minWidth: 0, 
+                  fontSize: '16px', // Isolate from data-font-size changes
+                  height: '48px'
+                }}
+              >
+                <span style={{ fontSize: '18px', lineHeight: '1.2' }}>{tab.icon}</span>
               <span 
                 className={`text-center ${isStapleTab ? 'truncate w-full' : ''}`}
                 style={{ 
@@ -110,6 +121,7 @@ export default function BottomNav({
         })}
       </div>
     </nav>
+    </>
   );
 }
 
