@@ -11,10 +11,11 @@ export default function ServiceWorkerDebug() {
   } | null>(null);
 
   useEffect(() => {
-    // Only show in development OR if localStorage flag is set
-    const showDebug = process.env.NODE_ENV === 'development' || 
-                     (typeof window !== 'undefined' && localStorage.getItem('sw-debug') === 'true');
+    // Only show if localStorage flag is set (works in both dev and production)
+    // In production, user must enable via: localStorage.setItem('sw-debug', 'true')
+    if (typeof window === 'undefined') return;
     
+    const showDebug = localStorage.getItem('sw-debug') === 'true';
     if (!showDebug) return;
 
     const updateInfo = async () => {
@@ -64,10 +65,10 @@ export default function ServiceWorkerDebug() {
     };
   }, []);
 
-  // Only show in development or if flag is set
-  const showDebug = process.env.NODE_ENV === 'development' || 
-                   (typeof window !== 'undefined' && localStorage.getItem('sw-debug') === 'true');
+  // Only show if flag is set
+  if (typeof window === 'undefined') return null;
   
+  const showDebug = localStorage.getItem('sw-debug') === 'true';
   if (!showDebug || !swInfo) {
     return null;
   }
