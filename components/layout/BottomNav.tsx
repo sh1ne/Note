@@ -89,14 +89,18 @@ export default function BottomNav({
             >
               <span style={{ fontSize: '18px', lineHeight: '1.2' }}>{tab.icon}</span>
               <span 
-                className={`leading-tight text-center px-0.5 mt-0.5 ${isStapleTab ? 'truncate w-full' : ''}`}
+                className={`text-center ${isStapleTab ? 'truncate w-full' : ''}`}
                 style={{ 
                   fontSize: '10px', // Fixed pixel size, not rem-based
                   minHeight: '12px', 
                   display: 'flex', 
                   alignItems: 'center', 
                   justifyContent: 'center',
-                  ...(isRegularTab ? { overflow: 'visible', whiteSpace: 'normal', wordBreak: 'break-word', lineHeight: '1.1' } : {})
+                  paddingLeft: '2px',
+                  paddingRight: '2px',
+                  marginTop: '2px',
+                  lineHeight: '1.1',
+                  ...(isRegularTab ? { overflow: 'visible', whiteSpace: 'normal', wordBreak: 'break-word' } : {})
                 }}
               >
                 {tab.name === 'Long-term' ? 'Long' : tab.name === 'Short-Term' ? 'Short' : tab.name}
