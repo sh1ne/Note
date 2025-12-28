@@ -296,22 +296,35 @@ export default function NoteEditorPage() {
   useEffect(() => {
     // Don't load if we're updating the URL or already loading (prevents infinite loop)
     const shouldLoad = async () => {
+      const isOffline = typeof window !== 'undefined' && !navigator.onLine;
+      console.log('[useEffect][loadNote] Check:', {
+        isUpdatingUrl: isUpdatingUrlRef.current,
+        isLoadingNote: isLoadingNoteRef.current,
+        noteSlug,
+        notebookId,
+        user: !!user,
+        isOffline,
+      });
+      
       if (isUpdatingUrlRef.current || isLoadingNoteRef.current || !noteSlug) {
+        console.log('[useEffect][loadNote] Skipping - conditions not met');
         return;
       }
       
       // If offline, allow loadNote to run even if notebookId is not set yet
       // (loadNote will try to get it from cache)
-      const isOffline = typeof window !== 'undefined' && !navigator.onLine;
       if (isOffline) {
         // Offline: check IndexedDB auth state and load note (loadNote will get notebookId from cache)
         try {
           const { getAuthState } = await import('@/lib/utils/authState');
           const authState = await getAuthState();
+          console.log('[useEffect][loadNote] Offline auth check result:', !!authState);
           if (authState) {
             // IndexedDB has auth state - load note even though user is null or notebookId is not set
             console.log('[useEffect] Offline: IndexedDB has auth state, loading note (notebookId may be loaded from cache)');
             loadNote();
+          } else {
+            console.log('[useEffect][loadNote] Offline but no auth state found');
           }
         } catch (error) {
           console.error('[useEffect] Error checking IndexedDB auth:', error);
@@ -321,14 +334,18 @@ export default function NoteEditorPage() {
       
       // Online: require notebookId to be set
       if (!notebookId) {
+        console.log('[useEffect][loadNote] Online but notebookId not set yet');
         return;
       }
       
       // If we have user, load immediately
       if (user) {
+        console.log('[useEffect][loadNote] Online with user, loading note');
         loadNote();
         return;
       }
+      
+      console.log('[useEffect][loadNote] No conditions met, not loading');
     };
     
     shouldLoad();
@@ -437,6 +454,8 @@ export default function NoteEditorPage() {
       console.log('[loadNote] Already loading, skipping duplicate call');
       return;
     }
+    
+    console.log('[loadNote] Starting loadNote for slug:', noteSlug);
     
     try {
       isLoadingNoteRef.current = true;
