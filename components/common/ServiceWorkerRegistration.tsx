@@ -72,20 +72,6 @@ export default function ServiceWorkerRegistration() {
                   }
                 }, 500);
               }
-              // If there's an active worker but no controller, it means the SW activated
-              // before this page loaded. We need to reload to let it take control.
-              // But first, try to send a message to claim clients
-              if (registration.active.state === 'activated') {
-                console.log('[Service Worker] Active worker is activated, sending claim message...');
-                registration.active.postMessage({ type: 'CLAIM_CLIENTS' });
-                // If still not controlling after a short delay, reload
-                setTimeout(() => {
-                  if (!navigator.serviceWorker.controller) {
-                    console.log('[Service Worker] Still not controlling after claim attempt, reloading...');
-                    window.location.reload();
-                  }
-                }, 1000);
-              }
             }
           }
 
