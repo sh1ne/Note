@@ -153,15 +153,15 @@ export default function DashboardLayout({
         return;
       }
       
-      // CRITICAL: If we're on a dashboard route, NEVER redirect
-      // This prevents redirects during navigation between notes
-      if (isOnDashboardRoute) {
-        console.log(`[AUTH_TRACE][DashboardLayout][REDIRECT_BLOCKED][route=${pathname}][online=${!isOffline}][reason=on_dashboard_route][timestamp=${timestamp}] Redirect blocked - on dashboard route`);
-        console.log('[DashboardLayout] On dashboard route - preventing redirect');
-        return; // Never redirect when on dashboard route
+      // CRITICAL: Only block redirects on dashboard route if user is authenticated
+      // If user is NOT authenticated, we should redirect to login even on dashboard routes
+      if (isOnDashboardRoute && hasIndexedDBAuth) {
+        console.log(`[AUTH_TRACE][DashboardLayout][REDIRECT_BLOCKED][route=${pathname}][online=${!isOffline}][reason=on_dashboard_route_authenticated][timestamp=${timestamp}] Redirect blocked - on dashboard route and authenticated`);
+        console.log('[DashboardLayout] On dashboard route and authenticated - preventing redirect');
+        return; // Only block redirects when authenticated
       }
       
-      // Only redirect if: IndexedDB is empty AND online AND no user AND not on dashboard route
+      // Only redirect if: IndexedDB is empty AND online AND no user
       // AND redirects are still enabled (auth not yet established)
       if (!user && !isOffline && !hasIndexedDBAuth && canRedirectRef.current) {
         // Online, no user, no IndexedDB auth state, not on dashboard - redirect to login
