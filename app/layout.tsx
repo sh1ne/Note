@@ -32,6 +32,12 @@ export default function RootLayout({
     });
   }
   
+  // CRITICAL: On mount, ensure html element never has data-font-size (prevents layout scaling)
+  if (typeof window !== 'undefined') {
+    // Remove any existing data-font-size from html element (from old code or cached state)
+    document.documentElement.removeAttribute('data-font-size');
+  }
+  
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="antialiased" suppressHydrationWarning>
@@ -41,6 +47,14 @@ export default function RootLayout({
         <script
           dangerouslySetInnerHTML={{
             __html: `window.__BUILD_TIMESTAMP__ = "${process.env.VERCEL_GIT_COMMIT_SHA || Date.now()}";
+// CRITICAL: Prevent root font-size changes that cause layout scaling
+// Remove data-font-size from html element immediately on load (prevents zoomed-in appearance)
+if (typeof document !== 'undefined') {
+  document.documentElement.removeAttribute('data-font-size');
+  // Also ensure html font-size is fixed at 16px
+  document.documentElement.style.fontSize = '16px';
+}
+
 // Global error handler for IndexedDB VersionErrors from old cached code
 // AND ChunkLoadError handler for offline black screen prevention
 if (typeof window !== 'undefined') {

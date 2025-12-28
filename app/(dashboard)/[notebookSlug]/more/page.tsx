@@ -187,6 +187,12 @@ export default function MorePage() {
   const loadUserPreferences = async () => {
     if (!user) return;
     try {
+      // CRITICAL: Remove data-font-size from html element if it exists (from old code)
+      // This prevents root font-size changes that cause layout scaling
+      if (typeof window !== 'undefined') {
+        document.documentElement.removeAttribute('data-font-size');
+      }
+      
       const { getUserPreferences } = await import('@/lib/firebase/firestore');
       const prefs = await getUserPreferences(user.uid);
       if (prefs?.fontSize && ['small', 'medium', 'large'].includes(prefs.fontSize)) {
@@ -586,6 +592,11 @@ export default function MorePage() {
                   key={size}
                   onClick={async () => {
                     setFontSize(size);
+                    // CRITICAL: Remove data-font-size from html element if it exists (from old code)
+                    // This prevents root font-size changes that cause layout scaling
+                    if (typeof window !== 'undefined') {
+                      document.documentElement.removeAttribute('data-font-size');
+                    }
                     // Apply font size to content areas only, not root to prevent layout scaling
                     document.body.setAttribute('data-font-size', size);
                     // Save to Firestore
