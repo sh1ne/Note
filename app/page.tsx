@@ -12,13 +12,14 @@ export default function Home() {
   const pathname = usePathname();
   const { user, loading } = useAuth();
 
+  // CRITICAL FIX: If we're on a dashboard/auth route, don't render anything
+  // The dashboard layout will handle it
+  if (pathname && pathname !== '/' && (pathname.startsWith('/base/') || pathname.startsWith('/notebook') || pathname.startsWith('/login'))) {
+    console.log('[HomePage] Already on dashboard/auth route, returning null:', pathname);
+    return null;
+  }
+
   useEffect(() => {
-    // CRITICAL FIX: Don't redirect if we're already on a dashboard/auth route
-    // This prevents redirects when service worker returns root HTML for uncached dashboard routes
-    if (pathname && pathname !== '/' && (pathname.startsWith('/base/') || pathname.startsWith('/notebook') || pathname.startsWith('/login'))) {
-      console.log('[HomePage] Already on dashboard/auth route, skipping redirect:', pathname);
-      return;
-    }
     
     // CRITICAL FIX: Don't redirect if we're offline and have IndexedDB auth
     // This prevents redirects when service worker returns root HTML for uncached routes
