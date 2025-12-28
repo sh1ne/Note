@@ -1,7 +1,7 @@
 // Service Worker for Note App PWA
-// Version: 1.2.0 - Updated to force cache refresh for font-size fix
-const CACHE_NAME = 'note-app-v3';
-const RUNTIME_CACHE = 'note-app-runtime-v3';
+// Version: 1.3.0 - Updated to force cache refresh for CSS fix
+const CACHE_NAME = 'note-app-v4';
+const RUNTIME_CACHE = 'note-app-runtime-v4';
 
 // Assets to cache immediately (app shell)
 const STATIC_ASSETS = [
