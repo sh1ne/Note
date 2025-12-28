@@ -186,11 +186,27 @@ export default function DashboardLayout({
   }, [user, loading, router, pathname, hasIndexedDBAuth]);
 
   // Prefetch staple routes when online to ensure they're cached
+  // Prefetching = downloading route code in the background so it's ready when you navigate
   useEffect(() => {
-    if (typeof window === 'undefined' || !router) return;
+    if (typeof window === 'undefined') {
+      console.log('[DashboardLayout][PREFETCH] Skipping - window undefined');
+      return;
+    }
+    
+    if (!router) {
+      console.log('[DashboardLayout][PREFETCH] Skipping - router not available');
+      return;
+    }
     
     const isOnline = navigator.onLine;
     const notebookSlug = pathname?.split('/')[1]; // Extract notebook slug from pathname
+    
+    console.log('[DashboardLayout][PREFETCH] Check:', {
+      isOnline,
+      notebookSlug,
+      pathname,
+      router: !!router,
+    });
     
     if (isOnline && notebookSlug && notebookSlug !== 'notebook') {
       // Prefetch staple routes to ensure chunks are cached
@@ -201,9 +217,15 @@ export default function DashboardLayout({
         `/${notebookSlug}/long-term`,
       ];
       
-      console.log('[DashboardLayout] Prefetching staple routes:', stapleRoutes);
+      console.log('[DashboardLayout][PREFETCH] Prefetching staple routes:', stapleRoutes);
       stapleRoutes.forEach((route) => {
         router.prefetch(route);
+      });
+    } else {
+      console.log('[DashboardLayout][PREFETCH] Conditions not met:', {
+        isOnline,
+        notebookSlug,
+        isNotNotebook: notebookSlug !== 'notebook',
       });
     }
   }, [router, pathname]);
