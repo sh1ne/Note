@@ -229,10 +229,20 @@ self.addEventListener('fetch', (event) => {
 // Message handler for cache management
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
+    console.log('[Service Worker] Received SKIP_WAITING message');
     self.skipWaiting();
   }
   if (event.data && event.data.type === 'CLEAR_CACHE') {
+    console.log('[Service Worker] Received CLEAR_CACHE message');
     caches.delete(CACHE_NAME);
     caches.delete(RUNTIME_CACHE);
+  }
+  if (event.data && event.data.type === 'CLAIM_CLIENTS') {
+    console.log('[Service Worker] Received CLAIM_CLIENTS message');
+    self.clients.claim().then(() => {
+      console.log('[Service Worker] Successfully claimed clients');
+    }).catch((error) => {
+      console.error('[Service Worker] Failed to claim clients:', error);
+    });
   }
 });
