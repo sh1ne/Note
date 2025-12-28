@@ -12,6 +12,27 @@ export default function ServiceWorkerRegistration() {
         .register('/sw.js', { scope: '/' })
         .then((registration) => {
           console.log('[Service Worker] Registered successfully:', registration.scope);
+          
+          // Check if service worker is already controlling
+          if (navigator.serviceWorker.controller) {
+            console.log('[Service Worker] Already controlling page');
+          } else {
+            console.log('[Service Worker] Not yet controlling - checking state...');
+            // Check if there's a waiting or installing worker
+            if (registration.waiting) {
+              console.log('[Service Worker] Found waiting worker, activating...');
+              registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+            }
+            if (registration.installing) {
+              console.log('[Service Worker] Found installing worker, will activate when ready');
+              registration.installing.addEventListener('statechange', () => {
+                if (registration.installing?.state === 'installed' && !navigator.serviceWorker.controller) {
+                  console.log('[Service Worker] Installing worker ready, activating...');
+                  registration.installing.postMessage({ type: 'SKIP_WAITING' });
+                }
+              });
+            }
+          }
 
           // Check for updates periodically
           updateInterval = setInterval(() => {
@@ -33,8 +54,9 @@ export default function ServiceWorkerRegistration() {
                       window.location.reload();
                     }, 1000);
                   } else {
-                    // First install - no action needed
-                    console.log('[Service Worker] Initial install complete');
+                    // First install - activate immediately
+                    console.log('[Service Worker] Initial install complete, activating...');
+                    newWorker.postMessage({ type: 'SKIP_WAITING' });
                   }
                 }
               });

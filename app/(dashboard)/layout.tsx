@@ -81,13 +81,24 @@ export default function DashboardLayout({
       const checkTimestamp = new Date().toISOString();
       console.log(`[AUTH_TRACE][DashboardLayout][AUTH_CHECK_START][route=${pathname}][online=${isOnline}][timestamp=${checkTimestamp}] Beginning async IndexedDB check`);
       
+      let timeoutId: NodeJS.Timeout | null = null;
+      let checkCompleted = false;
+      
       try {
         // Add timeout to IndexedDB check (5 seconds max)
-        const authPromise = isAuthenticated();
+        const authPromise = isAuthenticated().then((result) => {
+          checkCompleted = true;
+          if (timeoutId) clearTimeout(timeoutId);
+          return result;
+        });
+        
         const timeoutPromise = new Promise<boolean>((resolve) => {
-          setTimeout(() => {
-            console.warn(`[AUTH_TRACE][DashboardLayout][AUTH_CHECK_TIMEOUT][route=${pathname}] IndexedDB check timed out, defaulting to user state`);
-            resolve(false); // Default to false if timeout
+          timeoutId = setTimeout(() => {
+            if (!checkCompleted) {
+              console.warn(`[AUTH_TRACE][DashboardLayout][AUTH_CHECK_TIMEOUT][route=${pathname}] IndexedDB check timed out, defaulting to user state`);
+              checkCompleted = true;
+              resolve(false); // Default to false if timeout
+            }
           }, 5000);
         });
         
