@@ -99,6 +99,27 @@ export default function NotebookPage() {
         }
         setNotebookId(notebook.id);
         setError(null);
+        
+        // CRITICAL: When online, ensure all staple notes exist and are cached locally
+        // This ensures they're available offline even if you haven't visited them yet
+        const isOffline = typeof window !== 'undefined' && !navigator.onLine;
+        if (!isOffline && notebook.id) {
+          // Preload staple notes in the background (don't block UI)
+          (async () => {
+            try {
+              const { ensureStapleNoteExists } = await import('@/lib/utils/noteHelpers');
+              const stapleNames = ['Scratch', 'Now', 'Short-Term', 'Long-term'];
+              console.log('[NotebookPage] Preloading staple notes for offline use...');
+              for (const stapleName of stapleNames) {
+                await ensureStapleNoteExists(stapleName, notebook.id, user.uid);
+              }
+              console.log('[NotebookPage] ✅ All staple notes preloaded and cached');
+            } catch (error) {
+              console.error('[NotebookPage] Error preloading staple notes:', error);
+              // Don't block UI if preloading fails
+            }
+          })();
+        }
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Failed to load notebook';
         console.error('Error loading notebook:', err);
