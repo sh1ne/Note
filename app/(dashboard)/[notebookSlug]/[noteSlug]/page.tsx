@@ -285,8 +285,8 @@ export default function NoteEditorPage() {
       const now = new Date();
       setLastSaved(now);
       setIsSavedToCloud(true);
-      // Update tab name if it's not a staple note
-      if (note && note.tabId && note.tabId !== 'staple') {
+      // Update tab name if it's not a staple note and not a temp-tab ID
+      if (note && note.tabId && note.tabId !== 'staple' && !note.tabId.startsWith('temp-tab-')) {
         await updateTab(note.tabId, { name: note.title || 'Untitled Note' });
         await refreshTabs();
       }
@@ -680,8 +680,8 @@ export default function NoteEditorPage() {
     setTitleValue(newTitle);
     await handleTitleChange(newTitle);
     
-    // Update tab name if it's not a staple note
-    if (note && note.tabId && note.tabId !== 'staple') {
+    // Update tab name if it's not a staple note and not a temp-tab ID
+    if (note && note.tabId && note.tabId !== 'staple' && !note.tabId.startsWith('temp-tab-')) {
       await updateTab(note.tabId, { name: newTitle || 'Untitled Note' });
       await refreshTabs();
     }
