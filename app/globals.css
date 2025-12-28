@@ -2,6 +2,18 @@
 @tailwind components;
 @tailwind utilities;
 
+/* CRITICAL: Prevent root font-size changes FIRST - must come before any other font-size rules */
+/* This ensures html element font-size is ALWAYS 16px, regardless of any attributes or cached CSS */
+html {
+  font-size: 16px !important;
+}
+html[data-font-size],
+html[data-font-size="small"],
+html[data-font-size="medium"],
+html[data-font-size="large"] {
+  font-size: 16px !important;
+}
+
 :root {
   --background: #ffffff;
   --foreground: #000000;
@@ -109,15 +121,7 @@ body {
 /* Font size variables - ONLY apply to content areas, not root/html to prevent layout scaling */
 /* This ensures font-size changes only affect text content, not rem-based layout elements */
 /* Root font-size stays at 16px so rem-based layout (spacing, sizing) never changes */
-
-/* CRITICAL: Explicitly prevent html element from ever having font-size changed */
-/* This blocks any old cached CSS rules that might match html[data-font-size] */
-html,
-html[data-font-size="small"],
-html[data-font-size="medium"],
-html[data-font-size="large"] {
-  font-size: 16px !important; /* Fixed root font-size - never changes to prevent layout scaling */
-}
+/* NOTE: html font-size rules are defined at the top of this file to ensure they override any cached CSS */
 
 /* Only apply font-size to content areas (editor), never to html or body */
 body[data-font-size="small"] .tiptap,
