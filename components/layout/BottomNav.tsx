@@ -41,75 +41,75 @@ export default function BottomNav({
           font-size: inherit;
         }
       `}</style>
-      <nav 
-        data-bottom-nav
-        className="fixed left-0 right-0 bg-bg-primary border-t border-bg-secondary z-50 overflow-hidden" 
+    <nav 
+      data-bottom-nav
+      className="fixed left-0 right-0 bg-bg-primary border-t border-bg-secondary z-50 overflow-hidden" 
+      style={{ 
+        borderRadius: 0, 
+        bottom: '-4px', 
+        height: '64px',
+        fontSize: '16px' // Isolate from data-font-size changes
+      }}
+    >
+      <div 
+        className="flex items-center justify-around" 
         style={{ 
-          borderRadius: 0, 
-          bottom: '-4px', 
-          height: '56px',
+          paddingBottom: 'env(safe-area-inset-bottom, 0px)', 
+          height: '64px',
+          paddingLeft: '8px',
+          paddingRight: '8px',
           fontSize: '16px' // Isolate from data-font-size changes
         }}
       >
-        <div 
-          className="flex items-center justify-around" 
+        <button
+          onClick={onCreateNote}
+          className="flex flex-col items-center justify-center bg-green-600 hover:bg-green-700 text-white rounded transition-colors shrink-0"
+          title="Create note"
+          aria-label="Create new note"
           style={{ 
-            paddingBottom: 'env(safe-area-inset-bottom, 0px)', 
-            height: '56px',
-            paddingLeft: '4px',
-            paddingRight: '4px',
-            fontSize: '16px' // Isolate from data-font-size changes
+            fontSize: '16px', // Isolate from data-font-size changes
+            width: '56px',
+            height: '56px'
           }}
         >
-          <button
-            onClick={onCreateNote}
-            className="flex flex-col items-center justify-center bg-green-600 hover:bg-green-700 text-white rounded transition-colors shrink-0"
-            title="Create note"
-            aria-label="Create new note"
-            style={{ 
-              fontSize: '16px', // Isolate from data-font-size changes
-              width: '48px',
-              height: '48px'
-            }}
-          >
-            <span style={{ fontSize: '30px', lineHeight: 1 }}>+</span>
-          </button>
-          {sortedTabs.map((tab) => {
-            const isStapleTab = tab.isStaple;
-            const isRegularTab = !isStapleTab;
-            return (
-              <button
-                key={tab.id}
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  const isOffline = typeof window !== 'undefined' && !navigator.onLine;
-                  console.log('[BottomNav] Tab clicked:', tab.name, 'id:', tab.id, 'offline:', isOffline, 'timestamp:', new Date().toISOString());
-                  console.trace('[BottomNav] Click stack trace');
-                  onTabClick(tab.id);
-                }}
-                type="button"
-                className={`flex flex-col items-center justify-center text-text-primary hover:bg-bg-secondary rounded flex-shrink-0 ${
-                  activeTabId === tab.id ? 'bg-bg-secondary' : ''
-                } ${isStapleTab ? 'flex-1' : 'flex-1'}`}
-                style={{ 
-                  minWidth: 0, 
-                  fontSize: '16px', // Isolate from data-font-size changes
-                  height: '48px'
-                }}
-              >
-                <span style={{ fontSize: '18px', lineHeight: '1.2' }}>{tab.icon}</span>
+          <span style={{ fontSize: '36px', lineHeight: 1 }}>+</span>
+        </button>
+        {sortedTabs.map((tab) => {
+          const isStapleTab = tab.isStaple;
+          const isRegularTab = !isStapleTab;
+          return (
+            <button
+              key={tab.id}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const isOffline = typeof window !== 'undefined' && !navigator.onLine;
+                console.log('[BottomNav] Tab clicked:', tab.name, 'id:', tab.id, 'offline:', isOffline, 'timestamp:', new Date().toISOString());
+                console.trace('[BottomNav] Click stack trace');
+                onTabClick(tab.id);
+              }}
+              type="button"
+              className={`flex flex-col items-center justify-center text-text-primary hover:bg-bg-secondary rounded flex-shrink-0 ${
+                activeTabId === tab.id ? 'bg-bg-secondary' : ''
+              } ${isStapleTab ? 'flex-1' : 'flex-1'}`}
+              style={{ 
+                minWidth: 0, 
+                fontSize: '16px', // Isolate from data-font-size changes
+                height: '56px'
+              }}
+            >
+              <span style={{ fontSize: '24px', lineHeight: '1.2' }}>{tab.icon}</span>
               <span 
                 className={`text-center ${isStapleTab ? 'truncate w-full' : ''}`}
                 style={{ 
-                  fontSize: '10px', // Fixed pixel size, not rem-based
-                  minHeight: '12px', 
+                  fontSize: '12px', // Fixed pixel size, not rem-based - increased from 10px
+                  minHeight: '14px', 
                   display: 'flex', 
                   alignItems: 'center', 
                   justifyContent: 'center',
-                  paddingLeft: '2px',
-                  paddingRight: '2px',
-                  marginTop: '2px',
+                  paddingLeft: '4px',
+                  paddingRight: '4px',
+                  marginTop: '4px',
                   lineHeight: '1.1',
                   ...(isRegularTab ? { overflow: 'visible', whiteSpace: 'normal', wordBreak: 'break-word' } : {})
                 }}
