@@ -296,7 +296,31 @@ export default function NoteEditorPage() {
   useEffect(() => {
     // Don't load if we're updating the URL or already loading (prevents infinite loop)
     const shouldLoad = async () => {
-      if (isUpdatingUrlRef.current || isLoadingNoteRef.current || !noteSlug || !notebookId) {
+      if (isUpdatingUrlRef.current || isLoadingNoteRef.current || !noteSlug) {
+        return;
+      }
+      
+      // If offline, allow loadNote to run even if notebookId is not set yet
+      // (loadNote will try to get it from cache)
+      const isOffline = typeof window !== 'undefined' && !navigator.onLine;
+      if (isOffline) {
+        // Offline: check IndexedDB auth state and load note (loadNote will get notebookId from cache)
+        try {
+          const { getAuthState } = await import('@/lib/utils/authState');
+          const authState = await getAuthState();
+          if (authState) {
+            // IndexedDB has auth state - load note even though user is null or notebookId is not set
+            console.log('[useEffect] Offline: IndexedDB has auth state, loading note (notebookId may be loaded from cache)');
+            loadNote();
+          }
+        } catch (error) {
+          console.error('[useEffect] Error checking IndexedDB auth:', error);
+        }
+        return;
+      }
+      
+      // Online: require notebookId to be set
+      if (!notebookId) {
         return;
       }
       
@@ -304,22 +328,6 @@ export default function NoteEditorPage() {
       if (user) {
         loadNote();
         return;
-      }
-      
-      // If offline and no user, check IndexedDB auth state
-      const isOffline = typeof window !== 'undefined' && !navigator.onLine;
-      if (isOffline) {
-        try {
-          const { getAuthState } = await import('@/lib/utils/authState');
-          const authState = await getAuthState();
-          if (authState) {
-            // IndexedDB has auth state - load note even though user is null
-            console.log('[useEffect] Offline: IndexedDB has auth state, loading note');
-            loadNote();
-          }
-        } catch (error) {
-          console.error('[useEffect] Error checking IndexedDB auth:', error);
-        }
       }
     };
     
