@@ -47,7 +47,7 @@ export default function BottomNav({
         style={{ 
           borderRadius: 0, 
           bottom: '-4px', 
-          height: '56px',
+          height: '80px',
           fontSize: '16px' // Isolate from data-font-size changes
         }}
       >
@@ -55,9 +55,9 @@ export default function BottomNav({
           className="flex items-center justify-around" 
           style={{ 
             paddingBottom: 'env(safe-area-inset-bottom, 0px)', 
-            height: '56px',
-            paddingLeft: '4px',
-            paddingRight: '4px',
+            height: '80px',
+            paddingLeft: '16px',
+            paddingRight: '16px',
             fontSize: '16px' // Isolate from data-font-size changes
           }}
         >
@@ -68,11 +68,11 @@ export default function BottomNav({
             aria-label="Create new note"
             style={{ 
               fontSize: '16px', // Isolate from data-font-size changes
-              width: '48px',
-              height: '48px'
+              width: '72px',
+              height: '72px'
             }}
           >
-            <span style={{ fontSize: '30px', lineHeight: 1 }}>+</span>
+            <span style={{ fontSize: '48px', lineHeight: 1 }}>+</span>
           </button>
           {sortedTabs.map((tab) => {
             const isStapleTab = tab.isStaple;
@@ -95,21 +95,21 @@ export default function BottomNav({
                 style={{ 
                   minWidth: 0, 
                   fontSize: '16px', // Isolate from data-font-size changes
-                  height: '48px'
+                  height: '72px'
                 }}
               >
-                <span style={{ fontSize: '18px', lineHeight: '1.2' }}>{tab.icon}</span>
+                <span style={{ fontSize: '32px', lineHeight: '1.2' }}>{tab.icon}</span>
               <span 
                 className={`text-center ${isStapleTab ? 'truncate w-full' : ''}`}
                 style={{ 
-                  fontSize: '10px', // Fixed pixel size, not rem-based - original size
-                  minHeight: '12px', 
+                  fontSize: '16px', // Fixed pixel size, not rem-based - larger to match pic2
+                  minHeight: '18px', 
                   display: 'flex', 
                   alignItems: 'center', 
                   justifyContent: 'center',
-                  paddingLeft: '2px',
-                  paddingRight: '2px',
-                  marginTop: '2px',
+                  paddingLeft: '8px',
+                  paddingRight: '8px',
+                  marginTop: '8px',
                   lineHeight: '1.1',
                   ...(isRegularTab ? { overflow: 'visible', whiteSpace: 'normal', wordBreak: 'break-word' } : {})
                 }}
