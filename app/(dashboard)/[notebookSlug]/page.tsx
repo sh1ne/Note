@@ -29,7 +29,20 @@ export default function NotebookPage() {
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Note[]>([]);
+  const [swWarning, setSwWarning] = useState<string | null>(null);
   const hasHandledInitialLoad = useRef(false);
+
+  // Check if Service Worker is installed but not controlling (iPhone Safari issue)
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistration().then((registration) => {
+        if (registration && !navigator.serviceWorker.controller) {
+          // SW is installed but not controlling - need reload
+          setSwWarning('Reload once to enable offline mode.');
+        }
+      });
+    }
+  }, []);
 
   // Handle search including staple notes
   useEffect(() => {
