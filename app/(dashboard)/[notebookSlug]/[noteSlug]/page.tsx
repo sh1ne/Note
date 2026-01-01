@@ -311,8 +311,8 @@ export default function NoteEditorPage() {
         return;
       }
       
-      // If offline, allow loadNote to run even if notebookId is not set yet
-      // (loadNote will try to get it from cache)
+      // CRITICAL: If offline, ALWAYS try to load note (even if notebookId/user not set)
+      // loadNote() will get notebookId from cache and create staple notes if needed
       if (isOffline) {
         // Offline: check IndexedDB auth state and load note (loadNote will get notebookId from cache)
         try {
@@ -324,10 +324,24 @@ export default function NoteEditorPage() {
             console.log('[useEffect] Offline: IndexedDB has auth state, loading note (notebookId may be loaded from cache)');
             loadNote();
           } else {
-            console.log('[useEffect][loadNote] Offline but no auth state found');
+            console.log('[useEffect][loadNote] Offline but no auth state found - will retry in 1 second');
+            // Retry after a short delay in case IndexedDB is still initializing
+            setTimeout(() => {
+              if (!isUpdatingUrlRef.current && !isLoadingNoteRef.current && noteSlug) {
+                console.log('[useEffect][loadNote] Retrying offline load after delay');
+                shouldLoad();
+              }
+            }, 1000);
           }
         } catch (error) {
           console.error('[useEffect] Error checking IndexedDB auth:', error);
+          // Even if check fails, try loadNote anyway - it might work
+          setTimeout(() => {
+            if (!isUpdatingUrlRef.current && !isLoadingNoteRef.current && noteSlug) {
+              console.log('[useEffect][loadNote] Retrying after auth check error');
+              loadNote();
+            }
+          }, 500);
         }
         return;
       }
@@ -349,6 +363,24 @@ export default function NoteEditorPage() {
     };
     
     shouldLoad();
+    
+    // CRITICAL: Also set up a retry mechanism for offline scenarios
+    // This ensures loadNote runs even if initial conditions aren't met
+    let retryTimeout: NodeJS.Timeout | null = null;
+    if (typeof window !== 'undefined' && !navigator.onLine && noteSlug) {
+      retryTimeout = setTimeout(() => {
+        if (!isUpdatingUrlRef.current && !isLoadingNoteRef.current && noteSlug) {
+          console.log('[useEffect][loadNote] Offline retry triggered after 2 seconds');
+          shouldLoad();
+        }
+      }, 2000);
+    }
+    
+    return () => {
+      if (retryTimeout) {
+        clearTimeout(retryTimeout);
+      }
+    };
   }, [user, noteSlug, notebookId]);
 
   // Save note when navigating away
@@ -509,13 +541,36 @@ export default function NoteEditorPage() {
       }
       
       if (!currentNotebookId) {
-        // If still no notebookId, we can't proceed
-        if (isOffline) {
-          setError('Notebook not found in local cache. Please go online to load it first.');
-        } else {
-          setError('Notebook not found');
+        // If still no notebookId, try one more time to get it from cache
+        // (in case IndexedDB was still initializing)
+        if (isOffline && currentUserId && notebookSlug) {
+          console.log('[loadNote] Notebook not found, retrying cache lookup...');
+          try {
+            // Wait a moment for IndexedDB to finish initializing
+            await new Promise(resolve => setTimeout(resolve, 500));
+            const { getNotebookBySlugLocally } = await import('@/lib/utils/localStorage');
+            const retryNotebook = await getNotebookBySlugLocally(currentUserId, notebookSlug);
+            if (retryNotebook) {
+              currentNotebookId = retryNotebook.id;
+              setNotebookId(retryNotebook.id);
+              console.log('[loadNote] ✅ Found notebook on retry:', currentNotebookId);
+            }
+          } catch (retryError) {
+            console.error('[loadNote] Retry failed:', retryError);
+          }
         }
-        return;
+        
+        // If still no notebookId, we can't proceed
+        if (!currentNotebookId) {
+          if (isOffline) {
+            setError('Notebook not found in local cache. Please go online to load it first.');
+          } else {
+            setError('Notebook not found');
+          }
+          isLoadingNoteRef.current = false;
+          setLoading(false);
+          return;
+        }
       }
       
       let noteData: Note | null = null;
